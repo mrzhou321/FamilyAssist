@@ -2,7 +2,9 @@
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
 function getToken() {
-  return localStorage.getItem('token')
+  return window.location.pathname.startsWith('/admin')
+    ? localStorage.getItem('admin_token')
+    : localStorage.getItem('token')
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

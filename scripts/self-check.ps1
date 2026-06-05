@@ -82,7 +82,12 @@ client = TestClient(app)
 
 assert client.get("/health").status_code == 200
 
-members = client.get("/api/members")
+assert client.get("/api/members").status_code == 401
+admin_login = client.post("/api/admin/login", json={"username": "admin", "password": "family-admin"})
+assert admin_login.status_code == 200
+admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+members = client.get("/api/members", headers=admin_headers)
 assert members.status_code == 200
 assert len(members.json()) >= 1
 
@@ -109,7 +114,8 @@ with client.stream("GET", "/api/recommendations/diet/stream?member_id=1") as str
     assert stream.status_code == 200
     assert "data:" in "".join(stream.iter_text())
 
-pairing = client.post("/api/pairing/members/1")
+assert client.post("/api/pairing/members/1").status_code == 401
+pairing = client.post("/api/pairing/members/1", headers=admin_headers)
 assert pairing.status_code == 201
 session = client.post(
     "/api/pairing/exchange",

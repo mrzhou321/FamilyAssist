@@ -1,8 +1,9 @@
 import '../globals.css'
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import MemoryLibrary from './pages/MemoryLibrary'
+import Login from './pages/Login'
 import Members from './pages/Members'
 import Pairing from './pages/Pairing'
 import Review from './pages/Review'
@@ -17,6 +18,17 @@ const NAV = [
 ]
 
 export function AdminApp() {
+  const [isAuthed, setIsAuthed] = useState(() => Boolean(localStorage.getItem('admin_token')))
+
+  if (!isAuthed) {
+    return <Login onLogin={() => setIsAuthed(true)} />
+  }
+
+  function logout() {
+    localStorage.removeItem('admin_token')
+    setIsAuthed(false)
+  }
+
   return (
     <BrowserRouter basename="/admin">
       <div className="flex h-screen bg-[var(--color-bg)]">
@@ -48,8 +60,14 @@ export function AdminApp() {
             ))}
           </nav>
 
-          <div className="border-t border-white/[0.07] px-6 py-4 text-[11px] italic text-[var(--color-sidebar-muted)]">
-            本地自托管 · 数据不出门
+          <div className="border-t border-white/[0.07] px-6 py-4">
+            <button
+              type="button"
+              onClick={logout}
+              className="text-left text-[11px] italic text-[var(--color-sidebar-muted)] hover:text-[var(--color-sidebar-fg)]"
+            >
+              本地自托管 · 退出登录
+            </button>
           </div>
         </aside>
 

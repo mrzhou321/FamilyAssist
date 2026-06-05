@@ -7,11 +7,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
-from .auth import RequestContext, assert_member_payload, get_request_context, scoped_member_id
+from .auth import (
+    RequestContext,
+    assert_member_payload,
+    create_admin_token,
+    get_request_context,
+    require_admin,
+    scoped_member_id,
+    verify_admin_credentials,
+)
 from .core.config import settings
 from .core.db import engine
 from .data import DataStore, get_data_store, seed_database
 from .schemas import (
+    AdminLogin,
+    AuthToken,
     HealthStatus,
     Member,
     MemberCreate,
@@ -66,13 +76,27 @@ async def health() -> HealthStatus:
     return HealthStatus()
 
 
+@app.post("/api/admin/login", response_model=AuthToken)
+async def admin_login(payload: AdminLogin) -> AuthToken:
+    if not verify_admin_credentials(payload.username, payload.password):
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    return AuthToken(access_token=create_admin_token())
+
+
 @app.get("/api/members", response_model=list[Member])
-async def list_members(data: DataStore = Depends(get_data_store)) -> list[Member]:
+async def list_members(
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> list[Member]:
     return await data.list_members()
 
 
 @app.post("/api/members", response_model=Member, status_code=201)
-async def create_member(payload: MemberCreate, data: DataStore = Depends(get_data_store)) -> Member:
+async def create_member(
+    payload: MemberCreate,
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> Member:
     return await data.create_member(payload)
 
 
@@ -81,6 +105,7 @@ async def update_member(
     member_id: int,
     payload: MemberUpdate,
     data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
 ) -> Member:
     member = await data.update_member(member_id, payload)
     if member is None:
@@ -89,7 +114,11 @@ async def update_member(
 
 
 @app.delete("/api/members/{member_id}", status_code=204)
-async def delete_member(member_id: int, data: DataStore = Depends(get_data_store)) -> None:
+async def delete_member(
+    member_id: int,
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> None:
     if not await data.delete_member(member_id):
         raise HTTPException(status_code=404, detail="Member not found")
 
@@ -118,6 +147,7 @@ async def list_notes(
 async def get_review_candidate(
     note_id: int,
     data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
 ) -> ReviewCandidate:
     candidate = await data.build_review_candidate(note_id)
     if candidate is None:
@@ -130,6 +160,7 @@ async def approve_review_candidate(
     note_id: int,
     payload: MemoryDraft,
     data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
 ) -> Memory:
     memory = await data.approve_review_candidate(note_id, payload)
     if memory is None:
@@ -151,6 +182,7 @@ async def update_memory(
     memory_id: int,
     payload: MemoryUpdate,
     data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
 ) -> Memory:
     memory = await data.update_memory(memory_id, payload)
     if memory is None:
@@ -159,7 +191,11 @@ async def update_memory(
 
 
 @app.delete("/api/memories/{memory_id}", status_code=204)
-async def delete_memory(memory_id: int, data: DataStore = Depends(get_data_store)) -> None:
+async def delete_memory(
+    memory_id: int,
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> None:
     if not await data.delete_memory(memory_id):
         raise HTTPException(status_code=404, detail="Memory not found")
 
@@ -226,6 +262,7 @@ async def create_pairing_token(
     member_id: int,
     server_url: str = Query(default="http://localhost:5173"),
     data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
 ) -> PairingToken:
     token = await data.create_pairing_token(member_id, server_url)
     if token is None:
@@ -245,7 +282,10 @@ async def exchange_pairing_token(
 
 
 @app.get("/api/settings", response_model=SystemSettings)
-async def get_settings(data: DataStore = Depends(get_data_store)) -> SystemSettings:
+async def get_settings(
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> SystemSettings:
     return await data.get_settings()
 
 
@@ -253,10 +293,14 @@ async def get_settings(data: DataStore = Depends(get_data_store)) -> SystemSetti
 async def update_settings(
     payload: SystemSettings,
     data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
 ) -> SystemSettings:
     return await data.update_settings(payload)
 
 
 @app.post("/api/settings/cleanup-expired-memories", response_model=ExpiredMemoryCleanup)
-async def cleanup_expired_memories(data: DataStore = Depends(get_data_store)) -> ExpiredMemoryCleanup:
+async def cleanup_expired_memories(
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> ExpiredMemoryCleanup:
     return ExpiredMemoryCleanup(removed=await data.cleanup_expired_memories())

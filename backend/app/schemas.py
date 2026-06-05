@@ -10,6 +10,16 @@ class HealthStatus(BaseModel):
     version: str = "0.1.0"
 
 
+class AdminLogin(BaseModel):
+    username: str
+    password: str
+
+
+class AuthToken(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 class MemberProfile(BaseModel):
     height: float | None = None
     weight: float | None = None
