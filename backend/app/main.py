@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from .auth import RequestContext, assert_member_payload, get_request_context, scoped_member_id
 from .core.config import settings
 from .core.db import engine
 from .data import DataStore, get_data_store, seed_database
@@ -91,16 +92,23 @@ async def delete_member(member_id: int, data: DataStore = Depends(get_data_store
 
 
 @app.post("/api/notes", response_model=Note, status_code=202)
-async def create_note(payload: NoteCreate, data: DataStore = Depends(get_data_store)) -> Note:
-    return await data.create_note(payload)
+async def create_note(
+    payload: NoteCreate,
+    data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
+) -> Note:
+    assert_member_payload(payload.member_id, context)
+    scoped_payload = payload.model_copy(update={"member_id": scoped_member_id(payload.member_id, context)})
+    return await data.create_note(scoped_payload)
 
 
 @app.get("/api/notes", response_model=list[Note])
 async def list_notes(
     member_id: int | None = Query(default=None),
     data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[Note]:
-    return await data.list_notes(member_id)
+    return await data.list_notes(scoped_member_id(member_id, context))
 
 
 @app.get("/api/review/notes/{note_id}", response_model=ReviewCandidate)
@@ -130,8 +138,9 @@ async def approve_review_candidate(
 async def list_memories(
     member_id: int | None = Query(default=None),
     data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[Memory]:
-    return await data.list_memories(member_id)
+    return await data.list_memories(scoped_member_id(member_id, context))
 
 
 @app.patch("/api/memories/{memory_id}", response_model=Memory)
@@ -156,8 +165,11 @@ async def delete_memory(memory_id: int, data: DataStore = Depends(get_data_store
 async def create_recommendation_feedback(
     payload: RecommendationFeedback,
     data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
 ) -> Memory:
-    return await data.record_feedback(payload)
+    assert_member_payload(payload.member_id, context)
+    scoped_payload = payload.model_copy(update={"member_id": scoped_member_id(payload.member_id, context)})
+    return await data.record_feedback(scoped_payload)
 
 
 @app.get("/api/recommendations", response_model=RecommendationBatch)
@@ -171,8 +183,9 @@ async def list_recommendations(
     ),
     member_id: int | None = Query(default=None),
     data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
 ) -> RecommendationBatch:
-    return await data.make_recommendations(domains, member_id)
+    return await data.make_recommendations(domains, scoped_member_id(member_id, context))
 
 
 @app.get("/api/recommendations/{domain}", response_model=Recommendation)
@@ -180,8 +193,9 @@ async def get_recommendation(
     domain: RecommendationDomain,
     member_id: int | None = Query(default=None),
     data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
 ) -> Recommendation:
-    return await data.make_recommendation(domain, member_id)
+    return await data.make_recommendation(domain, scoped_member_id(member_id, context))
 
 
 @app.post("/api/pairing/members/{member_id}", response_model=PairingToken, status_code=201)

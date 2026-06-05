@@ -78,7 +78,7 @@ note = client.post(
     "/api/notes",
     json={
         "member_id": 1,
-        "content": "爸爸今天膝盖不舒服，晚饭后不散步",
+        "content": "member 1 knee note",
         "source": "text",
     },
 )
@@ -95,6 +95,27 @@ session = client.post(
     json={"pairing_token": pairing.json()["pairing_token"]},
 )
 assert session.status_code == 200
+headers = {"Authorization": f"Bearer {session.json()['access_token']}"}
+
+own_notes = client.get("/api/notes?member_id=1", headers=headers)
+assert own_notes.status_code == 200
+
+other_notes = client.get("/api/notes?member_id=2", headers=headers)
+assert other_notes.status_code == 403
+
+own_note = client.post(
+    "/api/notes",
+    json={"member_id": 1, "content": "own member note", "source": "text"},
+    headers=headers,
+)
+assert own_note.status_code == 202
+
+other_note = client.post(
+    "/api/notes",
+    json={"member_id": 2, "content": "other member note", "source": "text"},
+    headers=headers,
+)
+assert other_note.status_code == 403
 
 print("backend_api_smoke_ok")
 '@ | Set-Content -LiteralPath $apiSmoke -Encoding UTF8

@@ -37,6 +37,7 @@ class InMemoryStore:
         self._note_id = 0
         self._memory_id = 3
         self.pairing_tokens: dict[str, PairingTokenRecord] = {}
+        self.member_sessions: dict[str, MemberSession] = {}
         self.settings = SystemSettings()
         created = now()
         self.members: dict[int, Member] = {
@@ -285,11 +286,16 @@ class InMemoryStore:
         self.pairing_tokens[token_hash] = record.model_copy(update={"used": True})
         self.members[member.id] = member.model_copy(update={"bound": True, "updated_at": now()})
         access_token = token_urlsafe(32)
-        return MemberSession(
+        session = MemberSession(
             member_id=member.id,
             member_name=member.name,
             access_token=access_token,
         )
+        self.member_sessions[sha256(access_token.encode("utf-8")).hexdigest()] = session
+        return session
+
+    def validate_member_token(self, access_token: str) -> MemberSession | None:
+        return self.member_sessions.get(sha256(access_token.encode("utf-8")).hexdigest())
 
     def get_settings(self) -> SystemSettings:
         return self.settings
