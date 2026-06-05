@@ -47,22 +47,22 @@ export interface Memory {
 }
 
 export interface Recommendation {
-  id: number
-  member_id: number
   domain: Domain
   content: string
   basis: string[]       // 引用记忆的摘要文本，用于展示「依据 XXX」
-  memory_ids: number[]  // 引用记忆 id，可追溯
-  created_at: string
 }
 
 export interface Feedback {
-  recommendation_id: number
+  domain: Domain
+  member_id: number | null
+  content: string
   accepted: boolean
 }
 
 export interface PairingToken {
+  member_id: number
   server_url: string
   pairing_token: string
+  pairing_url: string
   expires_at: string
 }

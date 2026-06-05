@@ -87,8 +87,8 @@ async def create_note(payload: NoteCreate) -> Note:
 
 
 @app.get("/api/notes", response_model=list[Note])
-async def list_notes() -> list[Note]:
-    return store.list_notes()
+async def list_notes(member_id: int | None = Query(default=None)) -> list[Note]:
+    return store.list_notes(member_id)
 
 
 @app.get("/api/review/notes/{note_id}", response_model=ReviewCandidate)

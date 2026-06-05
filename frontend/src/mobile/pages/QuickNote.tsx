@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useCreateNote, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
+import { useCreateNote, useMemberNotes, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
@@ -16,6 +16,7 @@ export default function QuickNote() {
   const [message, setMessage] = useState('')
   const { mutate: createNote, isPending } = useCreateNote()
   const { data: queuedNotes = [] } = useQueuedNotes()
+  const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(getCurrentMemberId())
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
 
   useEffect(() => {
@@ -119,11 +120,11 @@ export default function QuickNote() {
       <div>
         <p className="font-[var(--font-num)] italic text-[var(--color-muted)] text-sm mb-3">最近记下的</p>
         <div className="flex flex-col gap-2">
-          {MOCK_RECENT_NOTES.map((note, i) => {
+          {[...queuedNotes, ...recentNotes].slice(0, 6).map((note, i) => {
             const member = MOCK_MEMBERS.find(m => m.id === note.member_id)
             const tag = NOTE_TAGS[i + 1] ?? { label: '记录', color: 'var(--color-muted)' }
             return (
-              <div key={note.id}
+              <div key={'queue_id' in note ? note.queue_id : note.id}
                 className="flex items-center gap-3 bg-[var(--color-surface-warm)] rounded-[var(--radius-sm)]
                            px-3 py-2.5 border border-[var(--color-border)] shadow-[var(--shadow-card)]
                            animate-[fadeUp_0.4s_ease_both]"
@@ -132,7 +133,9 @@ export default function QuickNote() {
                 <span className="text-xs px-2.5 py-0.5 rounded-full text-white whitespace-nowrap"
                   style={{ background: tag.color }}>{tag.label}</span>
                 <span className="text-sm text-[var(--color-fg)] flex-1 truncate">{note.content}</span>
-                <span className="text-xs text-[var(--color-muted)] shrink-0">{member?.role ?? '全家'}</span>
+                <span className="text-xs text-[var(--color-muted)] shrink-0">
+                  {'queue_id' in note ? '待同步' : member?.role ?? '全家'}
+                </span>
               </div>
             )
           })}

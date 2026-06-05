@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@shared/api'
-import type { Member, Memory, Note, Recommendation, Feedback, PairingToken } from '@shared/types'
+import type { Member, Memory, Note, Recommendation, Feedback, PairingToken, Domain } from '@shared/types'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
 
 export const useMembers = () =>
@@ -9,7 +9,14 @@ export const useMembers = () =>
 export const useMemberMemories = (memberId: number) =>
   useQuery({
     queryKey: ['memories', memberId],
-    queryFn: () => api.get<Memory[]>(`/members/${memberId}/memories`),
+    queryFn: () => api.get<Memory[]>(`/memories?member_id=${memberId}`),
+    enabled: !!memberId,
+  })
+
+export const useMemberNotes = (memberId: number) =>
+  useQuery({
+    queryKey: ['notes', memberId],
+    queryFn: () => api.get<Note[]>(`/notes?member_id=${memberId}`),
     enabled: !!memberId,
   })
 
@@ -59,18 +66,18 @@ export const useDeleteMemory = () => {
 
 export const useFeedback = () =>
   useMutation({
-    mutationFn: (fb: Feedback) => api.post<void>('/feedback', fb),
+    mutationFn: (fb: Feedback) => api.post<void>('/recommendations/feedback', fb),
   })
 
 export const usePairingToken = () =>
   useMutation({
     mutationFn: (memberId: number) =>
-      api.post<PairingToken>(`/admin/members/${memberId}/pairing`, {}),
+      api.post<PairingToken>(`/pairing/members/${memberId}`, {}),
   })
 
-export const useRecommendations = (memberId: number) =>
+export const useRecommendation = (memberId: number, domain: Domain) =>
   useQuery({
-    queryKey: ['recommendations', memberId],
-    queryFn: () => api.get<Recommendation[]>(`/members/${memberId}/recommendations`),
-    enabled: !!memberId,
+    queryKey: ['recommendation', memberId, domain],
+    queryFn: () => api.get<Recommendation>(`/recommendations/${domain}?member_id=${memberId}`),
+    enabled: !!memberId && !!domain,
   })

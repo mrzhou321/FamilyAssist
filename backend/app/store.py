@@ -138,8 +138,11 @@ class InMemoryStore:
         self.notes[note.id] = note
         return note
 
-    def list_notes(self) -> list[Note]:
-        return sorted(self.notes.values(), key=lambda note: note.created_at, reverse=True)
+    def list_notes(self, member_id: int | None = None) -> list[Note]:
+        notes = list(self.notes.values())
+        if member_id is not None:
+            notes = [note for note in notes if note.member_id == member_id]
+        return sorted(notes, key=lambda note: note.created_at, reverse=True)
 
     def build_review_candidate(self, note_id: int) -> ReviewCandidate | None:
         note = self.notes.get(note_id)
