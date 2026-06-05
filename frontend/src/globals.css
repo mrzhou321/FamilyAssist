@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  /* ── 颜色 ── */
+  --color-bg: #F0F4FA;
+  --color-surface: #FFFFFF;
+  --color-surface-warm: #F5F8FF;
+  --color-fg: #1A2540;
+  --color-muted: #6B7A99;
+  --color-border: #D0D9EC;
+  --color-accent: #2F6FEB;
+  --color-sage: #3D9CB5;
+  --color-honey: #5B8DEF;
+  --color-sidebar: #121C35;
+  --color-sidebar-fg: #E8EEF8;
+  --color-sidebar-muted: #7A8BAD;
+
+  /* ── 字体 ── */
+  --font-display: 'Ma Shan Zheng', KaiTi, Georgia, serif;
+  --font-body: 'Ma Shan Zheng', 'PingFang SC', sans-serif;
+  --font-num: 'Fraunces', Georgia, serif;
+
+  /* ── 圆角 ── */
+  --radius-sm: 12px;
+  --radius-lg: 18px;
+
+  /* ── 阴影 ── */
+  --shadow-card: 2px 4px 18px rgba(61,43,31,0.10), 0 1px 0 rgba(255,255,255,0.8) inset;
+  --shadow-card-hover: 2px 8px 28px rgba(61,43,31,0.16), 0 1px 0 rgba(255,255,255,0.8) inset;
+
+  /* ── 动画 ── */
+  --animate-fade-up: fadeUp 0.4s ease both;
+  --animate-float-up: floatUp 0.5s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 全局基础 ── */
+*, *::before, *::after { box-sizing: border-box; }
+body { font-family: var(--font-body); background: var(--color-bg); color: var(--color-fg); }
+
+.input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-warm);
+  padding: 0.65rem 0.8rem;
+  color: var(--color-fg);
+  outline: none;
+  font: inherit;
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(47, 111, 235, 0.12);
+}
+
+/* ── 纸张颗粒噪点（卡片内用 relative + .noise） ── */
+.noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ── 卡片倾角 ── */
+.tilt-1 { transform: rotate(-1deg);   transition: transform 0.22s, box-shadow 0.22s; }
+.tilt-2 { transform: rotate(0.5deg);  transition: transform 0.22s, box-shadow 0.22s; }
+.tilt-3 { transform: rotate(-0.8deg); transition: transform 0.22s, box-shadow 0.22s; }
+.tilt-1:hover, .tilt-2:hover, .tilt-3:hover {
+  transform: translateY(-4px) rotate(0);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ── 侧边栏激活竖条 ── */
+.sidebar-active {
+  position: relative;
+  background: rgba(47,111,235,0.10);
+  color: var(--color-sidebar-fg) !important;
+}
+.sidebar-active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  background: var(--color-accent);
+  border-radius: 0 3px 3px 0;
+}
+
+/* ── stagger 动画延迟 ── */
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.15s; }
+.delay-3 { animation-delay: 0.25s; }
+.delay-4 { animation-delay: 0.35s; }
