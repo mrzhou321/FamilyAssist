@@ -41,41 +41,6 @@ function toForm(member: Member): MemberProfileForm {
   }
 }
 
-const INITIAL_MEMBERS: MemberProfileForm[] = [
-  {
-    id: 1,
-    name: '张明远',
-    birthday: '1964-03-18',
-    relation: '爸爸',
-    height: '172',
-    weight: '70',
-    allergies: '',
-    dietRestrictions: '少糖',
-    chronicConditions: ['糖尿病'],
-    injuryHistory: '膝盖受凉会不舒服，避免剧烈跑跳。',
-    thermalSensitivity: -1,
-    tastePreference: '清淡，能接受少量辣，喜欢热汤。',
-    exercisePreference: '饭后散步 30 分钟，中低强度。',
-    bound: false,
-  },
-  {
-    id: 2,
-    name: '李秋梅',
-    birthday: '1967-10-04',
-    relation: '妈妈',
-    height: '160',
-    weight: '55',
-    allergies: '',
-    dietRestrictions: '不吃香菜',
-    chronicConditions: [],
-    injuryHistory: '',
-    thermalSensitivity: -2,
-    tastePreference: '清淡，喜欢汤品，不爱香菜。',
-    exercisePreference: '慢走、拉伸，避免太冷的户外活动。',
-    bound: true,
-  },
-]
-
 const EMPTY_MEMBER: MemberProfileForm = {
   id: 0,
   name: '',
@@ -131,9 +96,9 @@ function toApiPayload(member: MemberProfileForm) {
 }
 
 export default function Members() {
-  const [members, setMembers] = useState(INITIAL_MEMBERS)
-  const [selectedId, setSelectedId] = useState(INITIAL_MEMBERS[0].id)
-  const [draft, setDraft] = useState<MemberProfileForm>(INITIAL_MEMBERS[0])
+  const [members, setMembers] = useState<MemberProfileForm[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [draft, setDraft] = useState<MemberProfileForm>(EMPTY_MEMBER)
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -147,15 +112,15 @@ export default function Members() {
     api
       .get<Member[]>('/members')
       .then((apiMembers) => {
-        if (!alive || apiMembers.length === 0) return
+        if (!alive) return
         const nextMembers = apiMembers.map(toForm)
         setMembers(nextMembers)
-        setSelectedId(nextMembers[0].id)
-        setDraft(nextMembers[0])
-        setMessage('已连接后端成员数据')
+        setSelectedId(nextMembers[0]?.id ?? null)
+        setDraft(nextMembers[0] ?? EMPTY_MEMBER)
+        setMessage(nextMembers.length > 0 ? '已连接后端成员数据' : '暂无成员，请先添加一位家庭成员')
       })
       .catch(() => {
-        if (alive) setMessage('后端暂不可用，正在使用本地演示数据')
+        if (alive) setMessage('后端暂不可用，无法加载或保存成员档案')
       })
       .finally(() => {
         if (alive) setIsLoading(false)
@@ -172,20 +137,15 @@ export default function Members() {
   }
 
   async function createMember() {
-    const nextId = Math.max(0, ...members.map((member) => member.id)) + 1
-    const nextMember = { ...EMPTY_MEMBER, id: nextId, relation: '家人' }
     try {
-      const created = await api.post<Member>('/members', toApiPayload({ ...nextMember, name: '新成员' }))
+      const created = await api.post<Member>('/members', toApiPayload({ ...EMPTY_MEMBER, name: '新成员', relation: '家人' }))
       const form = toForm(created)
       setMembers((current) => [...current, form])
       setSelectedId(form.id)
       setDraft(form)
       setMessage('已在后端创建成员，请继续完善档案')
     } catch {
-      setMembers((current) => [...current, nextMember])
-      setSelectedId(nextId)
-      setDraft(nextMember)
-      setMessage('已创建本地空档案，请补充成员信息')
+      setMessage('后端创建失败，请确认服务已启动后重试')
     }
   }
 
@@ -209,6 +169,10 @@ export default function Members() {
       setMessage('姓名和关系不能为空')
       return
     }
+    if (!draft.id) {
+      setMessage('请先添加成员后再保存档案')
+      return
+    }
     try {
       const saved = await api.patch<Member>(`/members/${draft.id}`, toApiPayload(draft))
       const form = toForm(saved)
@@ -217,13 +181,15 @@ export default function Members() {
       setSelectedId(form.id)
       setMessage('成员档案已保存到后端')
     } catch {
-      setMembers((current) => current.map((member) => (member.id === draft.id ? draft : member)))
-      setSelectedId(draft.id)
-      setMessage('后端保存失败，已保留在当前页面本地状态')
+      setMessage('后端保存失败，请稍后重试')
     }
   }
 
   async function deleteMember() {
+    if (!draft.id) {
+      setMessage('请先选择要删除的成员')
+      return
+    }
     if (members.length === 1) {
       setMessage('至少需要保留一位成员')
       return
@@ -232,12 +198,13 @@ export default function Members() {
     try {
       await api.delete(`/members/${draft.id}`)
     } catch {
-      setMessage('后端删除失败，已先从当前页面移除')
+      setMessage('后端删除失败，请稍后重试')
+      return
     }
     const remaining = members.filter((member) => member.id !== draft.id)
     setMembers(remaining)
-    setSelectedId(remaining[0].id)
-    setDraft(remaining[0])
+    setSelectedId(remaining[0]?.id ?? null)
+    setDraft(remaining[0] ?? EMPTY_MEMBER)
     setMessage('成员档案已删除')
   }
 
@@ -261,6 +228,11 @@ export default function Members() {
 
       <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-6">
         <aside className="flex flex-col gap-3">
+          {members.length === 0 ? (
+            <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white px-4 py-6 text-sm text-[var(--color-muted)] shadow-[var(--shadow-card)]">
+              暂无成员档案
+            </div>
+          ) : null}
           {members.map((member) => (
             <button
               key={member.id}
@@ -322,6 +294,7 @@ export default function Members() {
               <button
                 type="button"
                 onClick={deleteMember}
+                disabled={!draft.id}
                 className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted)]"
               >
                 删除
