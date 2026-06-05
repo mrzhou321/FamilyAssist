@@ -59,6 +59,57 @@ print("backend_db_metadata_ok")
   }
 }
 
+Step "Backend API smoke" {
+  $apiSmoke = New-TemporaryFile
+  @'
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+client = TestClient(app)
+
+assert client.get("/health").status_code == 200
+
+members = client.get("/api/members")
+assert members.status_code == 200
+assert len(members.json()) >= 1
+
+note = client.post(
+    "/api/notes",
+    json={
+        "member_id": 1,
+        "content": "爸爸今天膝盖不舒服，晚饭后不散步",
+        "source": "text",
+    },
+)
+assert note.status_code == 202
+
+batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1")
+assert batch.status_code == 200
+assert len(batch.json()["recommendations"]) == 3
+
+pairing = client.post("/api/pairing/members/1")
+assert pairing.status_code == 201
+session = client.post(
+    "/api/pairing/exchange",
+    json={"pairing_token": pairing.json()["pairing_token"]},
+)
+assert session.status_code == 200
+
+print("backend_api_smoke_ok")
+'@ | Set-Content -LiteralPath $apiSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $apiSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend API smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $apiSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend store smoke" {
   $smoke = New-TemporaryFile
   @'
