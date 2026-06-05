@@ -160,3 +160,18 @@ class MemberSession(BaseModel):
     member_name: str
     access_token: str
     token_type: str = "bearer"
+
+
+class SystemSettings(BaseModel):
+    llm_provider: str = "ollama"
+    generation_model: str = "qwen2.5:3b"
+    embedding_model: str = "bge-small-zh-v1.5"
+    weather_api_key: str = ""
+    default_city: str = "广州"
+    extraction_retries: int = Field(default=3, ge=0, le=10)
+    dedupe_threshold: float = Field(default=0.86, ge=0, le=1)
+    cloud_llm_risk_acknowledged: bool = False
+
+
+class ExpiredMemoryCleanup(BaseModel):
+    removed: int

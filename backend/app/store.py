@@ -22,6 +22,7 @@ from .schemas import (
     RecommendationDomain,
     RecommendationFeedback,
     ReviewCandidate,
+    SystemSettings,
 )
 
 
@@ -35,6 +36,7 @@ class InMemoryStore:
         self._note_id = 0
         self._memory_id = 3
         self.pairing_tokens: dict[str, PairingTokenRecord] = {}
+        self.settings = SystemSettings()
         created = now()
         self.members: dict[int, Member] = {
             1: Member(
@@ -275,6 +277,23 @@ class InMemoryStore:
             member_name=member.name,
             access_token=access_token,
         )
+
+    def get_settings(self) -> SystemSettings:
+        return self.settings
+
+    def update_settings(self, payload: SystemSettings) -> SystemSettings:
+        self.settings = payload
+        return self.settings
+
+    def cleanup_expired_memories(self) -> int:
+        expired_ids = [
+            memory_id
+            for memory_id, memory in self.memories.items()
+            if memory.expires_at is not None and memory.expires_at <= now()
+        ]
+        for memory_id in expired_ids:
+            self.memories.pop(memory_id, None)
+        return len(expired_ids)
 
 
 store = InMemoryStore()

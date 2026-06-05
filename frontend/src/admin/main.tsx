@@ -6,6 +6,7 @@ import MemoryLibrary from './pages/MemoryLibrary'
 import Members from './pages/Members'
 import Pairing from './pages/Pairing'
 import Review from './pages/Review'
+import Settings from './pages/Settings'
 
 const NAV = [
   { to: '/', icon: '♥', label: '成员管理' },
@@ -58,7 +59,7 @@ export function AdminApp() {
             <Route path="/memory" element={<MemoryLibrary />} />
             <Route path="/review" element={<Review />} />
             <Route path="/qr" element={<Pairing />} />
-            <Route path="/settings" element={<Placeholder title="系统设置" />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>

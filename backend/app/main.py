@@ -23,6 +23,8 @@ from .schemas import (
     RecommendationDomain,
     RecommendationFeedback,
     ReviewCandidate,
+    SystemSettings,
+    ExpiredMemoryCleanup,
 )
 from .store import store
 
@@ -154,3 +156,18 @@ async def exchange_pairing_token(payload: PairingExchange) -> MemberSession:
     if session is None:
         raise HTTPException(status_code=400, detail="Pairing token is invalid, used, or expired")
     return session
+
+
+@app.get("/api/settings", response_model=SystemSettings)
+async def get_settings() -> SystemSettings:
+    return store.get_settings()
+
+
+@app.patch("/api/settings", response_model=SystemSettings)
+async def update_settings(payload: SystemSettings) -> SystemSettings:
+    return store.update_settings(payload)
+
+
+@app.post("/api/settings/cleanup-expired-memories", response_model=ExpiredMemoryCleanup)
+async def cleanup_expired_memories() -> ExpiredMemoryCleanup:
+    return ExpiredMemoryCleanup(removed=store.cleanup_expired_memories())
