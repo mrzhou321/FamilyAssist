@@ -1,7 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCreateNote, useMemberNotes, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
+
+type NoteSource = 'text' | 'voice' | 'photo'
+
+interface SpeechRecognitionAlternativeLike {
+  transcript: string
+}
+
+interface SpeechRecognitionResultLike {
+  [index: number]: SpeechRecognitionAlternativeLike | undefined
+  length: number
+}
+
+interface SpeechRecognitionEventLike {
+  results: {
+    [index: number]: SpeechRecognitionResultLike
+    length: number
+  }
+}
+
+interface SpeechRecognitionLike {
+  lang: string
+  interimResults: boolean
+  continuous: boolean
+  onstart: (() => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  start: () => void
+  stop: () => void
+}
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: new () => SpeechRecognitionLike
+  webkitSpeechRecognition?: new () => SpeechRecognitionLike
+}
+
+function getSpeechRecognition() {
+  const speechWindow = window as SpeechRecognitionWindow
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition
+}
 
 // 速记标签显示名，与 member 无关
 const NOTE_TAGS: Record<number, { label: string; color: string }> = {
@@ -14,6 +54,10 @@ export default function QuickNote() {
   const [text, setText] = useState('')
   const [memberId, setMemberId] = useState<number | null>(() => getCurrentMemberId())
   const [message, setMessage] = useState('')
+  const [source, setSource] = useState<NoteSource>('text')
+  const [isListening, setIsListening] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const { mutate: createNote, isPending } = useCreateNote()
   const { data: queuedNotes = [] } = useQueuedNotes()
   const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(getCurrentMemberId())
@@ -31,17 +75,74 @@ export default function QuickNote() {
     return () => window.removeEventListener('online', handleOnline)
   }, [syncNotes])
 
+  useEffect(() => () => recognitionRef.current?.stop(), [])
+
+  function appendCapturedText(nextText: string, nextSource: NoteSource) {
+    setText((current) => [current.trim(), nextText].filter(Boolean).join('\n'))
+    setSource(nextSource)
+  }
+
+  function handleVoiceInput() {
+    if (isListening) {
+      recognitionRef.current?.stop()
+      return
+    }
+
+    const SpeechRecognition = getSpeechRecognition()
+    if (!SpeechRecognition) {
+      setMessage('当前浏览器暂不支持语音输入，可先使用文字速记')
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'zh-CN'
+    recognition.interimResults = false
+    recognition.continuous = false
+    recognition.onstart = () => {
+      setIsListening(true)
+      setMessage('正在听你说话…')
+    }
+    recognition.onend = () => setIsListening(false)
+    recognition.onerror = () => {
+      setIsListening(false)
+      setMessage('语音识别未完成，请再试一次或改用文字')
+    }
+    recognition.onresult = (event) => {
+      const transcript = Array.from(
+        { length: event.results.length },
+        (_, index) => event.results[index][0]?.transcript.trim() ?? '',
+      )
+        .filter(Boolean)
+        .join(' ')
+
+      if (transcript) {
+        appendCapturedText(transcript, 'voice')
+        setMessage('语音已转成文字，可直接记下来')
+      }
+    }
+    recognitionRef.current = recognition
+    recognition.start()
+  }
+
+  function handlePhotoCapture(file: File | undefined) {
+    if (!file) return
+    appendCapturedText(`拍照记录：${file.name}`, 'photo')
+    setMessage('照片已加入速记，补一句说明会更容易理解')
+  }
+
   function handleSubmit() {
     if (!text.trim()) return
     createNote(
-      { content: text, member_id: memberId, source: 'text' },
+      { content: text, member_id: memberId, source },
       {
         onSuccess: () => {
           setText('')
+          setSource('text')
           setMessage(navigator.onLine ? '已记下，正在理解中' : '已离线暂存，联网后自动同步')
         },
         onError: () => {
           setText('')
+          setSource('text')
           setMessage('后端暂不可用，已暂存本地队列')
         },
       },
@@ -82,15 +183,46 @@ export default function QuickNote() {
                       rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-card)] border border-[var(--color-border)]">
         <textarea
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={e => {
+            setText(e.target.value)
+            setSource('text')
+          }}
           placeholder="记录家人的习惯、身体状况、饮食偏好……"
           rows={4}
           className="w-full bg-transparent resize-none outline-none font-[var(--font-body)] text-base
                      text-[var(--color-fg)] placeholder:text-[var(--color-muted)]"
         />
         <div className="flex items-center gap-3 pt-3 border-t border-dashed border-[var(--color-border)]">
-          <button className="text-xl leading-none text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors">🎤</button>
-          <button className="text-xl leading-none text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors">📷</button>
+          <button
+            type="button"
+            aria-label={isListening ? '停止语音输入' : '开始语音输入'}
+            title={isListening ? '停止语音输入' : '开始语音输入'}
+            onClick={handleVoiceInput}
+            className={`grid h-9 w-9 place-items-center rounded-full text-xl leading-none transition-colors
+              ${isListening
+                ? 'bg-[var(--color-accent)] text-white'
+                : 'text-[var(--color-muted)] hover:bg-white/70 hover:text-[var(--color-accent)]'}`}
+          >
+            🎤
+          </button>
+          <button
+            type="button"
+            aria-label="拍照速记"
+            title="拍照速记"
+            onClick={() => photoInputRef.current?.click()}
+            className="grid h-9 w-9 place-items-center rounded-full text-xl leading-none text-[var(--color-muted)]
+                       transition-colors hover:bg-white/70 hover:text-[var(--color-accent)]"
+          >
+            📷
+          </button>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(event) => handlePhotoCapture(event.target.files?.[0])}
+          />
           <div className="ml-auto flex gap-1.5">
             {/* 全家 = null，其他成员用 id */}
             {[{ id: null, label: '全家' }, ...MOCK_MEMBERS.map(m => ({ id: m.id, label: m.role }))].map(m => (
