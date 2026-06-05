@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { api } from '../../shared/api'
 
 interface Member {
@@ -16,19 +17,12 @@ interface PairingToken {
   expires_at: string
 }
 
-function tokenCells(token: string) {
-  const bits = Array.from(token).flatMap((char) => {
-    const code = char.charCodeAt(0)
-    return [code & 1, code & 2, code & 4, code & 8]
-  })
-  return Array.from({ length: 49 }, (_, index) => Boolean(bits[index % bits.length]))
-}
-
 export default function Pairing() {
   const [members, setMembers] = useState<Member[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [pairing, setPairing] = useState<PairingToken | null>(null)
   const [message, setMessage] = useState('')
+  const qrRef = useRef<HTMLCanvasElement>(null)
 
   const selectedMember = useMemo(
     () => members.find((member) => member.id === selectedId) ?? null,
@@ -44,6 +38,19 @@ export default function Pairing() {
       })
       .catch(() => setMessage('后端暂不可用，无法生成配对码'))
   }, [])
+
+  useEffect(() => {
+    if (!pairing || !qrRef.current) return
+    QRCode.toCanvas(qrRef.current, pairing.pairing_url, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      scale: 7,
+      color: {
+        dark: '#26312F',
+        light: '#FFFFFF',
+      },
+    }).catch(() => setMessage('二维码渲染失败，请复制链接配对'))
+  }, [pairing])
 
   async function generatePairing() {
     if (!selectedId) return
@@ -65,8 +72,6 @@ export default function Pairing() {
     await navigator.clipboard?.writeText(pairing.pairing_url)
     setMessage('配对链接已复制')
   }
-
-  const cells = pairing ? tokenCells(pairing.pairing_token) : []
 
   return (
     <div className="p-10">
@@ -127,14 +132,11 @@ export default function Pairing() {
           {pairing && selectedMember ? (
             <div className="grid grid-cols-[220px_minmax(0,1fr)] gap-6">
               <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] p-4">
-                <div className="grid grid-cols-7 gap-1 rounded-lg bg-white p-3">
-                  {cells.map((filled, index) => (
-                    <span
-                      key={index}
-                      className={`aspect-square rounded-[2px] ${filled ? 'bg-[var(--color-fg)]' : 'bg-transparent'}`}
-                    />
-                  ))}
-                </div>
+                <canvas
+                  ref={qrRef}
+                  aria-label={`${selectedMember.name} 的配对二维码`}
+                  className="block aspect-square w-full rounded-lg bg-white p-3"
+                />
               </div>
               <div>
                 <p className="font-[var(--font-num)] text-sm italic text-[var(--color-muted)]">
