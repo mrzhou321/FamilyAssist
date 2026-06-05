@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useCreateNote, useMemberNotes, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
+import { useCreateNote, useMemberNotes, useMembers, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
@@ -60,8 +60,13 @@ export default function QuickNote() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const { mutate: createNote, isPending } = useCreateNote()
   const { data: queuedNotes = [] } = useQueuedNotes()
-  const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(getCurrentMemberId())
+  const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId)
+  const { data: apiMembers = [] } = useMembers()
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
+  const memberChoices = apiMembers.length > 0
+    ? apiMembers.map((member) => ({ id: member.id, label: member.relation || member.name }))
+    : MOCK_MEMBERS.map((member) => ({ id: member.id, label: member.role }))
+  const memberLabel = new Map(memberChoices.map((member) => [member.id, member.label]))
 
   useEffect(() => {
     function handleOnline() {
@@ -225,7 +230,7 @@ export default function QuickNote() {
           />
           <div className="ml-auto flex gap-1.5">
             {/* 全家 = null，其他成员用 id */}
-            {[{ id: null, label: '全家' }, ...MOCK_MEMBERS.map(m => ({ id: m.id, label: m.role }))].map(m => (
+            {[{ id: null, label: '全家' }, ...memberChoices].map(m => (
               <button key={String(m.id)} onClick={() => setMemberId(m.id)}
                 className={`text-xs px-3 py-1 rounded-full transition-colors font-[var(--font-body)]
                   ${memberId === m.id
@@ -248,12 +253,10 @@ export default function QuickNote() {
         {isPending ? '记录中…' : '记下来'}
       </button>
 
-      {/* 最近记录（mock，联调后替换） */}
       <div>
         <p className="font-[var(--font-num)] italic text-[var(--color-muted)] text-sm mb-3">最近记下的</p>
         <div className="flex flex-col gap-2">
           {[...queuedNotes, ...recentNotes].slice(0, 6).map((note, i) => {
-            const member = MOCK_MEMBERS.find(m => m.id === note.member_id)
             const tag = NOTE_TAGS[i + 1] ?? { label: '记录', color: 'var(--color-muted)' }
             return (
               <div key={'queue_id' in note ? note.queue_id : note.id}
@@ -266,7 +269,7 @@ export default function QuickNote() {
                   style={{ background: tag.color }}>{tag.label}</span>
                 <span className="text-sm text-[var(--color-fg)] flex-1 truncate">{note.content}</span>
                 <span className="text-xs text-[var(--color-muted)] shrink-0">
-                  {'queue_id' in note ? '待同步' : member?.role ?? '全家'}
+                  {'queue_id' in note ? '待同步' : note.member_id ? memberLabel.get(note.member_id) ?? '成员' : '全家'}
                 </span>
               </div>
             )

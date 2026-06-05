@@ -1,7 +1,7 @@
 import { api } from '@shared/api'
-import type { Note } from '@shared/types'
+import type { Note, NoteCreatePayload } from '@shared/types'
 
-export type QueuedNote = Omit<Note, 'id' | 'created_at'> & {
+export type QueuedNote = NoteCreatePayload & {
   queue_id: string
   queued_at: string
 }
@@ -43,7 +43,7 @@ async function withStore<T>(
   })
 }
 
-export async function enqueueNote(note: Omit<Note, 'id' | 'created_at'>): Promise<QueuedNote> {
+export async function enqueueNote(note: NoteCreatePayload): Promise<QueuedNote> {
   const queued: QueuedNote = {
     ...note,
     queue_id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,

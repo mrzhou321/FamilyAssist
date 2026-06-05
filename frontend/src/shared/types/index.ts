@@ -31,18 +31,21 @@ export interface Note {
   member_id: number | null
   content: string
   source: 'text' | 'voice' | 'photo'
+  status: string
   created_at: string
 }
 
+export type NoteCreatePayload = Pick<Note, 'member_id' | 'content' | 'source'>
+
 export interface Memory {
   id: number
-  member_id: number
+  member_id: number | null
   type: 'fact' | 'episode'
   domain: Domain | 'general'
   content: string
   confidence: number
   expires_at?: string
-  source_note_id?: number
+  source_note_id?: number | null
   created_at: string
 }
 

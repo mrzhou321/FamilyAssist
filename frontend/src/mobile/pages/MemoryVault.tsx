@@ -1,22 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MEMORY_TAG_COLORS } from '@shared/constants/colors'
 import { MOCK_MEMORIES } from '@shared/mocks'
-import { api } from '../../shared/api'
+import type { Memory } from '@shared/types'
+import { useMemberMemories } from '@shared/hooks'
 import { getCurrentMemberId, getCurrentMemberName } from '../session'
 
 type MemoryDomain = 'dressing' | 'diet' | 'exercise' | 'general'
 type MemoryType = 'fact' | 'episode'
-
-interface Memory {
-  id: number
-  member_id: number | null
-  type: MemoryType
-  domain: MemoryDomain
-  content: string
-  confidence: number
-  source_note_id?: number | null
-  created_at: string
-}
 
 const TAGS = ['全部', '穿衣', '饮食', '运动', '通用']
 
@@ -54,20 +44,10 @@ function formatDate(value: string) {
 }
 
 export default function MemoryVault() {
-  const [memories, setMemories] = useState<Memory[]>(() => normalizeMockMemories())
   const [activeTag, setActiveTag] = useState('全部')
-  const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    const memberId = getCurrentMemberId()
-    api
-      .get<Memory[]>(`/memories?member_id=${memberId}`)
-      .then((items) => {
-        setMemories(items)
-        setMessage('')
-      })
-      .catch(() => setMessage('后端暂不可用，正在显示本地记忆'))
-  }, [])
+  const { data, isError } = useMemberMemories(getCurrentMemberId())
+  const memories = data ?? normalizeMockMemories()
+  const message = isError ? '后端暂不可用，正在显示本地记忆' : ''
 
   const filtered = useMemo(() => {
     if (activeTag === '全部') return memories

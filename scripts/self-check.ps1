@@ -12,6 +12,9 @@ Step "Frontend build" {
   Push-Location "$root\frontend"
   try {
     npm run build
+    if ($LASTEXITCODE -ne 0) {
+      throw "Frontend build failed with exit code $LASTEXITCODE"
+    }
   } finally {
     Pop-Location
   }
@@ -21,6 +24,9 @@ Step "Frontend lint" {
   Push-Location "$root\frontend"
   try {
     npm run lint
+    if ($LASTEXITCODE -ne 0) {
+      throw "Frontend lint failed with exit code $LASTEXITCODE"
+    }
   } finally {
     Pop-Location
   }
@@ -28,7 +34,13 @@ Step "Frontend lint" {
 
 Step "Backend compile" {
   & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\app"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Backend app compile failed with exit code $LASTEXITCODE"
+  }
   & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\alembic"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Backend alembic compile failed with exit code $LASTEXITCODE"
+  }
 }
 
 Step "Backend database metadata" {
