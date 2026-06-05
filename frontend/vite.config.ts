@@ -8,6 +8,11 @@ export default defineConfig({
   resolve: {
     alias: { '@shared': resolve(__dirname, 'src/shared') },
   },
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+    },
+  },
   build: {
     rollupOptions: {
       input: {

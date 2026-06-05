@@ -57,6 +57,13 @@ export async function saveQuickNote(note: QueuedQuickNote): Promise<void> {
   await withStore('readwrite', (store) => store.put(note))
 }
 
+export async function updateQuickNoteStatus(id: string, status: QuickNoteStatus): Promise<void> {
+  const notes = await listQuickNotes()
+  const note = notes.find((item) => item.id === id)
+  if (!note) return
+  await saveQuickNote({ ...note, status })
+}
+
 export async function listQuickNotes(): Promise<QueuedQuickNote[]> {
   const notes = await withStore<QueuedQuickNote[]>('readonly', (store) => store.getAll())
   return notes.sort((a, b) => b.createdAt.localeCompare(a.createdAt))

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { api } from '../../shared/api'
 
 interface MemberProfileForm {
   id: number
@@ -16,6 +17,25 @@ interface MemberProfileForm {
   tastePreference: string
   exercisePreference: string
   bound: boolean
+}
+
+interface ApiMember {
+  id: number
+  name: string
+  birthday: string | null
+  relation: string
+  bound: boolean
+  profile: {
+    height: number | null
+    weight: number | null
+    allergies: string[]
+    diet_restrictions: string[]
+    chronic_conditions: string[]
+    injury_history: string
+    thermal_sensitivity: number
+    taste_preference: string
+    exercise_preference: string
+  }
 }
 
 const CHRONIC_OPTIONS = ['糖尿病', '高血压', '心脏病', '哮喘', '痛风']
@@ -89,16 +109,79 @@ function splitList(value: string) {
     .filter(Boolean)
 }
 
+function toForm(member: ApiMember): MemberProfileForm {
+  return {
+    id: member.id,
+    name: member.name,
+    birthday: member.birthday ?? '',
+    relation: member.relation,
+    height: member.profile.height?.toString() ?? '',
+    weight: member.profile.weight?.toString() ?? '',
+    allergies: member.profile.allergies.join('、'),
+    dietRestrictions: member.profile.diet_restrictions.join('、'),
+    chronicConditions: member.profile.chronic_conditions,
+    injuryHistory: member.profile.injury_history,
+    thermalSensitivity: member.profile.thermal_sensitivity,
+    tastePreference: member.profile.taste_preference,
+    exercisePreference: member.profile.exercise_preference,
+    bound: member.bound,
+  }
+}
+
+function toApiPayload(member: MemberProfileForm) {
+  return {
+    name: member.name,
+    birthday: member.birthday || null,
+    relation: member.relation,
+    bound: member.bound,
+    profile: {
+      height: member.height ? Number(member.height) : null,
+      weight: member.weight ? Number(member.weight) : null,
+      allergies: splitList(member.allergies),
+      diet_restrictions: splitList(member.dietRestrictions),
+      chronic_conditions: member.chronicConditions,
+      injury_history: member.injuryHistory,
+      thermal_sensitivity: member.thermalSensitivity,
+      taste_preference: member.tastePreference,
+      exercise_preference: member.exercisePreference,
+    },
+  }
+}
+
 export default function Members() {
   const [members, setMembers] = useState(INITIAL_MEMBERS)
   const [selectedId, setSelectedId] = useState(INITIAL_MEMBERS[0].id)
   const [draft, setDraft] = useState<MemberProfileForm>(INITIAL_MEMBERS[0])
   const [message, setMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   const selectedMember = useMemo(
     () => members.find((member) => member.id === selectedId),
     [members, selectedId],
   )
+
+  useEffect(() => {
+    let alive = true
+    api
+      .get<ApiMember[]>('/members')
+      .then((apiMembers) => {
+        if (!alive || apiMembers.length === 0) return
+        const nextMembers = apiMembers.map(toForm)
+        setMembers(nextMembers)
+        setSelectedId(nextMembers[0].id)
+        setDraft(nextMembers[0])
+        setMessage('已连接后端成员数据')
+      })
+      .catch(() => {
+        if (alive) setMessage('后端暂不可用，正在使用本地演示数据')
+      })
+      .finally(() => {
+        if (alive) setIsLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   function selectMember(member: MemberProfileForm) {
     setSelectedId(member.id)
@@ -106,13 +189,22 @@ export default function Members() {
     setMessage('')
   }
 
-  function createMember() {
+  async function createMember() {
     const nextId = Math.max(0, ...members.map((member) => member.id)) + 1
     const nextMember = { ...EMPTY_MEMBER, id: nextId, relation: '家人' }
-    setMembers((current) => [...current, nextMember])
-    setSelectedId(nextId)
-    setDraft(nextMember)
-    setMessage('已创建空档案，请补充成员信息')
+    try {
+      const created = await api.post<ApiMember>('/members', toApiPayload({ ...nextMember, name: '新成员' }))
+      const form = toForm(created)
+      setMembers((current) => [...current, form])
+      setSelectedId(form.id)
+      setDraft(form)
+      setMessage('已在后端创建成员，请继续完善档案')
+    } catch {
+      setMembers((current) => [...current, nextMember])
+      setSelectedId(nextId)
+      setDraft(nextMember)
+      setMessage('已创建本地空档案，请补充成员信息')
+    }
   }
 
   function updateDraft(field: keyof MemberProfileForm, value: string | number | boolean | string[]) {
@@ -129,23 +221,37 @@ export default function Members() {
     )
   }
 
-  function saveMember(event: FormEvent<HTMLFormElement>) {
+  async function saveMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!draft.name.trim() || !draft.relation.trim()) {
       setMessage('姓名和关系不能为空')
       return
     }
-    setMembers((current) => current.map((member) => (member.id === draft.id ? draft : member)))
-    setSelectedId(draft.id)
-    setMessage('成员档案已保存')
+    try {
+      const saved = await api.patch<ApiMember>(`/members/${draft.id}`, toApiPayload(draft))
+      const form = toForm(saved)
+      setMembers((current) => current.map((member) => (member.id === form.id ? form : member)))
+      setDraft(form)
+      setSelectedId(form.id)
+      setMessage('成员档案已保存到后端')
+    } catch {
+      setMembers((current) => current.map((member) => (member.id === draft.id ? draft : member)))
+      setSelectedId(draft.id)
+      setMessage('后端保存失败，已保留在当前页面本地状态')
+    }
   }
 
-  function deleteMember() {
+  async function deleteMember() {
     if (members.length === 1) {
       setMessage('至少需要保留一位成员')
       return
     }
 
+    try {
+      await api.delete(`/members/${draft.id}`)
+    } catch {
+      setMessage('后端删除失败，已先从当前页面移除')
+    }
     const remaining = members.filter((member) => member.id !== draft.id)
     setMembers(remaining)
     setSelectedId(remaining[0].id)
@@ -159,7 +265,7 @@ export default function Members() {
         <div>
           <h2 className="font-[var(--font-display)] text-3xl text-[var(--color-fg)]">成员管理</h2>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            共 {members.length} 位成员，维护独立健康档案和记忆空间。
+            共 {members.length} 位成员，维护独立健康档案和记忆空间。{isLoading ? '正在连接后端...' : ''}
           </p>
         </div>
         <button

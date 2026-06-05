@@ -3,8 +3,10 @@ import type { ChangeEvent } from 'react'
 import {
   listQuickNotes,
   saveQuickNote,
+  updateQuickNoteStatus,
 } from '../storage/quickNoteQueue'
 import type { QueuedQuickNote, QuickNoteSource } from '../storage/quickNoteQueue'
+import { api } from '../../shared/api'
 
 const MEMBERS = ['全家', '爸爸', '妈妈', '朵朵']
 
@@ -165,7 +167,21 @@ export default function QuickNote() {
     const note = makeQuickNote(trimmed, member, photoName ? 'photo' : 'text', photoName)
     const start = performance.now()
     await saveQuickNote(note)
-    setNotes((current) => [note, ...current])
+    let savedNote = note
+    if (navigator.onLine) {
+      try {
+        await api.post('/notes', {
+          member_id: member === '全家' ? null : MEMBERS.indexOf(member),
+          content: note.content,
+          source: note.source,
+        })
+        savedNote = { ...note, status: 'synced' }
+        await updateQuickNoteStatus(note.id, 'synced')
+      } catch {
+        savedNote = { ...note, status: 'queued' }
+      }
+    }
+    setNotes((current) => [savedNote, ...current])
     setText('')
     setPhotoName(undefined)
     if (photoInputRef.current) photoInputRef.current.value = ''
