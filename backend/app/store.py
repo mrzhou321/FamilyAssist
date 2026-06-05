@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
 
+from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
 from .schemas import (
     Member,
     MemberCreate,
@@ -160,23 +161,7 @@ class InMemoryStore:
         note = self.notes.get(note_id)
         if note is None:
             return None
-        text = note.content
-        domain = MemoryDomain.general
-        if any(keyword in text for keyword in ["走", "跑", "运动", "膝盖", "散步"]):
-            domain = MemoryDomain.exercise
-        elif any(keyword in text for keyword in ["冷", "热", "穿", "外套", "保暖"]):
-            domain = MemoryDomain.dressing
-        elif any(keyword in text for keyword in ["吃", "饭", "糖", "香菜", "过敏", "汤"]):
-            domain = MemoryDomain.diet
-
-        memory_type = MemoryType.fact if any(keyword in text for keyword in ["喜欢", "不吃", "过敏", "怕"]) else MemoryType.episode
-        candidate = MemoryDraft(type=memory_type, domain=domain, content=text, confidence=0.72)
-        return ReviewCandidate(
-            note_id=note.id,
-            member_id=note.member_id,
-            original=note.content,
-            candidates=[candidate],
-        )
+        return build_review_candidate_from_text(note.id, note.member_id, note.content)
 
     def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None:
         note = self.notes.get(note_id)
@@ -210,7 +195,8 @@ class InMemoryStore:
             memory.source_note_id == note_id or (
                 memory.member_id == note.member_id
                 and memory.domain == draft.domain
-                and memory.content == draft.content
+                and memory.type == draft.type
+                and is_duplicate_memory(memory.content, draft.content, draft.type, draft.domain)
             )
             for memory in self.memories.values()
         ):

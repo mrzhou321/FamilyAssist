@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
+from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
 from .schemas import (
     Member,
     MemberCreate,
@@ -266,21 +267,7 @@ class DatabaseDataStore:
         note = await self.session.get(models.Note, note_id)
         if note is None:
             return None
-        text = note.content
-        domain = MemoryDomain.general
-        if any(keyword in text for keyword in ["跑", "路", "运动", "膝盖", "散步"]):
-            domain = MemoryDomain.exercise
-        elif any(keyword in text for keyword in ["冷", "热", "穿", "外套", "保暖"]):
-            domain = MemoryDomain.dressing
-        elif any(keyword in text for keyword in ["吃", "饮", "糖", "香菜", "过敏", "汤"]):
-            domain = MemoryDomain.diet
-        memory_type = MemoryType.fact if any(keyword in text for keyword in ["喜欢", "不吃", "过敏", "怕"]) else MemoryType.episode
-        return ReviewCandidate(
-            note_id=note.id,
-            member_id=note.member_id,
-            original=note.content,
-            candidates=[MemoryDraft(type=memory_type, domain=domain, content=text, confidence=0.72)],
-        )
+        return build_review_candidate_from_text(note.id, note.member_id, note.content)
 
     async def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None:
         note = await self.session.get(models.Note, note_id)
@@ -321,16 +308,23 @@ class DatabaseDataStore:
         if note is None:
             return None
         draft = candidate.candidates[0]
-        existing = await self.session.scalar(
-            select(models.Memory).where(
-                (models.Memory.source_note_id == note_id)
-                | (
+        existing = await self.session.scalar(select(models.Memory).where(models.Memory.source_note_id == note_id))
+        if existing is None:
+            candidates = await self.session.scalars(
+                select(models.Memory).where(
                     (models.Memory.member_id == note.member_id)
                     & (models.Memory.domain == models.MemoryDomain(draft.domain.value))
-                    & (models.Memory.content == draft.content)
+                    & (models.Memory.type == models.MemoryType(draft.type.value))
                 )
             )
-        )
+            existing = next(
+                (
+                    memory
+                    for memory in candidates.all()
+                    if is_duplicate_memory(memory.content, draft.content, draft.type, draft.domain)
+                ),
+                None,
+            )
         if existing is not None:
             note.status = "reviewed"
             await self.session.commit()

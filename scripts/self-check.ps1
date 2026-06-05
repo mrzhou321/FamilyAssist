@@ -182,6 +182,7 @@ Step "Backend store smoke" {
 from datetime import timedelta
 
 from app.schemas import (
+    MemoryDraft,
     Memory,
     MemoryDomain,
     MemoryType,
@@ -190,6 +191,7 @@ from app.schemas import (
     RecommendationDomain,
     SystemSettings,
 )
+from app.memory_dedupe import is_duplicate_memory
 from app.store import InMemoryStore, now
 
 store = InMemoryStore()
@@ -237,6 +239,20 @@ assert 99 not in store.memories
 note = store.create_note(NoteCreate(member_id=1, content="likes walking after dinner"))
 created_memory = next(memory for memory in store.list_memories(1) if memory.source_note_id == note.id)
 assert created_memory.expires_at is not None
+
+assert is_duplicate_memory("\u5988\u5988\u4e0d\u7231\u9999\u83dc", "\u5988\u5988\u4e0d\u559c\u6b22\u82ab\u837d", MemoryType.fact, MemoryDomain.diet)
+note_a = store.create_note(NoteCreate(member_id=1, content="\u5988\u5988\u4e0d\u7231\u9999\u83dc"))
+count_before = len(store.list_memories(1))
+note_b = store.create_note(NoteCreate(member_id=1, content="\u5988\u5988\u4e0d\u559c\u6b22\u82ab\u837d"))
+assert len(store.list_memories(1)) == count_before
+assert store.notes[note_b.id].status == "reviewed"
+assert not any(memory.source_note_id == note_b.id for memory in store.list_memories(1))
+review_memory = store.approve_review_candidate(
+    note_a.id,
+    MemoryDraft(type=MemoryType.fact, domain=MemoryDomain.diet, content="\u5988\u5988\u4e0d\u5403\u9999\u83dc", confidence=0.95),
+)
+assert review_memory is not None
+assert review_memory.content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
 
 store.memories[100] = Memory(
     id=100,
