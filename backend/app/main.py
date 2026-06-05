@@ -7,10 +7,12 @@ from .schemas import (
     MemberCreate,
     MemberUpdate,
     Memory,
+    MemoryDraft,
     Note,
     NoteCreate,
     Recommendation,
     RecommendationDomain,
+    ReviewCandidate,
 )
 from .store import store
 
@@ -57,6 +59,27 @@ async def delete_member(member_id: int) -> None:
 @app.post("/api/notes", response_model=Note, status_code=202)
 async def create_note(payload: NoteCreate) -> Note:
     return store.create_note(payload)
+
+
+@app.get("/api/notes", response_model=list[Note])
+async def list_notes() -> list[Note]:
+    return store.list_notes()
+
+
+@app.get("/api/review/notes/{note_id}", response_model=ReviewCandidate)
+async def get_review_candidate(note_id: int) -> ReviewCandidate:
+    candidate = store.build_review_candidate(note_id)
+    if candidate is None:
+      raise HTTPException(status_code=404, detail="Note not found")
+    return candidate
+
+
+@app.post("/api/review/notes/{note_id}/approve", response_model=Memory)
+async def approve_review_candidate(note_id: int, payload: MemoryDraft) -> Memory:
+    memory = store.approve_review_candidate(note_id, payload)
+    if memory is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return memory
 
 
 @app.get("/api/memories", response_model=list[Memory])

@@ -7,11 +7,13 @@ from .schemas import (
     MemberUpdate,
     Memory,
     MemoryDomain,
+    MemoryDraft,
     MemoryType,
     Note,
     NoteCreate,
     Recommendation,
     RecommendationDomain,
+    ReviewCandidate,
 )
 
 
@@ -124,6 +126,50 @@ class InMemoryStore:
         note = Note(id=self._note_id, created_at=now(), **payload.model_dump())
         self.notes[note.id] = note
         return note
+
+    def list_notes(self) -> list[Note]:
+        return sorted(self.notes.values(), key=lambda note: note.created_at, reverse=True)
+
+    def build_review_candidate(self, note_id: int) -> ReviewCandidate | None:
+        note = self.notes.get(note_id)
+        if note is None:
+            return None
+        text = note.content
+        domain = MemoryDomain.general
+        if any(keyword in text for keyword in ["走", "跑", "运动", "膝盖", "散步"]):
+            domain = MemoryDomain.exercise
+        elif any(keyword in text for keyword in ["冷", "热", "穿", "外套", "保暖"]):
+            domain = MemoryDomain.dressing
+        elif any(keyword in text for keyword in ["吃", "饭", "糖", "香菜", "过敏", "汤"]):
+            domain = MemoryDomain.diet
+
+        memory_type = MemoryType.fact if any(keyword in text for keyword in ["喜欢", "不吃", "过敏", "怕"]) else MemoryType.episode
+        candidate = MemoryDraft(type=memory_type, domain=domain, content=text, confidence=0.72)
+        return ReviewCandidate(
+            note_id=note.id,
+            member_id=note.member_id,
+            original=note.content,
+            candidates=[candidate],
+        )
+
+    def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None:
+        note = self.notes.get(note_id)
+        if note is None:
+            return None
+        self._memory_id += 1
+        memory = Memory(
+            id=self._memory_id,
+            member_id=note.member_id,
+            type=draft.type,
+            domain=draft.domain,
+            content=draft.content,
+            confidence=draft.confidence,
+            source_note_id=note.id,
+            created_at=now(),
+        )
+        self.memories[memory.id] = memory
+        self.notes[note.id] = note.model_copy(update={"status": "reviewed"})
+        return memory
 
     def list_memories(self, member_id: int | None = None) -> list[Memory]:
         memories = list(self.memories.values())

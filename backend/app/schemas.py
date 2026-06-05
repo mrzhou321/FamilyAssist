@@ -81,6 +81,20 @@ class MemoryDomain(str, Enum):
     general = "general"
 
 
+class MemoryDraft(BaseModel):
+    type: MemoryType
+    domain: MemoryDomain
+    content: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class ReviewCandidate(BaseModel):
+    note_id: int
+    member_id: int | None = None
+    original: str
+    candidates: list[MemoryDraft]
+
+
 class Memory(BaseModel):
     id: int
     member_id: int | None = None

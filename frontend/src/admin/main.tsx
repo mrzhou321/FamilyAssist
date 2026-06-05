@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import Members from './pages/Members'
+import Review from './pages/Review'
 
 const NAV = [
   { to: '/', icon: '♥', label: '成员管理' },
@@ -53,7 +54,7 @@ export function AdminApp() {
           <Routes>
             <Route path="/" element={<Members />} />
             <Route path="/memory" element={<Placeholder title="记忆库" />} />
-            <Route path="/review" element={<Placeholder title="速记审核" />} />
+            <Route path="/review" element={<Review />} />
             <Route path="/qr" element={<Placeholder title="配对二维码" />} />
             <Route path="/settings" element={<Placeholder title="系统设置" />} />
           </Routes>
