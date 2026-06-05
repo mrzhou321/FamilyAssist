@@ -143,6 +143,20 @@ async def list_notes(
     return await data.list_notes(scoped_member_id(member_id, context))
 
 
+@app.get("/api/notes/{note_id}", response_model=Note)
+async def get_note(
+    note_id: int,
+    data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
+) -> Note:
+    note = await data.get_note(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    if context.is_member and note.member_id not in (None, context.member_id):
+        raise HTTPException(status_code=403, detail="Member token cannot access another member note")
+    return note
+
+
 @app.get("/api/review/notes/{note_id}", response_model=ReviewCandidate)
 async def get_review_candidate(
     note_id: int,

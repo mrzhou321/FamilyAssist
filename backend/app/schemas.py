@@ -132,10 +132,17 @@ class RecommendationDomain(str, Enum):
     exercise = "exercise"
 
 
+class RecommendationBasisRef(BaseModel):
+    memory_id: int
+    source_note_id: int | None = None
+    content: str
+
+
 class Recommendation(BaseModel):
     domain: RecommendationDomain
     content: str
     basis: list[str] = Field(default_factory=list)
+    basis_refs: list[RecommendationBasisRef] = Field(default_factory=list)
 
 
 class RecommendationBatch(BaseModel):

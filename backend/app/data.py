@@ -26,6 +26,7 @@ from .schemas import (
     PairingExchange,
     PairingToken,
     Recommendation,
+    RecommendationBasisRef,
     RecommendationBatch,
     RecommendationDomain,
     RecommendationFeedback,
@@ -42,6 +43,7 @@ class DataStore(Protocol):
     async def delete_member(self, member_id: int) -> bool: ...
     async def create_note(self, payload: NoteCreate) -> Note: ...
     async def list_notes(self, member_id: int | None = None) -> list[Note]: ...
+    async def get_note(self, note_id: int) -> Note | None: ...
     async def build_review_candidate(self, note_id: int) -> ReviewCandidate | None: ...
     async def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None: ...
     async def extract_memory_from_note(self, note_id: int) -> Memory | None: ...
@@ -84,6 +86,9 @@ class InMemoryDataStore:
 
     async def list_notes(self, member_id: int | None = None) -> list[Note]:
         return self.inner.list_notes(member_id)
+
+    async def get_note(self, note_id: int) -> Note | None:
+        return self.inner.get_note(note_id)
 
     async def build_review_candidate(self, note_id: int) -> ReviewCandidate | None:
         return self.inner.build_review_candidate(note_id)
@@ -232,6 +237,10 @@ class DatabaseDataStore:
         result = await self.session.scalars(statement.order_by(models.Note.created_at.desc()))
         return [self._to_note(note) for note in result.all()]
 
+    async def get_note(self, note_id: int) -> Note | None:
+        note = await self.session.get(models.Note, note_id)
+        return self._to_note(note) if note is not None else None
+
     async def build_review_candidate(self, note_id: int) -> ReviewCandidate | None:
         note = await self.session.get(models.Note, note_id)
         if note is None:
@@ -340,11 +349,20 @@ class DatabaseDataStore:
 
     async def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
         memories = await self.list_memories(member_id)
-        related = [
-            memory.content
+        related_memories = [
+            memory
             for memory in memories
             if memory.domain == domain.value or memory.domain == MemoryDomain.general.value
         ][:3]
+        related = [memory.content for memory in related_memories]
+        basis_refs = [
+            RecommendationBasisRef(
+                memory_id=memory.id,
+                source_note_id=memory.source_note_id,
+                content=memory.content,
+            )
+            for memory in related_memories
+        ]
         member = await self.session.get(models.Member, member_id) if member_id is not None else None
         name = member.name if member else "全家"
         templates = {
@@ -352,7 +370,7 @@ class DatabaseDataStore:
             RecommendationDomain.diet: f"{name} 今日饮食以清淡少油为主，避开已知忌口和过敏源。",
             RecommendationDomain.exercise: f"{name} 今日适合低到中等强度活动，优先散步和拉伸。",
         }
-        return Recommendation(domain=domain, content=templates[domain], basis=related)
+        return Recommendation(domain=domain, content=templates[domain], basis=related, basis_refs=basis_refs)
 
     async def make_recommendations(
         self,

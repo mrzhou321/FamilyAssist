@@ -112,6 +112,11 @@ batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=e
 assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
 assert any("member 1 knee note" in basis for item in batch.json()["recommendations"] for basis in item["basis"])
+assert any(ref["source_note_id"] == note_id for item in batch.json()["recommendations"] for ref in item["basis_refs"])
+
+source_note = client.get(f"/api/notes/{note_id}")
+assert source_note.status_code == 200
+assert source_note.json()["content"] == "member 1 knee note"
 
 with client.stream("GET", "/api/recommendations/diet/stream?member_id=1") as stream:
     assert stream.status_code == 200

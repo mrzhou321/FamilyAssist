@@ -19,6 +19,7 @@ from .schemas import (
     PairingToken,
     PairingTokenRecord,
     Recommendation,
+    RecommendationBasisRef,
     RecommendationBatch,
     RecommendationDomain,
     RecommendationFeedback,
@@ -151,6 +152,9 @@ class InMemoryStore:
             notes = [note for note in notes if note.member_id == member_id]
         return sorted(notes, key=lambda note: note.created_at, reverse=True)
 
+    def get_note(self, note_id: int) -> Note | None:
+        return self.notes.get(note_id)
+
     def build_review_candidate(self, note_id: int) -> ReviewCandidate | None:
         note = self.notes.get(note_id)
         if note is None:
@@ -234,11 +238,20 @@ class InMemoryStore:
         return self.memories.pop(memory_id, None) is not None
 
     def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
-        related = [
-            memory.content
+        related_memories = [
+            memory
             for memory in self.list_memories(member_id)
             if memory.domain == domain or memory.domain == MemoryDomain.general
         ][:3]
+        related = [memory.content for memory in related_memories]
+        basis_refs = [
+            RecommendationBasisRef(
+                memory_id=memory.id,
+                source_note_id=memory.source_note_id,
+                content=memory.content,
+            )
+            for memory in related_memories
+        ]
         member = self.members.get(member_id) if member_id is not None else None
         name = member.name if member else "全家"
 
@@ -247,7 +260,7 @@ class InMemoryStore:
             RecommendationDomain.diet: f"{name} 今日饮食以清淡少油为主，避开已知忌口和过敏源。",
             RecommendationDomain.exercise: f"{name} 今日适合低到中等强度活动，优先散步和拉伸。",
         }
-        return Recommendation(domain=domain, content=templates[domain], basis=related)
+        return Recommendation(domain=domain, content=templates[domain], basis=related, basis_refs=basis_refs)
 
     def make_recommendations(
         self,

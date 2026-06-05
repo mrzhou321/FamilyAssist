@@ -53,6 +53,13 @@ export interface Recommendation {
   domain: Domain
   content: string
   basis: string[]       // 引用记忆的摘要文本，用于展示「依据 XXX」
+  basis_refs: RecommendationBasisRef[]
+}
+
+export interface RecommendationBasisRef {
+  memory_id: number
+  source_note_id: number | null
+  content: string
 }
 
 export interface RecommendationBatch {

@@ -3,7 +3,7 @@ import { DOMAINS, DOMAIN_ICONS, DOMAIN_LABELS } from '@shared/constants'
 import type { Domain } from '@shared/constants'
 import { DOMAIN_CARD_COLORS } from '@shared/constants/colors'
 import { api } from '@shared/api'
-import type { Recommendation, RecommendationBatch } from '@shared/types'
+import type { Note, Recommendation, RecommendationBasisRef, RecommendationBatch } from '@shared/types'
 import { getCurrentMemberId, getCurrentMemberName } from '../session'
 
 const FALLBACK: Record<Domain, Recommendation> = {
@@ -11,16 +11,19 @@ const FALLBACK: Record<Domain, Recommendation> = {
     domain: 'dressing',
     content: '早晚偏凉，建议长袖加薄外套，膝盖容易不舒服时多一层保暖。',
     basis: ['妈妈怕冷', '爸爸膝盖受凉会不舒服'],
+    basis_refs: [],
   },
   diet: {
     domain: 'diet',
     content: '饮食以清淡少油为主，避开已知忌口和过敏源。',
     basis: ['爸爸控糖', '妈妈不吃香菜'],
+    basis_refs: [],
   },
   exercise: {
     domain: 'exercise',
     content: '适合低到中等强度活动，优先散步和拉伸。',
     basis: ['爸爸饭后喜欢散步 30 分钟'],
+    basis_refs: [],
   },
 }
 
@@ -28,6 +31,7 @@ export default function TodayAdvice() {
   const [recommendations, setRecommendations] = useState<Record<Domain, Recommendation>>(FALLBACK)
   const [message, setMessage] = useState('')
   const [pendingKey, setPendingKey] = useState('')
+  const [sourceNote, setSourceNote] = useState<Note | null>(null)
   const memberId = getCurrentMemberId()
   const memberName = getCurrentMemberName()
 
@@ -100,6 +104,20 @@ export default function TodayAdvice() {
     }
   }
 
+  async function openBasis(ref: RecommendationBasisRef) {
+    if (!ref.source_note_id) {
+      setMessage('这条依据来自种子记忆，暂无原始速记')
+      return
+    }
+    try {
+      const note = await api.get<Note>(`/notes/${ref.source_note_id}`)
+      setSourceNote(note)
+      setMessage('')
+    } catch {
+      setMessage('无法加载原始速记')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 p-5">
       <div
@@ -119,9 +137,28 @@ export default function TodayAdvice() {
         </div>
       ) : null}
 
+      {sourceNote ? (
+        <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <span className="text-xs text-[var(--color-muted)]">原始速记 #{sourceNote.id}</span>
+            <button type="button" onClick={() => setSourceNote(null)} className="text-xs text-[var(--color-muted)]">
+              关闭
+            </button>
+          </div>
+          {sourceNote.content}
+        </div>
+      ) : null}
+
       {DOMAINS.map((domain, index) => {
         const advice = recommendations[domain]
         const colors = DOMAIN_CARD_COLORS[domain]
+        const basisRefs = advice.basis_refs.length > 0
+          ? advice.basis_refs
+          : advice.basis.map((item, basisIndex) => ({
+              memory_id: basisIndex,
+              source_note_id: null,
+              content: item,
+            }))
         return (
           <article
             key={domain}
@@ -133,9 +170,20 @@ export default function TodayAdvice() {
               {DOMAIN_ICONS[domain]} {DOMAIN_LABELS[domain]}
             </p>
             <p className="text-sm text-[var(--color-fg)]">{advice.content}</p>
-            <p className="rounded-lg border border-white bg-white/60 px-3 py-1.5 text-xs text-[var(--color-muted)]">
-              依据：{advice.basis.join('；')}
-            </p>
+            <div className="rounded-lg border border-white bg-white/60 px-3 py-1.5 text-xs text-[var(--color-muted)]">
+              <span>依据：</span>
+              {basisRefs.map((ref, basisIndex) => (
+                <button
+                  key={`${ref.memory_id}-${basisIndex}`}
+                  type="button"
+                  onClick={() => openBasis(ref)}
+                  className="mr-1 underline decoration-dotted underline-offset-2"
+                >
+                  {ref.content}
+                  {basisIndex < basisRefs.length - 1 ? '；' : ''}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-2">
               {[
                 { label: '采纳', accepted: true },
