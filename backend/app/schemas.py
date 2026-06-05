@@ -126,3 +126,10 @@ class Recommendation(BaseModel):
     domain: RecommendationDomain
     content: str
     basis: list[str] = Field(default_factory=list)
+
+
+class RecommendationFeedback(BaseModel):
+    domain: RecommendationDomain
+    member_id: int | None = None
+    content: str
+    accepted: bool

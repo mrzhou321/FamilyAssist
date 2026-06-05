@@ -14,6 +14,7 @@ from .schemas import (
     NoteCreate,
     Recommendation,
     RecommendationDomain,
+    RecommendationFeedback,
     ReviewCandidate,
 )
 
@@ -206,6 +207,27 @@ class InMemoryStore:
             RecommendationDomain.exercise: f"{name} 今日适合低到中等强度活动，优先散步和拉伸。",
         }
         return Recommendation(domain=domain, content=templates[domain], basis=related)
+
+    def record_feedback(self, payload: RecommendationFeedback) -> Memory:
+        domain_map = {
+            RecommendationDomain.dressing: MemoryDomain.dressing,
+            RecommendationDomain.diet: MemoryDomain.diet,
+            RecommendationDomain.exercise: MemoryDomain.exercise,
+        }
+        verdict = "采纳" if payload.accepted else "不合适"
+        content = f"用户反馈「{verdict}」：{payload.content}"
+        self._memory_id += 1
+        memory = Memory(
+            id=self._memory_id,
+            member_id=payload.member_id,
+            type=MemoryType.episode,
+            domain=domain_map[payload.domain],
+            content=content,
+            confidence=0.84,
+            created_at=now(),
+        )
+        self.memories[memory.id] = memory
+        return memory
 
 
 store = InMemoryStore()

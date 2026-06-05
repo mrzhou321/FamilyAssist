@@ -13,6 +13,7 @@ from .schemas import (
     NoteCreate,
     Recommendation,
     RecommendationDomain,
+    RecommendationFeedback,
     ReviewCandidate,
 )
 from .store import store
@@ -108,3 +109,8 @@ async def get_recommendation(
     member_id: int | None = Query(default=None),
 ) -> Recommendation:
     return store.make_recommendation(domain, member_id)
+
+
+@app.post("/api/recommendations/feedback", response_model=Memory, status_code=201)
+async def create_recommendation_feedback(payload: RecommendationFeedback) -> Memory:
+    return store.record_feedback(payload)
