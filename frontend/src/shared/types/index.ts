@@ -28,7 +28,7 @@ export interface MemberProfile {
 
 export interface Note {
   id: number
-  member_id: number
+  member_id: number | null
   content: string
   source: 'text' | 'voice' | 'photo'
   created_at: string

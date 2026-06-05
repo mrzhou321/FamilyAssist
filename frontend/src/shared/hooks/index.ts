@@ -33,7 +33,7 @@ export const useCreateNote = () => {
       }
     },
     onSettled: (_, __, vars) => {
-      qc.invalidateQueries({ queryKey: ['memories', vars.member_id] })
+      if (vars.member_id) qc.invalidateQueries({ queryKey: ['memories', vars.member_id] })
       qc.invalidateQueries({ queryKey: ['queued-notes'] })
     },
   })

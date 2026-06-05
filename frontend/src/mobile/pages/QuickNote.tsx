@@ -34,7 +34,7 @@ export default function QuickNote() {
   function handleSubmit() {
     if (!text.trim()) return
     createNote(
-      { content: text, member_id: memberId ?? getCurrentMemberId(), source: 'text' },
+      { content: text, member_id: memberId, source: 'text' },
       {
         onSuccess: () => {
           setText('')
