@@ -8,6 +8,7 @@ from .schemas import (
     MemberUpdate,
     Memory,
     MemoryDraft,
+    MemoryUpdate,
     Note,
     NoteCreate,
     Recommendation,
@@ -85,6 +86,20 @@ async def approve_review_candidate(note_id: int, payload: MemoryDraft) -> Memory
 @app.get("/api/memories", response_model=list[Memory])
 async def list_memories(member_id: int | None = Query(default=None)) -> list[Memory]:
     return store.list_memories(member_id)
+
+
+@app.patch("/api/memories/{memory_id}", response_model=Memory)
+async def update_memory(memory_id: int, payload: MemoryUpdate) -> Memory:
+    memory = store.update_memory(memory_id, payload)
+    if memory is None:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return memory
+
+
+@app.delete("/api/memories/{memory_id}", status_code=204)
+async def delete_memory(memory_id: int) -> None:
+    if not store.delete_memory(memory_id):
+        raise HTTPException(status_code=404, detail="Memory not found")
 
 
 @app.get("/api/recommendations/{domain}", response_model=Recommendation)

@@ -107,6 +107,15 @@ class Memory(BaseModel):
     created_at: datetime
 
 
+class MemoryUpdate(BaseModel):
+    member_id: int | None = None
+    type: MemoryType | None = None
+    domain: MemoryDomain | None = None
+    content: str | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    expires_at: datetime | None = None
+
+
 class RecommendationDomain(str, Enum):
     dressing = "dressing"
     diet = "diet"

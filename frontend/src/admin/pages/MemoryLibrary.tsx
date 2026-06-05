@@ -36,6 +36,7 @@ const TYPE_LABEL = {
 export default function MemoryLibrary() {
   const [members, setMembers] = useState<Member[]>([])
   const [memories, setMemories] = useState<Memory[]>([])
+  const [editing, setEditing] = useState<Memory | null>(null)
   const [memberFilter, setMemberFilter] = useState('all')
   const [domainFilter, setDomainFilter] = useState<keyof typeof DOMAIN_LABEL>('all')
   const [typeFilter, setTypeFilter] = useState<keyof typeof TYPE_LABEL>('all')
@@ -65,6 +66,40 @@ export default function MemoryLibrary() {
     const typeMatched = typeFilter === 'all' || memory.type === typeFilter
     return memberMatched && domainMatched && typeMatched
   })
+
+  function updateEditing<K extends keyof Memory>(field: K, value: Memory[K]) {
+    setEditing((current) => (current ? { ...current, [field]: value } : current))
+  }
+
+  async function saveMemory() {
+    if (!editing) return
+    try {
+      const saved = await api.patch<Memory>(`/memories/${editing.id}`, {
+        member_id: editing.member_id,
+        type: editing.type,
+        domain: editing.domain,
+        content: editing.content,
+        confidence: editing.confidence,
+        expires_at: editing.expires_at,
+      })
+      setMemories((current) => current.map((memory) => (memory.id === saved.id ? saved : memory)))
+      setEditing(saved)
+      setMessage('记忆已保存')
+    } catch {
+      setMessage('保存失败，请稍后重试')
+    }
+  }
+
+  async function deleteMemory(memory: Memory) {
+    try {
+      await api.delete(`/memories/${memory.id}`)
+      setMemories((current) => current.filter((item) => item.id !== memory.id))
+      if (editing?.id === memory.id) setEditing(null)
+      setMessage('记忆已删除')
+    } catch {
+      setMessage('删除失败，请稍后重试')
+    }
+  }
 
   return (
     <div className="p-10">
@@ -130,12 +165,13 @@ export default function MemoryLibrary() {
       </section>
 
       <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-card)]">
-        <div className="grid grid-cols-[120px_90px_90px_minmax(0,1fr)_110px] border-b border-[var(--color-border)] bg-[var(--color-surface-warm)] px-4 py-3 text-xs text-[var(--color-muted)]">
+        <div className="grid grid-cols-[120px_90px_90px_minmax(0,1fr)_110px_120px] border-b border-[var(--color-border)] bg-[var(--color-surface-warm)] px-4 py-3 text-xs text-[var(--color-muted)]">
           <span>成员</span>
           <span>领域</span>
           <span>类型</span>
           <span>内容</span>
           <span>来源</span>
+          <span>操作</span>
         </div>
         {filtered.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-[var(--color-muted)]">没有匹配的记忆</div>
@@ -143,7 +179,7 @@ export default function MemoryLibrary() {
         {filtered.map((memory) => (
           <article
             key={memory.id}
-            className="grid grid-cols-[120px_90px_90px_minmax(0,1fr)_110px] items-start gap-0 border-b border-[var(--color-border)] px-4 py-3 text-sm last:border-0"
+            className="grid grid-cols-[120px_90px_90px_minmax(0,1fr)_110px_120px] items-start gap-0 border-b border-[var(--color-border)] px-4 py-3 text-sm last:border-0"
           >
             <span className="text-[var(--color-muted)]">
               {memory.member_id ? memberName.get(memory.member_id) ?? `成员 #${memory.member_id}` : '全家'}
@@ -159,9 +195,129 @@ export default function MemoryLibrary() {
             <span className="text-xs text-[var(--color-muted)]">
               {memory.source_note_id ? `note #${memory.source_note_id}` : '种子数据'}
             </span>
+            <span className="flex gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setEditing(memory)}
+                className="text-[var(--color-accent)]"
+              >
+                编辑
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMemory(memory)}
+                className="text-[var(--color-muted)]"
+              >
+                删除
+              </button>
+            </span>
           </article>
         ))}
       </section>
+
+      {editing ? (
+        <section className="mt-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg text-[var(--color-fg)]">编辑记忆 #{editing.id}</h3>
+            <button type="button" onClick={() => setEditing(null)} className="text-sm text-[var(--color-muted)]">
+              关闭
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4">
+            <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+              成员
+              <select
+                value={editing.member_id ?? 'family'}
+                onChange={(event) =>
+                  updateEditing(
+                    'member_id',
+                    event.target.value === 'family' ? null : Number(event.target.value),
+                  )
+                }
+                className="input"
+              >
+                <option value="family">全家</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}（{member.relation}）
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+              领域
+              <select
+                value={editing.domain}
+                onChange={(event) => updateEditing('domain', event.target.value as Memory['domain'])}
+                className="input"
+              >
+                {Object.entries(DOMAIN_LABEL)
+                  .filter(([value]) => value !== 'all')
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+              类型
+              <select
+                value={editing.type}
+                onChange={(event) => updateEditing('type', event.target.value as Memory['type'])}
+                className="input"
+              >
+                {Object.entries(TYPE_LABEL)
+                  .filter(([value]) => value !== 'all')
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+              置信度
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.01"
+                value={editing.confidence}
+                onChange={(event) => updateEditing('confidence', Number(event.target.value))}
+                className="input"
+              />
+            </label>
+          </div>
+
+          <label className="mt-4 flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+            内容
+            <textarea
+              value={editing.content}
+              onChange={(event) => updateEditing('content', event.target.value)}
+              className="input min-h-28"
+            />
+          </label>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => deleteMemory(editing)}
+              className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted)]"
+            >
+              删除记忆
+            </button>
+            <button
+              type="button"
+              onClick={saveMemory}
+              className="rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-5 py-2 text-sm text-white"
+            >
+              保存记忆
+            </button>
+          </div>
+        </section>
+      ) : null}
     </div>
   )
 }

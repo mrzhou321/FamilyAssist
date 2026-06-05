@@ -9,6 +9,7 @@ from .schemas import (
     MemoryDomain,
     MemoryDraft,
     MemoryType,
+    MemoryUpdate,
     Note,
     NoteCreate,
     Recommendation,
@@ -176,6 +177,19 @@ class InMemoryStore:
         if member_id is not None:
             memories = [memory for memory in memories if memory.member_id == member_id]
         return memories
+
+    def update_memory(self, memory_id: int, payload: MemoryUpdate) -> Memory | None:
+        current = self.memories.get(memory_id)
+        if current is None:
+            return None
+        data = current.model_dump()
+        data.update(payload.model_dump(exclude_unset=True))
+        memory = Memory(**data)
+        self.memories[memory_id] = memory
+        return memory
+
+    def delete_memory(self, memory_id: int) -> bool:
+        return self.memories.pop(memory_id, None) is not None
 
     def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
         related = [
