@@ -1,0 +1,19 @@
+{
+  "name": "家暖 FamilyAssister",
+  "short_name": "家暖",
+  "description": "家庭私人助手：速记、记忆和个性化建议。",
+  "start_url": "/mobile/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F0F4FA",
+  "theme_color": "#2F6FEB",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
