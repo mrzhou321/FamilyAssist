@@ -104,6 +104,9 @@ note_id = note.json()["id"]
 memories = client.get("/api/memories?member_id=1")
 assert memories.status_code == 200
 assert any(item["source_note_id"] == note_id for item in memories.json())
+auto_memory = next(item for item in memories.json() if item["source_note_id"] == note_id)
+assert auto_memory["type"] == "episode"
+assert auto_memory["expires_at"] is not None
 
 batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1")
 assert batch.status_code == 200
@@ -211,7 +214,21 @@ assert store.cleanup_expired_memories() == 1
 assert 99 not in store.memories
 
 note = store.create_note(NoteCreate(member_id=1, content="likes walking after dinner"))
-assert any(memory.source_note_id == note.id for memory in store.list_memories(1))
+created_memory = next(memory for memory in store.list_memories(1) if memory.source_note_id == note.id)
+assert created_memory.expires_at is not None
+
+store.memories[100] = Memory(
+    id=100,
+    member_id=1,
+    type=MemoryType.episode,
+    domain=MemoryDomain.exercise,
+    content="expired recommendation basis",
+    confidence=0.8,
+    expires_at=now() - timedelta(days=1),
+    created_at=now(),
+)
+assert all(memory.content != "expired recommendation basis" for memory in store.list_memories(1))
+assert "expired recommendation basis" not in store.make_recommendation(RecommendationDomain.exercise, 1).basis
 
 print("backend_store_smoke_ok")
 '@ | Set-Content -LiteralPath $smoke -Encoding UTF8

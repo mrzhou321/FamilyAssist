@@ -31,6 +31,10 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
+def default_expires_at(memory_type: MemoryType) -> datetime | None:
+    return now() + timedelta(days=7) if memory_type == MemoryType.episode else None
+
+
 class InMemoryStore:
     def __init__(self) -> None:
         self._member_id = 2
@@ -182,6 +186,7 @@ class InMemoryStore:
             content=draft.content,
             confidence=draft.confidence,
             source_note_id=note.id,
+            expires_at=default_expires_at(draft.type),
             created_at=now(),
         )
         self.memories[memory.id] = memory
@@ -210,6 +215,7 @@ class InMemoryStore:
 
     def list_memories(self, member_id: int | None = None) -> list[Memory]:
         memories = list(self.memories.values())
+        memories = [memory for memory in memories if memory.expires_at is None or memory.expires_at > now()]
         if member_id is not None:
             memories = [memory for memory in memories if memory.member_id == member_id]
         return memories
@@ -268,6 +274,7 @@ class InMemoryStore:
             domain=domain_map[payload.domain],
             content=content,
             confidence=0.84,
+            expires_at=default_expires_at(MemoryType.episode),
             created_at=now(),
         )
         self.memories[memory.id] = memory

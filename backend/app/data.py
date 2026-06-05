@@ -32,7 +32,7 @@ from .schemas import (
     ReviewCandidate,
     SystemSettings,
 )
-from .store import InMemoryStore, now, store
+from .store import InMemoryStore, default_expires_at, now, store
 
 
 class DataStore(Protocol):
@@ -275,6 +275,7 @@ class DatabaseDataStore:
             content=draft.content,
             confidence=draft.confidence,
             source_note_id=note.id,
+            expires_at=default_expires_at(draft.type),
         )
         note.status = "reviewed"
         self.session.add(memory)
@@ -308,6 +309,7 @@ class DatabaseDataStore:
 
     async def list_memories(self, member_id: int | None = None) -> list[Memory]:
         statement = select(models.Memory)
+        statement = statement.where((models.Memory.expires_at.is_(None)) | (models.Memory.expires_at > now()))
         if member_id is not None:
             statement = statement.where(models.Memory.member_id == member_id)
         result = await self.session.scalars(statement.order_by(models.Memory.created_at.desc()))
@@ -374,6 +376,7 @@ class DatabaseDataStore:
             domain=domain_map[payload.domain],
             content=f"用户反馈「{verdict}」：{payload.content}",
             confidence=0.84,
+            expires_at=default_expires_at(MemoryType.episode),
         )
         self.session.add(memory)
         await self.session.commit()
