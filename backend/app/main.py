@@ -31,11 +31,13 @@ from .store import store
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动时确认 pgvector 扩展存在
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    if settings.require_database:
+        # 启动时确认 pgvector 扩展存在
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     yield
-    await engine.dispose()
+    if settings.require_database:
+        await engine.dispose()
 
 
 app = FastAPI(title="FamilyAssister API", version="0.1.0", lifespan=lifespan)
@@ -51,9 +53,10 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthStatus)
 async def health() -> HealthStatus:
-    # 顺带检查数据库连通性
-    async with engine.connect() as conn:
-        await conn.execute(text("SELECT 1"))
+    if settings.require_database:
+        # 顺带检查数据库连通性
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
     return HealthStatus()
 
 

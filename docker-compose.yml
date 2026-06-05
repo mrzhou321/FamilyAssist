@@ -33,6 +33,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://family:family_dev_password@postgres:5432/family_assister
       OLLAMA_BASE_URL: http://ollama:11434
       DEBUG: "true"
+      REQUIRE_DATABASE: "true"
     ports:
       - "8000:8000"
     depends_on:
