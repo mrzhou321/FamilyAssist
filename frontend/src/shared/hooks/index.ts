@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@shared/api'
 import type { Member, Memory, Note, Recommendation, Feedback, PairingToken } from '@shared/types'
+import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
 
 export const useMembers = () =>
   useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/members') })
@@ -15,8 +16,36 @@ export const useMemberMemories = (memberId: number) =>
 export const useCreateNote = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (note: Omit<Note, 'id' | 'created_at'>) => api.post<Note>('/notes', note),
-    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ['memories', vars.member_id] }),
+    mutationFn: async (note: Omit<Note, 'id' | 'created_at'>) => {
+      if (!navigator.onLine) return enqueueNote(note)
+      try {
+        return await api.post<Note>('/notes', note)
+      } catch (error) {
+        await enqueueNote(note)
+        throw error
+      }
+    },
+    onSettled: (_, __, vars) => {
+      qc.invalidateQueries({ queryKey: ['memories', vars.member_id] })
+      qc.invalidateQueries({ queryKey: ['queued-notes'] })
+    },
+  })
+}
+
+export const useQueuedNotes = () =>
+  useQuery({
+    queryKey: ['queued-notes'],
+    queryFn: listQueuedNotes,
+  })
+
+export const useSyncQueuedNotes = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: syncQueuedNotes,
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['queued-notes'] })
+      qc.invalidateQueries({ queryKey: ['memories'] })
+    },
   })
 }
 

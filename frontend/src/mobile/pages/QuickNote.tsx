@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useCreateNote } from '@shared/hooks'
+import { useEffect, useState } from 'react'
+import { useCreateNote, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
@@ -13,13 +13,37 @@ const NOTE_TAGS: Record<number, { label: string; color: string }> = {
 export default function QuickNote() {
   const [text, setText] = useState('')
   const [memberId, setMemberId] = useState<number | null>(() => getCurrentMemberId())
+  const [message, setMessage] = useState('')
   const { mutate: createNote, isPending } = useCreateNote()
+  const { data: queuedNotes = [] } = useQueuedNotes()
+  const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
+
+  useEffect(() => {
+    function handleOnline() {
+      syncNotes(undefined, {
+        onSuccess: (count) => {
+          if (count > 0) setMessage(`已同步 ${count} 条离线速记`)
+        },
+      })
+    }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [syncNotes])
 
   function handleSubmit() {
     if (!text.trim()) return
     createNote(
       { content: text, member_id: memberId ?? getCurrentMemberId(), source: 'text' },
-      { onSuccess: () => setText('') },
+      {
+        onSuccess: () => {
+          setText('')
+          setMessage(navigator.onLine ? '已记下，正在理解中' : '已离线暂存，联网后自动同步')
+        },
+        onError: () => {
+          setText('')
+          setMessage('后端暂不可用，已暂存本地队列')
+        },
+      },
     )
   }
 
@@ -35,6 +59,22 @@ export default function QuickNote() {
           <p className="mt-1 text-xs text-[var(--color-muted)]">当前使用演示身份，扫码配对后会自动切换。</p>
         ) : null}
       </div>
+
+      {message || queuedNotes.length > 0 ? (
+        <div className="rounded-[var(--radius-sm)] border border-[var(--color-accent)]/20 bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
+          <div>{message || '离线速记队列等待同步'}</div>
+          {queuedNotes.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => syncNotes()}
+              disabled={isSyncing || !navigator.onLine}
+              className="mt-2 text-xs text-[var(--color-accent)] disabled:text-[var(--color-muted)]"
+            >
+              {isSyncing ? '同步中…' : `待同步 ${queuedNotes.length} 条`}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* 便签纸输入区 */}
       <div className="relative noise tilt-1 bg-gradient-to-br from-[#FFF8E8] to-[#FDEFD3]

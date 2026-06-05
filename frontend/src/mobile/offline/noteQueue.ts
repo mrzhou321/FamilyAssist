@@ -1,0 +1,79 @@
+import { api } from '@shared/api'
+import type { Note } from '@shared/types'
+
+export type QueuedNote = Omit<Note, 'id' | 'created_at'> & {
+  queue_id: string
+  queued_at: string
+}
+
+const DB_NAME = 'family-assister-offline'
+const DB_VERSION = 1
+const STORE_NAME = 'queued-notes'
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'queue_id' })
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function withStore<T>(
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, mode)
+    const store = transaction.objectStore(STORE_NAME)
+    const request = action(store)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+    transaction.oncomplete = () => db.close()
+    transaction.onerror = () => {
+      db.close()
+      reject(transaction.error)
+    }
+  })
+}
+
+export async function enqueueNote(note: Omit<Note, 'id' | 'created_at'>): Promise<QueuedNote> {
+  const queued: QueuedNote = {
+    ...note,
+    queue_id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    queued_at: new Date().toISOString(),
+  }
+  await withStore('readwrite', (store) => store.put(queued))
+  return queued
+}
+
+export async function listQueuedNotes(): Promise<QueuedNote[]> {
+  const notes = await withStore<QueuedNote[]>('readonly', (store) => store.getAll())
+  return notes.sort((a, b) => a.queued_at.localeCompare(b.queued_at))
+}
+
+export async function removeQueuedNote(queueId: string): Promise<void> {
+  await withStore('readwrite', (store) => store.delete(queueId))
+}
+
+export async function syncQueuedNotes(): Promise<number> {
+  if (!navigator.onLine) return 0
+  const queued = await listQueuedNotes()
+  let synced = 0
+  for (const note of queued) {
+    await api.post<Note>('/notes', {
+      member_id: note.member_id,
+      content: note.content,
+      source: note.source,
+    })
+    await removeQueuedNote(note.queue_id)
+    synced += 1
+  }
+  return synced
+}
