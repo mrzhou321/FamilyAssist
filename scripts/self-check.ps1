@@ -28,6 +28,35 @@ Step "Frontend lint" {
 
 Step "Backend compile" {
   & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\app"
+  & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\alembic"
+}
+
+Step "Backend database metadata" {
+  $metadataCheck = New-TemporaryFile
+  @'
+from app.models import Base
+
+expected = {
+    "members",
+    "notes",
+    "memories",
+    "pairing_tokens",
+    "member_sessions",
+    "system_settings",
+}
+assert expected.issubset(Base.metadata.tables.keys())
+print("backend_db_metadata_ok")
+'@ | Set-Content -LiteralPath $metadataCheck -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $metadataCheck
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend database metadata check failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $metadataCheck -Force -ErrorAction SilentlyContinue
+  }
 }
 
 Step "Backend store smoke" {

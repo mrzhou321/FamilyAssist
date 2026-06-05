@@ -4,6 +4,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from app.models import Base
+
 config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
@@ -14,16 +16,17 @@ db_url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
 if db_url and db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 config.set_main_option("sqlalchemy.url", db_url)
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    context.configure(url=db_url, literal_binds=True)
+    context.configure(url=db_url, target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection):
-    context.configure(connection=connection)
+    context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
 
