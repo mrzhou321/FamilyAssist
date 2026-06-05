@@ -1,5 +1,5 @@
 import '../globals.css'
-import { StrictMode } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import MemoryVault from './pages/MemoryVault'
@@ -24,8 +24,18 @@ export function MobileApp() {
 function MobileShell() {
   const location = useLocation()
   const isPairing = location.pathname === '/pair'
+  const { waitingWorker, refresh } = useServiceWorkerUpdate()
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col bg-[var(--color-bg)]">
+      {waitingWorker ? (
+        <button
+          type="button"
+          onClick={refresh}
+          className="border-b border-[var(--color-border)] bg-[var(--color-accent)] px-4 py-2 text-xs text-white"
+        >
+          有新版本可用，点击刷新
+        </button>
+      ) : null}
       <main className="flex-1 overflow-y-auto">
         <Routes>
           <Route path="/" element={<QuickNote />} />
@@ -55,6 +65,41 @@ function MobileShell() {
       )}
     </div>
   )
+}
+
+function useServiceWorkerUpdate() {
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return
+
+    let refreshing = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return
+      refreshing = true
+      window.location.reload()
+    })
+
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.waiting) setWaitingWorker(registration.waiting)
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing
+        if (!worker) return
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            setWaitingWorker(worker)
+          }
+        })
+      })
+    })
+  }, [])
+
+  return {
+    waitingWorker,
+    refresh() {
+      waitingWorker?.postMessage({ type: 'SKIP_WAITING' })
+    },
+  }
 }
 
 createRoot(document.getElementById('root')!).render(
