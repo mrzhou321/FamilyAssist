@@ -20,6 +20,7 @@ from .schemas import (
     PairingToken,
     PairingExchange,
     Recommendation,
+    RecommendationBatch,
     RecommendationDomain,
     RecommendationFeedback,
     ReviewCandidate,
@@ -132,6 +133,20 @@ async def delete_memory(memory_id: int) -> None:
 @app.post("/api/recommendations/feedback", response_model=Memory, status_code=201)
 async def create_recommendation_feedback(payload: RecommendationFeedback) -> Memory:
     return store.record_feedback(payload)
+
+
+@app.get("/api/recommendations", response_model=RecommendationBatch)
+async def list_recommendations(
+    domains: list[RecommendationDomain] = Query(
+        default=[
+            RecommendationDomain.dressing,
+            RecommendationDomain.diet,
+            RecommendationDomain.exercise,
+        ],
+    ),
+    member_id: int | None = Query(default=None),
+) -> RecommendationBatch:
+    return store.make_recommendations(domains, member_id)
 
 
 @app.get("/api/recommendations/{domain}", response_model=Recommendation)

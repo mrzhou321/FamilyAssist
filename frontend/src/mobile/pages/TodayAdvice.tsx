@@ -3,13 +3,8 @@ import { DOMAINS, DOMAIN_ICONS, DOMAIN_LABELS } from '@shared/constants'
 import type { Domain } from '@shared/constants'
 import { DOMAIN_CARD_COLORS } from '@shared/constants/colors'
 import { api } from '@shared/api'
+import type { Recommendation, RecommendationBatch } from '@shared/types'
 import { getCurrentMemberId, getCurrentMemberName } from '../session'
-
-interface Recommendation {
-  domain: Domain
-  content: string
-  basis: string[]
-}
 
 const FALLBACK: Record<Domain, Recommendation> = {
   dressing: {
@@ -37,14 +32,14 @@ export default function TodayAdvice() {
   const memberName = getCurrentMemberName()
 
   useEffect(() => {
-    Promise.all(
-      DOMAINS.map((domain) =>
-        api
-          .get<Recommendation>(`/recommendations/${domain}?member_id=${memberId}`)
-          .then((recommendation) => [domain, recommendation] as const),
-      ),
-    )
-      .then((items) => {
+    const params = new URLSearchParams()
+    DOMAINS.forEach((domain) => params.append('domains', domain))
+    if (memberId !== null) params.set('member_id', String(memberId))
+
+    api
+      .get<RecommendationBatch>(`/recommendations?${params.toString()}`)
+      .then(({ recommendations }) => {
+        const items = recommendations.map((recommendation) => [recommendation.domain, recommendation] as const)
         setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
         setMessage('')
       })

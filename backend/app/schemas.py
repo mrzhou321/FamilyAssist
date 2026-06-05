@@ -128,6 +128,10 @@ class Recommendation(BaseModel):
     basis: list[str] = Field(default_factory=list)
 
 
+class RecommendationBatch(BaseModel):
+    recommendations: list[Recommendation]
+
+
 class RecommendationFeedback(BaseModel):
     domain: RecommendationDomain
     member_id: int | None = None

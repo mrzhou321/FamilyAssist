@@ -19,6 +19,7 @@ from .schemas import (
     PairingToken,
     PairingTokenRecord,
     Recommendation,
+    RecommendationBatch,
     RecommendationDomain,
     RecommendationFeedback,
     ReviewCandidate,
@@ -219,6 +220,15 @@ class InMemoryStore:
             RecommendationDomain.exercise: f"{name} 今日适合低到中等强度活动，优先散步和拉伸。",
         }
         return Recommendation(domain=domain, content=templates[domain], basis=related)
+
+    def make_recommendations(
+        self,
+        domains: list[RecommendationDomain],
+        member_id: int | None,
+    ) -> RecommendationBatch:
+        return RecommendationBatch(
+            recommendations=[self.make_recommendation(domain, member_id) for domain in domains]
+        )
 
     def record_feedback(self, payload: RecommendationFeedback) -> Memory:
         domain_map = {

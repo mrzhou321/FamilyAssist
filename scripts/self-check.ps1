@@ -40,6 +40,7 @@ from app.schemas import (
     MemoryDomain,
     MemoryType,
     PairingExchange,
+    RecommendationDomain,
     SystemSettings,
 )
 from app.store import InMemoryStore, now
@@ -52,6 +53,16 @@ session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairi
 assert session is not None
 assert session.member_id == 1
 assert store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token)) is None
+
+batch = store.make_recommendations(
+    [RecommendationDomain.dressing, RecommendationDomain.diet, RecommendationDomain.exercise],
+    1,
+)
+assert [item.domain for item in batch.recommendations] == [
+    RecommendationDomain.dressing,
+    RecommendationDomain.diet,
+    RecommendationDomain.exercise,
+]
 
 settings = store.update_settings(SystemSettings(default_city="Shanghai", extraction_retries=2))
 assert settings.default_city == "Shanghai"

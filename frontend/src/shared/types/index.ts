@@ -52,6 +52,10 @@ export interface Recommendation {
   basis: string[]       // 引用记忆的摘要文本，用于展示「依据 XXX」
 }
 
+export interface RecommendationBatch {
+  recommendations: Recommendation[]
+}
+
 export interface Feedback {
   domain: Domain
   member_id: number | null
