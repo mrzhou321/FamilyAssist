@@ -127,10 +127,15 @@ pairing = client.post("/api/pairing/members/1", headers=admin_headers)
 assert pairing.status_code == 201
 session = client.post(
     "/api/pairing/exchange",
-    json={"pairing_token": pairing.json()["pairing_token"]},
+    json={"pairing_token": pairing.json()["pairing_token"], "device_name": "self-check-phone"},
 )
 assert session.status_code == 200
 headers = {"Authorization": f"Bearer {session.json()['access_token']}"}
+
+sessions = client.get("/api/pairing/sessions?member_id=1", headers=admin_headers)
+assert sessions.status_code == 200
+device_session = next(item for item in sessions.json() if item["device_name"] == "self-check-phone")
+assert device_session["revoked"] is False
 
 own_notes = client.get("/api/notes?member_id=1", headers=headers)
 assert own_notes.status_code == 200
@@ -151,6 +156,11 @@ other_note = client.post(
     headers=headers,
 )
 assert other_note.status_code == 403
+
+revoked = client.post(f"/api/pairing/sessions/{device_session['token_hash']}/revoke", headers=admin_headers)
+assert revoked.status_code == 200
+assert revoked.json()["revoked"] is True
+assert client.get("/api/notes?member_id=1", headers=headers).status_code == 401
 
 print("backend_api_smoke_ok")
 '@ | Set-Content -LiteralPath $apiSmoke -Encoding UTF8
@@ -186,10 +196,16 @@ store = InMemoryStore()
 
 token = store.create_pairing_token(1, "http://localhost:5173")
 assert token is not None
-session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token))
+session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token, device_name="store-smoke-phone"))
 assert session is not None
 assert session.member_id == 1
 assert store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token)) is None
+sessions = store.list_member_sessions(1)
+assert len(sessions) == 1
+assert sessions[0].device_name == "store-smoke-phone"
+assert store.validate_member_token(session.access_token) is not None
+assert store.revoke_member_session(sessions[0].token_hash) is True
+assert store.validate_member_token(session.access_token) is None
 
 batch = store.make_recommendations(
     [RecommendationDomain.dressing, RecommendationDomain.diet, RecommendationDomain.exercise],

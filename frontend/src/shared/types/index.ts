@@ -80,3 +80,12 @@ export interface PairingToken {
   pairing_url: string
   expires_at: string
 }
+
+export interface MemberDeviceSession {
+  token_hash: string
+  member_id: number
+  member_name: string
+  device_name: string
+  revoked: boolean
+  created_at: string
+}

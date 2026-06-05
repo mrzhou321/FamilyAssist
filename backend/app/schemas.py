@@ -183,6 +183,15 @@ class MemberSession(BaseModel):
     token_type: str = "bearer"
 
 
+class MemberDeviceSession(BaseModel):
+    token_hash: str
+    member_id: int
+    member_name: str
+    device_name: str
+    revoked: bool = False
+    created_at: datetime
+
+
 class SystemSettings(BaseModel):
     llm_provider: str = "ollama"
     generation_model: str = "qwen2.5:3b"

@@ -5,6 +5,7 @@ from secrets import token_urlsafe
 from .schemas import (
     Member,
     MemberCreate,
+    MemberDeviceSession,
     MemberProfile,
     MemberUpdate,
     Memory,
@@ -42,7 +43,7 @@ class InMemoryStore:
         self._note_id = 0
         self._memory_id = 3
         self.pairing_tokens: dict[str, PairingTokenRecord] = {}
-        self.member_sessions: dict[str, MemberSession] = {}
+        self.member_sessions: dict[str, MemberDeviceSession] = {}
         self.settings = SystemSettings()
         created = now()
         self.members: dict[int, Member] = {
@@ -327,16 +328,35 @@ class InMemoryStore:
         self.pairing_tokens[token_hash] = record.model_copy(update={"used": True})
         self.members[member.id] = member.model_copy(update={"bound": True, "updated_at": now()})
         access_token = token_urlsafe(32)
-        session = MemberSession(
+        token_hash = sha256(access_token.encode("utf-8")).hexdigest()
+        self.member_sessions[token_hash] = MemberDeviceSession(
             member_id=member.id,
             member_name=member.name,
-            access_token=access_token,
+            token_hash=token_hash,
+            device_name=payload.device_name,
+            created_at=now(),
         )
-        self.member_sessions[sha256(access_token.encode("utf-8")).hexdigest()] = session
-        return session
+        return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
 
     def validate_member_token(self, access_token: str) -> MemberSession | None:
-        return self.member_sessions.get(sha256(access_token.encode("utf-8")).hexdigest())
+        token_hash = sha256(access_token.encode("utf-8")).hexdigest()
+        session = self.member_sessions.get(token_hash)
+        if session is None or session.revoked:
+            return None
+        return MemberSession(member_id=session.member_id, member_name=session.member_name, access_token=access_token)
+
+    def list_member_sessions(self, member_id: int | None = None) -> list[MemberDeviceSession]:
+        sessions = list(self.member_sessions.values())
+        if member_id is not None:
+            sessions = [session for session in sessions if session.member_id == member_id]
+        return sorted(sessions, key=lambda session: session.created_at, reverse=True)
+
+    def revoke_member_session(self, token_hash: str) -> bool:
+        session = self.member_sessions.get(token_hash)
+        if session is None:
+            return False
+        self.member_sessions[token_hash] = session.model_copy(update={"revoked": True})
+        return True
 
     def get_settings(self) -> SystemSettings:
         return self.settings

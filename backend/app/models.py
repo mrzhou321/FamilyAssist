@@ -48,6 +48,7 @@ class Member(Base):
 
     notes: Mapped[list["Note"]] = relationship(back_populates="member")
     memories: Mapped[list["Memory"]] = relationship(back_populates="member")
+    sessions: Mapped[list["MemberSession"]] = relationship(back_populates="member")
 
 
 class Note(Base):
@@ -99,6 +100,8 @@ class MemberSession(Base):
     device_name: Mapped[str] = mapped_column(String(160), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    member: Mapped[Member] = relationship(back_populates="sessions")
 
 
 class SystemSetting(Base):

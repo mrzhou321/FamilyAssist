@@ -25,6 +25,7 @@ from .schemas import (
     HealthStatus,
     Member,
     MemberCreate,
+    MemberDeviceSession,
     MemberSession,
     MemberUpdate,
     Memory,
@@ -292,6 +293,29 @@ async def exchange_pairing_token(
     session = await data.exchange_pairing_token(payload)
     if session is None:
         raise HTTPException(status_code=400, detail="Pairing token is invalid, used, or expired")
+    return session
+
+
+@app.get("/api/pairing/sessions", response_model=list[MemberDeviceSession])
+async def list_member_sessions(
+    member_id: int | None = Query(default=None),
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> list[MemberDeviceSession]:
+    return await data.list_member_sessions(member_id)
+
+
+@app.post("/api/pairing/sessions/{token_hash}/revoke", response_model=MemberDeviceSession)
+async def revoke_member_session(
+    token_hash: str,
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> MemberDeviceSession:
+    if not await data.revoke_member_session(token_hash):
+        raise HTTPException(status_code=404, detail="Member session not found")
+    session = next((item for item in await data.list_member_sessions() if item.token_hash == token_hash), None)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Member session not found")
     return session
 
 

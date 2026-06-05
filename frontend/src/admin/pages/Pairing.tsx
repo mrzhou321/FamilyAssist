@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { api } from '../../shared/api'
+import type { MemberDeviceSession, PairingToken } from '../../shared/types'
 
 interface Member {
   id: number
@@ -9,18 +10,11 @@ interface Member {
   bound: boolean
 }
 
-interface PairingToken {
-  member_id: number
-  server_url: string
-  pairing_token: string
-  pairing_url: string
-  expires_at: string
-}
-
 export default function Pairing() {
   const [members, setMembers] = useState<Member[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [pairing, setPairing] = useState<PairingToken | null>(null)
+  const [sessions, setSessions] = useState<MemberDeviceSession[]>([])
   const [message, setMessage] = useState('')
   const qrRef = useRef<HTMLCanvasElement>(null)
 
@@ -40,6 +34,10 @@ export default function Pairing() {
   }, [])
 
   useEffect(() => {
+    void loadSessions(selectedId)
+  }, [selectedId])
+
+  useEffect(() => {
     if (!pairing || !qrRef.current) return
     QRCode.toCanvas(qrRef.current, pairing.pairing_url, {
       errorCorrectionLevel: 'M',
@@ -52,6 +50,16 @@ export default function Pairing() {
     }).catch(() => setMessage('二维码渲染失败，请复制链接配对'))
   }, [pairing])
 
+  async function loadSessions(memberId: number | null) {
+    try {
+      const query = memberId ? `?member_id=${memberId}` : ''
+      const items = await api.get<MemberDeviceSession[]>(`/pairing/sessions${query}`)
+      setSessions(items)
+    } catch {
+      setSessions([])
+    }
+  }
+
   async function generatePairing() {
     if (!selectedId) return
     try {
@@ -62,6 +70,7 @@ export default function Pairing() {
       )
       setPairing(token)
       setMessage('配对码已生成，5 分钟内有效')
+      await loadSessions(selectedId)
     } catch {
       setMessage('生成配对码失败，请稍后重试')
     }
@@ -71,6 +80,16 @@ export default function Pairing() {
     if (!pairing) return
     await navigator.clipboard?.writeText(pairing.pairing_url)
     setMessage('配对链接已复制')
+  }
+
+  async function revokeSession(tokenHash: string) {
+    try {
+      await api.post<MemberDeviceSession>(`/pairing/sessions/${tokenHash}/revoke`, {})
+      setMessage('设备会话已吊销，该手机需要重新扫码配对')
+      await loadSessions(selectedId)
+    } catch {
+      setMessage('吊销会话失败，请稍后重试')
+    }
   }
 
   return (
@@ -106,7 +125,7 @@ export default function Pairing() {
                     : 'border-[var(--color-border)] bg-white'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-[var(--color-fg)]">{member.name}</p>
                     <p className="text-xs text-[var(--color-muted)]">{member.relation}</p>
@@ -174,6 +193,81 @@ export default function Pairing() {
           )}
         </section>
       </div>
+
+      <section className="mt-6 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-6 shadow-[var(--shadow-card)]">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg text-[var(--color-fg)]">已绑定设备</h3>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              吊销后，该设备的成员 token 会立即失效。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadSessions(selectedId)}
+            className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)]"
+          >
+            刷新
+          </button>
+        </div>
+
+        {sessions.length ? (
+          <div className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--color-border)]">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-[var(--color-surface-warm)] text-xs text-[var(--color-muted)]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">成员</th>
+                  <th className="px-4 py-3 font-medium">设备</th>
+                  <th className="px-4 py-3 font-medium">创建时间</th>
+                  <th className="px-4 py-3 font-medium">状态</th>
+                  <th className="px-4 py-3 text-right font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border)]">
+                {sessions.map((session) => (
+                  <tr key={session.token_hash}>
+                    <td className="px-4 py-3 text-[var(--color-fg)]">{session.member_name}</td>
+                    <td className="px-4 py-3 text-[var(--color-muted)]">
+                      <div>{session.device_name}</div>
+                      <div className="mt-1 font-[var(--font-num)] text-[10px] text-[var(--color-muted)]">
+                        {session.token_hash.slice(0, 12)}...
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-[var(--font-num)] text-xs text-[var(--color-muted)]">
+                      {new Date(session.created_at).toLocaleString('zh-CN')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] ${
+                          session.revoked
+                            ? 'bg-[var(--color-muted)]/10 text-[var(--color-muted)]'
+                            : 'bg-[var(--color-sage)]/10 text-[var(--color-sage)]'
+                        }`}
+                      >
+                        {session.revoked ? '已吊销' : '有效'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => void revokeSession(session.token_hash)}
+                        disabled={session.revoked}
+                        className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        吊销
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--color-border)] px-4 py-8 text-center text-sm text-[var(--color-muted)]">
+            当前成员还没有设备会话
+          </div>
+        )}
+      </section>
     </div>
   )
 }

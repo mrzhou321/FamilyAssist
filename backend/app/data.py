@@ -6,6 +6,7 @@ from typing import Protocol
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from . import models
 from .core.config import settings
@@ -13,6 +14,7 @@ from .core.db import AsyncSessionLocal
 from .schemas import (
     Member,
     MemberCreate,
+    MemberDeviceSession,
     MemberProfile,
     MemberSession,
     MemberUpdate,
@@ -60,6 +62,8 @@ class DataStore(Protocol):
     async def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None: ...
     async def exchange_pairing_token(self, payload: PairingExchange) -> MemberSession | None: ...
     async def validate_member_token(self, access_token: str) -> MemberSession | None: ...
+    async def list_member_sessions(self, member_id: int | None = None) -> list[MemberDeviceSession]: ...
+    async def revoke_member_session(self, token_hash: str) -> bool: ...
     async def get_settings(self) -> SystemSettings: ...
     async def update_settings(self, payload: SystemSettings) -> SystemSettings: ...
     async def cleanup_expired_memories(self) -> int: ...
@@ -130,6 +134,12 @@ class InMemoryDataStore:
     async def validate_member_token(self, access_token: str) -> MemberSession | None:
         return self.inner.validate_member_token(access_token)
 
+    async def list_member_sessions(self, member_id: int | None = None) -> list[MemberDeviceSession]:
+        return self.inner.list_member_sessions(member_id)
+
+    async def revoke_member_session(self, token_hash: str) -> bool:
+        return self.inner.revoke_member_session(token_hash)
+
     async def get_settings(self) -> SystemSettings:
         return self.inner.get_settings()
 
@@ -177,6 +187,17 @@ class DatabaseDataStore:
             source_note_id=memory.source_note_id,
             expires_at=memory.expires_at,
             created_at=memory.created_at,
+        )
+
+    def _to_member_session(self, session: models.MemberSession) -> MemberDeviceSession:
+        member_name = session.member.name if session.member is not None else "Unknown member"
+        return MemberDeviceSession(
+            token_hash=session.token_hash,
+            member_id=session.member_id,
+            member_name=member_name,
+            device_name=session.device_name,
+            revoked=session.revoked,
+            created_at=session.created_at,
         )
 
     async def list_members(self) -> list[Member]:
@@ -449,6 +470,21 @@ class DatabaseDataStore:
         if member is None:
             return None
         return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
+
+    async def list_member_sessions(self, member_id: int | None = None) -> list[MemberDeviceSession]:
+        statement = select(models.MemberSession).options(selectinload(models.MemberSession.member))
+        if member_id is not None:
+            statement = statement.where(models.MemberSession.member_id == member_id)
+        result = await self.session.scalars(statement.order_by(models.MemberSession.created_at.desc()))
+        return [self._to_member_session(session) for session in result.all()]
+
+    async def revoke_member_session(self, token_hash: str) -> bool:
+        session = await self.session.get(models.MemberSession, token_hash)
+        if session is None:
+            return False
+        session.revoked = True
+        await self.session.commit()
+        return True
 
     async def get_settings(self) -> SystemSettings:
         row = await self.session.get(models.SystemSetting, "system")

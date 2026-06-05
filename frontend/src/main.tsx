@@ -1,10 +1,9 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+const path = window.location.pathname
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+if (path.startsWith('/admin')) {
+  await import('./admin/main')
+} else if (path.startsWith('/mobile')) {
+  await import('./mobile/main')
+} else {
+  window.location.replace('/mobile/')
+}
