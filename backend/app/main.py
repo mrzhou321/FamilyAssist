@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 
+from collections.abc import AsyncIterator
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
 from .auth import RequestContext, assert_member_payload, get_request_context, scoped_member_id
@@ -196,6 +199,26 @@ async def get_recommendation(
     context: RequestContext = Depends(get_request_context),
 ) -> Recommendation:
     return await data.make_recommendation(domain, scoped_member_id(member_id, context))
+
+
+@app.get("/api/recommendations/{domain}/stream")
+async def stream_recommendation(
+    domain: RecommendationDomain,
+    member_id: int | None = Query(default=None),
+    data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
+) -> StreamingResponse:
+    recommendation = await data.make_recommendation(domain, scoped_member_id(member_id, context))
+
+    async def events() -> AsyncIterator[str]:
+        for chunk in _chunk_text(recommendation.content):
+            yield f"data: {chunk}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
+def _chunk_text(text: str, size: int = 4) -> list[str]:
+    return [text[index : index + size] for index in range(0, len(text), size)]
 
 
 @app.post("/api/pairing/members/{member_id}", response_model=PairingToken, status_code=201)

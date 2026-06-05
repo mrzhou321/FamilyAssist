@@ -36,14 +36,50 @@ export default function TodayAdvice() {
     DOMAINS.forEach((domain) => params.append('domains', domain))
     if (memberId !== null) params.set('member_id', String(memberId))
 
+    const streamStops: Array<() => void> = []
+    let active = true
+
     api
       .get<RecommendationBatch>(`/recommendations?${params.toString()}`)
       .then(({ recommendations }) => {
+        if (!active) return
         const items = recommendations.map((recommendation) => [recommendation.domain, recommendation] as const)
         setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
-        setMessage('')
+        setMessage('正在生成今日建议…')
+
+        DOMAINS.forEach((domain) => {
+          const streamParams = new URLSearchParams()
+          if (memberId !== null) streamParams.set('member_id', String(memberId))
+          let streamed = ''
+          const stop = api.stream(
+            `/recommendations/${domain}/stream?${streamParams.toString()}`,
+            (chunk) => {
+              if (!active) return
+              streamed += chunk
+              setRecommendations((current) => ({
+                ...current,
+                [domain]: {
+                  ...current[domain],
+                  content: streamed,
+                },
+              }))
+              setMessage('')
+            },
+            () => {
+              if (active) setMessage('流式生成暂不可用，已显示完整建议')
+            },
+          )
+          streamStops.push(stop)
+        })
       })
-      .catch(() => setMessage('后端暂不可用，正在显示本地建议'))
+      .catch(() => {
+        if (active) setMessage('后端暂不可用，正在显示本地建议')
+      })
+
+    return () => {
+      active = false
+      streamStops.forEach((stop) => stop())
+    }
   }, [memberId])
 
   async function sendFeedback(domain: Domain, content: string, accepted: boolean) {

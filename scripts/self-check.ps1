@@ -88,6 +88,10 @@ batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=e
 assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
 
+with client.stream("GET", "/api/recommendations/diet/stream?member_id=1") as stream:
+    assert stream.status_code == 200
+    assert "data:" in "".join(stream.iter_text())
+
 pairing = client.post("/api/pairing/members/1")
 assert pairing.status_code == 201
 session = client.post(
