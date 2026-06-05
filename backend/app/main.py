@@ -1,10 +1,16 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
+from .core.config import settings
+from .core.db import engine
 from .schemas import (
     HealthStatus,
     Member,
     MemberCreate,
+    MemberSession,
     MemberUpdate,
     Memory,
     MemoryDraft,
@@ -12,6 +18,7 @@ from .schemas import (
     Note,
     NoteCreate,
     PairingToken,
+    PairingExchange,
     Recommendation,
     RecommendationDomain,
     RecommendationFeedback,
@@ -19,11 +26,21 @@ from .schemas import (
 )
 from .store import store
 
-app = FastAPI(title="FamilyAssister API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时确认 pgvector 扩展存在
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(title="FamilyAssister API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"] if settings.debug else ["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,6 +49,9 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthStatus)
 async def health() -> HealthStatus:
+    # 顺带检查数据库连通性
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
     return HealthStatus()
 
 
@@ -126,3 +146,11 @@ async def create_pairing_token(
     if token is None:
         raise HTTPException(status_code=404, detail="Member not found")
     return token
+
+
+@app.post("/api/pairing/exchange", response_model=MemberSession)
+async def exchange_pairing_token(payload: PairingExchange) -> MemberSession:
+    session = store.exchange_pairing_token(payload)
+    if session is None:
+        raise HTTPException(status_code=400, detail="Pairing token is invalid, used, or expired")
+    return session

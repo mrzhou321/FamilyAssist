@@ -15,6 +15,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"]
+    },
+    "ignoreDeprecations": "6.0",
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

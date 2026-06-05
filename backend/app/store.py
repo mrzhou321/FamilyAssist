@@ -12,8 +12,10 @@ from .schemas import (
     MemoryDraft,
     MemoryType,
     MemoryUpdate,
+    MemberSession,
     Note,
     NoteCreate,
+    PairingExchange,
     PairingToken,
     PairingTokenRecord,
     Recommendation,
@@ -253,6 +255,25 @@ class InMemoryStore:
             pairing_token=raw_token,
             pairing_url=pairing_url,
             expires_at=expires_at,
+        )
+
+    def exchange_pairing_token(self, payload: PairingExchange) -> MemberSession | None:
+        token_hash = sha256(payload.pairing_token.encode("utf-8")).hexdigest()
+        record = self.pairing_tokens.get(token_hash)
+        if record is None or record.used or record.expires_at <= now():
+            return None
+
+        member = self.members.get(record.member_id)
+        if member is None:
+            return None
+
+        self.pairing_tokens[token_hash] = record.model_copy(update={"used": True})
+        self.members[member.id] = member.model_copy(update={"bound": True, "updated_at": now()})
+        access_token = token_urlsafe(32)
+        return MemberSession(
+            member_id=member.id,
+            member_name=member.name,
+            access_token=access_token,
         )
 
 

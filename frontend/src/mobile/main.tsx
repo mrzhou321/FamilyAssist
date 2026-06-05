@@ -1,8 +1,9 @@
 import '../globals.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import MemoryVault from './pages/MemoryVault'
+import PairDevice from './pages/PairDevice'
 import QuickNote from './pages/QuickNote'
 import TodayAdvice from './pages/TodayAdvice'
 
@@ -15,14 +16,25 @@ const NAV = [
 export function MobileApp() {
   return (
     <BrowserRouter basename="/mobile">
-      <div className="mx-auto flex h-dvh max-w-md flex-col bg-[var(--color-bg)]">
-        <main className="flex-1 overflow-y-auto">
-          <Routes>
-            <Route path="/" element={<QuickNote />} />
-            <Route path="/advice" element={<TodayAdvice />} />
-            <Route path="/memory" element={<MemoryVault />} />
-          </Routes>
-        </main>
+      <MobileShell />
+    </BrowserRouter>
+  )
+}
+
+function MobileShell() {
+  const location = useLocation()
+  const isPairing = location.pathname === '/pair'
+  return (
+    <div className="mx-auto flex h-dvh max-w-md flex-col bg-[var(--color-bg)]">
+      <main className="flex-1 overflow-y-auto">
+        <Routes>
+          <Route path="/" element={<QuickNote />} />
+          <Route path="/advice" element={<TodayAdvice />} />
+          <Route path="/memory" element={<MemoryVault />} />
+          <Route path="/pair" element={<PairDevice />} />
+        </Routes>
+      </main>
+      {isPairing ? null : (
         <nav className="flex border-t border-[var(--color-border)] bg-[var(--color-surface)]">
           {NAV.map(({ to, icon, label }) => (
             <NavLink
@@ -40,8 +52,8 @@ export function MobileApp() {
             </NavLink>
           ))}
         </nav>
-      </div>
-    </BrowserRouter>
+      )}
+    </div>
   )
 }
 

@@ -1,24 +1,29 @@
 // 所有与后端交互的类型定义（与后端 Pydantic schema 对齐）
+// Members.tsx 中的 ApiMember / MemberProfileForm 是表单专用 UI 类型，不在此处
+
+import type { Domain } from '../constants'
+
+export type { Domain }
 
 export interface Member {
   id: number
   name: string
-  role: string
-  age: number
-  initial: string
-  color?: string
+  birthday: string | null
+  relation: string
+  bound: boolean
+  profile: MemberProfile
 }
 
 export interface MemberProfile {
-  member_id: number
-  height?: number
-  weight?: number
-  allergies?: string[]
-  diet_restrictions?: string[]
-  chronic_conditions?: string[]
-  cold_sensitive?: boolean
-  taste_preferences?: string[]
-  exercise_preferences?: string[]
+  height: number | null
+  weight: number | null
+  allergies: string[]
+  diet_restrictions: string[]
+  chronic_conditions: string[]
+  injury_history: string
+  thermal_sensitivity: number   // -2 怕冷 ~ +2 怕热
+  taste_preference: string
+  exercise_preference: string
 }
 
 export interface Note {
@@ -33,7 +38,7 @@ export interface Memory {
   id: number
   member_id: number
   type: 'fact' | 'episode'
-  domain: 'dressing' | 'diet' | 'exercise' | 'general'
+  domain: Domain | 'general'
   content: string
   confidence: number
   expires_at?: string
@@ -44,9 +49,10 @@ export interface Memory {
 export interface Recommendation {
   id: number
   member_id: number
-  domain: 'dressing' | 'diet' | 'exercise'
+  domain: Domain
   content: string
-  memory_ids: number[]
+  basis: string[]       // 引用记忆的摘要文本，用于展示「依据 XXX」
+  memory_ids: number[]  // 引用记忆 id，可追溯
   created_at: string
 }
 

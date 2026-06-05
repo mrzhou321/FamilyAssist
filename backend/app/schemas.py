@@ -148,3 +148,15 @@ class PairingTokenRecord(BaseModel):
     token_hash: str
     expires_at: datetime
     used: bool = False
+
+
+class PairingExchange(BaseModel):
+    pairing_token: str
+    device_name: str = "mobile-browser"
+
+
+class MemberSession(BaseModel):
+    member_id: int
+    member_name: str
+    access_token: str
+    token_type: str = "bearer"

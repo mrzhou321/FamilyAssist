@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { api } from '../../shared/api'
-
-type Domain = 'dressing' | 'diet' | 'exercise'
+import { DOMAINS, DOMAIN_ICONS, DOMAIN_LABELS } from '@shared/constants'
+import type { Domain } from '@shared/constants'
+import { DOMAIN_CARD_COLORS } from '@shared/constants/colors'
+import { api } from '@shared/api'
+import { getCurrentMemberId, getCurrentMemberName } from '../session'
 
 interface Recommendation {
   domain: Domain
@@ -9,88 +11,61 @@ interface Recommendation {
   basis: string[]
 }
 
-interface AdviceView {
-  domain: Domain
-  icon: string
-  title: string
-  bg: string
-  border: string
-  fallback: string
-  fallbackBasis: string[]
-}
-
-const ADVICE_META: AdviceView[] = [
-  {
+const FALLBACK: Record<Domain, Recommendation> = {
+  dressing: {
     domain: 'dressing',
-    icon: '🧥',
-    title: '穿衣',
-    bg: '#FDF0E8',
-    border: '#F0C9A8',
-    fallback: '早晚偏凉，建议薄外套加长袖，膝盖容易不舒服的成员可以多一层保暖。',
-    fallbackBasis: ['妈妈怕冷', '爸爸膝盖受凉会不舒服'],
+    content: '早晚偏凉，建议长袖加薄外套，膝盖容易不舒服时多一层保暖。',
+    basis: ['妈妈怕冷', '爸爸膝盖受凉会不舒服'],
   },
-  {
+  diet: {
     domain: 'diet',
-    icon: '🍲',
-    title: '饮食',
-    bg: '#EEF4EE',
-    border: '#B8D4B8',
-    fallback: '晚餐少油少糖，以清淡汤品为主，避开香菜和芒果相关食材。',
-    fallbackBasis: ['爸爸控糖', '妈妈不吃香菜', '朵朵芒果过敏'],
+    content: '饮食以清淡少油为主，避开已知忌口和过敏源。',
+    basis: ['爸爸控糖', '妈妈不吃香菜'],
   },
-  {
+  exercise: {
     domain: 'exercise',
-    icon: '🚶',
-    title: '运动',
-    bg: '#EDF2FB',
-    border: '#B4C8F0',
-    fallback: '适合饭后散步 20-30 分钟，避免剧烈跑跳，户外注意风大时减少停留。',
-    fallbackBasis: ['爸爸习惯饭后散步', '近期膝盖需要照顾'],
+    content: '适合低到中等强度活动，优先散步和拉伸。',
+    basis: ['爸爸饭后喜欢散步 30 分钟'],
   },
-]
-
-function mergeAdvice(meta: AdviceView, recommendation?: Recommendation) {
-  return {
-    ...meta,
-    text: recommendation?.content ?? meta.fallback,
-    basis: recommendation?.basis.length ? recommendation.basis : meta.fallbackBasis,
-  }
 }
 
 export default function TodayAdvice() {
-  const [recommendations, setRecommendations] = useState<Partial<Record<Domain, Recommendation>>>({})
+  const [recommendations, setRecommendations] = useState<Record<Domain, Recommendation>>(FALLBACK)
   const [message, setMessage] = useState('')
-  const [feedbackKey, setFeedbackKey] = useState('')
+  const [pendingKey, setPendingKey] = useState('')
+  const memberId = getCurrentMemberId()
+  const memberName = getCurrentMemberName()
 
   useEffect(() => {
     Promise.all(
-      ADVICE_META.map((meta) =>
+      DOMAINS.map((domain) =>
         api
-          .get<Recommendation>(`/recommendations/${meta.domain}?member_id=1`)
-          .then((recommendation) => [meta.domain, recommendation] as const),
+          .get<Recommendation>(`/recommendations/${domain}?member_id=${memberId}`)
+          .then((recommendation) => [domain, recommendation] as const),
       ),
     )
       .then((items) => {
-        setRecommendations(Object.fromEntries(items) as Partial<Record<Domain, Recommendation>>)
+        setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
+        setMessage('')
       })
       .catch(() => setMessage('后端暂不可用，正在显示本地建议'))
-  }, [])
+  }, [memberId])
 
   async function sendFeedback(domain: Domain, content: string, accepted: boolean) {
     const key = `${domain}-${accepted ? 'yes' : 'no'}`
-    setFeedbackKey(key)
+    setPendingKey(key)
     try {
       await api.post('/recommendations/feedback', {
         domain,
-        member_id: 1,
+        member_id: memberId,
         content,
         accepted,
       })
       setMessage(accepted ? '已记录采纳反馈' : '已记录不合适反馈')
     } catch {
-      setMessage('反馈记录失败，请稍后重试')
+      setMessage('反馈暂未写入，稍后可重试')
     } finally {
-      window.setTimeout(() => setFeedbackKey(''), 600)
+      window.setTimeout(() => setPendingKey(''), 500)
     }
   }
 
@@ -100,10 +75,10 @@ export default function TodayAdvice() {
         className="rounded-[var(--radius-lg)] bg-gradient-to-br from-[var(--color-sage)] to-[var(--color-accent)]
                    p-4 text-white shadow-[var(--shadow-card)] animate-[fadeUp_0.4s_ease_both]"
       >
-        <p className="font-[var(--font-num)] text-sm opacity-90">广州 · 今日</p>
+        <p className="font-[var(--font-num)] text-sm opacity-90">广州 · 今日 · {memberName}</p>
         <div className="mt-1 flex items-baseline gap-3">
           <span className="font-[var(--font-num)] text-5xl font-black leading-none">19°</span>
-          <span className="font-[var(--font-body)] text-sm opacity-90">转晴 · 微风</span>
+          <span className="font-[var(--font-body)] text-sm opacity-90">转晴 微风</span>
         </div>
       </div>
 
@@ -113,42 +88,39 @@ export default function TodayAdvice() {
         </div>
       ) : null}
 
-      {ADVICE_META.map((meta, index) => {
-        const advice = mergeAdvice(meta, recommendations[meta.domain])
+      {DOMAINS.map((domain, index) => {
+        const advice = recommendations[domain]
+        const colors = DOMAIN_CARD_COLORS[domain]
         return (
           <article
-            key={advice.domain}
+            key={domain}
             className="flex flex-col gap-3 rounded-[var(--radius-lg)] border p-4 shadow-[var(--shadow-card)]
                        animate-[fadeUp_0.5s_ease_both]"
-            style={{
-              background: advice.bg,
-              borderColor: advice.border,
-              animationDelay: `${0.1 + index * 0.1}s`,
-            }}
+            style={{ background: colors.bg, borderColor: colors.border, animationDelay: `${0.1 + index * 0.1}s` }}
           >
-            <p className="text-lg font-semibold text-[var(--color-fg)]">
-              {advice.icon} {advice.title}
+            <p className="font-[var(--font-display)] text-lg font-semibold text-[var(--color-fg)]">
+              {DOMAIN_ICONS[domain]} {DOMAIN_LABELS[domain]}
             </p>
-            <p className="text-sm text-[var(--color-fg)]">{advice.text}</p>
-            <div className="rounded-lg border border-white bg-white/60 px-3 py-1.5 text-xs text-[var(--color-muted)]">
+            <p className="text-sm text-[var(--color-fg)]">{advice.content}</p>
+            <p className="rounded-lg border border-white bg-white/60 px-3 py-1.5 text-xs text-[var(--color-muted)]">
               依据：{advice.basis.join('；')}
-            </div>
+            </p>
             <div className="flex gap-2">
               {[
                 { label: '采纳', accepted: true },
                 { label: '不合适', accepted: false },
               ].map(({ label, accepted }) => {
-                const key = `${advice.domain}-${accepted ? 'yes' : 'no'}`
+                const key = `${domain}-${accepted ? 'yes' : 'no'}`
                 return (
                   <button
                     key={label}
                     type="button"
-                    onClick={() => sendFeedback(advice.domain, advice.text, accepted)}
+                    disabled={pendingKey === key}
+                    onClick={() => sendFeedback(domain, advice.content, accepted)}
                     className="flex-1 rounded-lg border border-[var(--color-border)] bg-white/80 py-1.5 text-xs
                                text-[var(--color-muted)] transition-transform active:scale-95 disabled:opacity-50"
-                    disabled={feedbackKey === key}
                   >
-                    {feedbackKey === key ? '记录中' : label}
+                    {pendingKey === key ? '记录中' : label}
                   </button>
                 )
               })}

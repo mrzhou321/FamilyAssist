@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { api } from '../../shared/api'
+import { api } from '@shared/api'
+import type { Member } from '@shared/types'
+import { CHRONIC_OPTIONS } from '@shared/constants'
 
+// UI 表单类型（扁平字符串，便于 input 绑定）
 interface MemberProfileForm {
   id: number
   name: string
@@ -19,26 +22,24 @@ interface MemberProfileForm {
   bound: boolean
 }
 
-interface ApiMember {
-  id: number
-  name: string
-  birthday: string | null
-  relation: string
-  bound: boolean
-  profile: {
-    height: number | null
-    weight: number | null
-    allergies: string[]
-    diet_restrictions: string[]
-    chronic_conditions: string[]
-    injury_history: string
-    thermal_sensitivity: number
-    taste_preference: string
-    exercise_preference: string
+function toForm(member: Member): MemberProfileForm {
+  return {
+    id: member.id,
+    name: member.name,
+    birthday: member.birthday ?? '',
+    relation: member.relation,
+    height: member.profile.height?.toString() ?? '',
+    weight: member.profile.weight?.toString() ?? '',
+    allergies: member.profile.allergies.join('、'),
+    dietRestrictions: member.profile.diet_restrictions.join('、'),
+    chronicConditions: member.profile.chronic_conditions,
+    injuryHistory: member.profile.injury_history,
+    thermalSensitivity: member.profile.thermal_sensitivity,
+    tastePreference: member.profile.taste_preference,
+    exercisePreference: member.profile.exercise_preference,
+    bound: member.bound,
   }
 }
-
-const CHRONIC_OPTIONS = ['糖尿病', '高血压', '心脏病', '哮喘', '痛风']
 
 const INITIAL_MEMBERS: MemberProfileForm[] = [
   {
@@ -109,25 +110,6 @@ function splitList(value: string) {
     .filter(Boolean)
 }
 
-function toForm(member: ApiMember): MemberProfileForm {
-  return {
-    id: member.id,
-    name: member.name,
-    birthday: member.birthday ?? '',
-    relation: member.relation,
-    height: member.profile.height?.toString() ?? '',
-    weight: member.profile.weight?.toString() ?? '',
-    allergies: member.profile.allergies.join('、'),
-    dietRestrictions: member.profile.diet_restrictions.join('、'),
-    chronicConditions: member.profile.chronic_conditions,
-    injuryHistory: member.profile.injury_history,
-    thermalSensitivity: member.profile.thermal_sensitivity,
-    tastePreference: member.profile.taste_preference,
-    exercisePreference: member.profile.exercise_preference,
-    bound: member.bound,
-  }
-}
-
 function toApiPayload(member: MemberProfileForm) {
   return {
     name: member.name,
@@ -163,7 +145,7 @@ export default function Members() {
   useEffect(() => {
     let alive = true
     api
-      .get<ApiMember[]>('/members')
+      .get<Member[]>('/members')
       .then((apiMembers) => {
         if (!alive || apiMembers.length === 0) return
         const nextMembers = apiMembers.map(toForm)
@@ -193,7 +175,7 @@ export default function Members() {
     const nextId = Math.max(0, ...members.map((member) => member.id)) + 1
     const nextMember = { ...EMPTY_MEMBER, id: nextId, relation: '家人' }
     try {
-      const created = await api.post<ApiMember>('/members', toApiPayload({ ...nextMember, name: '新成员' }))
+      const created = await api.post<Member>('/members', toApiPayload({ ...nextMember, name: '新成员' }))
       const form = toForm(created)
       setMembers((current) => [...current, form])
       setSelectedId(form.id)
@@ -228,7 +210,7 @@ export default function Members() {
       return
     }
     try {
-      const saved = await api.patch<ApiMember>(`/members/${draft.id}`, toApiPayload(draft))
+      const saved = await api.patch<Member>(`/members/${draft.id}`, toApiPayload(draft))
       const form = toForm(saved)
       setMembers((current) => current.map((member) => (member.id === form.id ? form : member)))
       setDraft(form)

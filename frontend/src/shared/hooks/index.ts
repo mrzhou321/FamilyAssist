@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../api'
-import type { Member, Memory, Note, Recommendation, Feedback, PairingToken } from '../types'
+import { api } from '@shared/api'
+import type { Member, Memory, Note, Recommendation, Feedback, PairingToken } from '@shared/types'
 
 export const useMembers = () =>
   useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/members') })
