@@ -138,6 +138,7 @@ class InMemoryStore:
         self._note_id += 1
         note = Note(id=self._note_id, created_at=now(), **payload.model_dump())
         self.notes[note.id] = note
+        self.extract_memory_from_note(note.id)
         return note
 
     def list_notes(self, member_id: int | None = None) -> list[Note]:
@@ -186,6 +187,26 @@ class InMemoryStore:
         self.memories[memory.id] = memory
         self.notes[note.id] = note.model_copy(update={"status": "reviewed"})
         return memory
+
+    def extract_memory_from_note(self, note_id: int) -> Memory | None:
+        candidate = self.build_review_candidate(note_id)
+        if candidate is None or not candidate.candidates:
+            return None
+        note = self.notes.get(note_id)
+        if note is None:
+            return None
+        draft = candidate.candidates[0]
+        if any(
+            memory.source_note_id == note_id or (
+                memory.member_id == note.member_id
+                and memory.domain == draft.domain
+                and memory.content == draft.content
+            )
+            for memory in self.memories.values()
+        ):
+            self.notes[note.id] = note.model_copy(update={"status": "reviewed"})
+            return None
+        return self.approve_review_candidate(note_id, draft)
 
     def list_memories(self, member_id: int | None = None) -> list[Memory]:
         memories = list(self.memories.values())

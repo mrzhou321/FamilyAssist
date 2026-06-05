@@ -44,6 +44,7 @@ class DataStore(Protocol):
     async def list_notes(self, member_id: int | None = None) -> list[Note]: ...
     async def build_review_candidate(self, note_id: int) -> ReviewCandidate | None: ...
     async def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None: ...
+    async def extract_memory_from_note(self, note_id: int) -> Memory | None: ...
     async def list_memories(self, member_id: int | None = None) -> list[Memory]: ...
     async def update_memory(self, memory_id: int, payload: MemoryUpdate) -> Memory | None: ...
     async def delete_memory(self, memory_id: int) -> bool: ...
@@ -89,6 +90,9 @@ class InMemoryDataStore:
 
     async def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None:
         return self.inner.approve_review_candidate(note_id, draft)
+
+    async def extract_memory_from_note(self, note_id: int) -> Memory | None:
+        return self.inner.extract_memory_from_note(note_id)
 
     async def list_memories(self, member_id: int | None = None) -> list[Memory]:
         return self.inner.list_memories(member_id)
@@ -217,6 +221,8 @@ class DatabaseDataStore:
         self.session.add(note)
         await self.session.commit()
         await self.session.refresh(note)
+        await self.extract_memory_from_note(note.id)
+        await self.session.refresh(note)
         return self._to_note(note)
 
     async def list_notes(self, member_id: int | None = None) -> list[Note]:
@@ -250,6 +256,18 @@ class DatabaseDataStore:
         note = await self.session.get(models.Note, note_id)
         if note is None:
             return None
+        existing = await self.session.scalar(
+            select(models.Memory).where(models.Memory.source_note_id == note_id).order_by(models.Memory.id)
+        )
+        if existing is not None:
+            existing.type = models.MemoryType(draft.type.value)
+            existing.domain = models.MemoryDomain(draft.domain.value)
+            existing.content = draft.content
+            existing.confidence = draft.confidence
+            note.status = "reviewed"
+            await self.session.commit()
+            await self.session.refresh(existing)
+            return self._to_memory(existing)
         memory = models.Memory(
             member_id=note.member_id,
             type=models.MemoryType(draft.type.value),
@@ -263,6 +281,30 @@ class DatabaseDataStore:
         await self.session.commit()
         await self.session.refresh(memory)
         return self._to_memory(memory)
+
+    async def extract_memory_from_note(self, note_id: int) -> Memory | None:
+        candidate = await self.build_review_candidate(note_id)
+        if candidate is None or not candidate.candidates:
+            return None
+        note = await self.session.get(models.Note, note_id)
+        if note is None:
+            return None
+        draft = candidate.candidates[0]
+        existing = await self.session.scalar(
+            select(models.Memory).where(
+                (models.Memory.source_note_id == note_id)
+                | (
+                    (models.Memory.member_id == note.member_id)
+                    & (models.Memory.domain == models.MemoryDomain(draft.domain.value))
+                    & (models.Memory.content == draft.content)
+                )
+            )
+        )
+        if existing is not None:
+            note.status = "reviewed"
+            await self.session.commit()
+            return None
+        return await self.approve_review_candidate(note_id, draft)
 
     async def list_memories(self, member_id: int | None = None) -> list[Memory]:
         statement = select(models.Memory)

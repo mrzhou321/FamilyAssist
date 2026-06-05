@@ -83,10 +83,15 @@ note = client.post(
     },
 )
 assert note.status_code == 202
+note_id = note.json()["id"]
+memories = client.get("/api/memories?member_id=1")
+assert memories.status_code == 200
+assert any(item["source_note_id"] == note_id for item in memories.json())
 
 batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1")
 assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
+assert any("member 1 knee note" in basis for item in batch.json()["recommendations"] for basis in item["basis"])
 
 with client.stream("GET", "/api/recommendations/diet/stream?member_id=1") as stream:
     assert stream.status_code == 200
@@ -144,6 +149,7 @@ from app.schemas import (
     Memory,
     MemoryDomain,
     MemoryType,
+    NoteCreate,
     PairingExchange,
     RecommendationDomain,
     SystemSettings,
@@ -185,6 +191,9 @@ store.memories[99] = Memory(
 )
 assert store.cleanup_expired_memories() == 1
 assert 99 not in store.memories
+
+note = store.create_note(NoteCreate(member_id=1, content="likes walking after dinner"))
+assert any(memory.source_note_id == note.id for memory in store.list_memories(1))
 
 print("backend_store_smoke_ok")
 '@ | Set-Content -LiteralPath $smoke -Encoding UTF8
