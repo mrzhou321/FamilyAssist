@@ -133,3 +133,18 @@ class RecommendationFeedback(BaseModel):
     member_id: int | None = None
     content: str
     accepted: bool
+
+
+class PairingToken(BaseModel):
+    member_id: int
+    server_url: str
+    pairing_token: str
+    pairing_url: str
+    expires_at: datetime
+
+
+class PairingTokenRecord(BaseModel):
+    member_id: int
+    token_hash: str
+    expires_at: datetime
+    used: bool = False

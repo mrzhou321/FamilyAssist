@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import MemoryLibrary from './pages/MemoryLibrary'
 import Members from './pages/Members'
+import Pairing from './pages/Pairing'
 import Review from './pages/Review'
 
 const NAV = [
@@ -56,7 +57,7 @@ export function AdminApp() {
             <Route path="/" element={<Members />} />
             <Route path="/memory" element={<MemoryLibrary />} />
             <Route path="/review" element={<Review />} />
-            <Route path="/qr" element={<Placeholder title="配对二维码" />} />
+            <Route path="/qr" element={<Pairing />} />
             <Route path="/settings" element={<Placeholder title="系统设置" />} />
           </Routes>
         </main>

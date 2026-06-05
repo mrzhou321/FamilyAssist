@@ -1,4 +1,6 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from hashlib import sha256
+from secrets import token_urlsafe
 
 from .schemas import (
     Member,
@@ -12,6 +14,8 @@ from .schemas import (
     MemoryUpdate,
     Note,
     NoteCreate,
+    PairingToken,
+    PairingTokenRecord,
     Recommendation,
     RecommendationDomain,
     RecommendationFeedback,
@@ -28,6 +32,7 @@ class InMemoryStore:
         self._member_id = 2
         self._note_id = 0
         self._memory_id = 3
+        self.pairing_tokens: dict[str, PairingTokenRecord] = {}
         created = now()
         self.members: dict[int, Member] = {
             1: Member(
@@ -228,6 +233,27 @@ class InMemoryStore:
         )
         self.memories[memory.id] = memory
         return memory
+
+    def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None:
+        if member_id not in self.members:
+            return None
+        raw_token = token_urlsafe(24)
+        token_hash = sha256(raw_token.encode("utf-8")).hexdigest()
+        expires_at = now() + timedelta(minutes=5)
+        self.pairing_tokens[token_hash] = PairingTokenRecord(
+            member_id=member_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        clean_server = server_url.rstrip("/")
+        pairing_url = f"{clean_server}/mobile/pair?token={raw_token}"
+        return PairingToken(
+            member_id=member_id,
+            server_url=clean_server,
+            pairing_token=raw_token,
+            pairing_url=pairing_url,
+            expires_at=expires_at,
+        )
 
 
 store = InMemoryStore()

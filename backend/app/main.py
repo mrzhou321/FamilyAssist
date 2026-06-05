@@ -11,6 +11,7 @@ from .schemas import (
     MemoryUpdate,
     Note,
     NoteCreate,
+    PairingToken,
     Recommendation,
     RecommendationDomain,
     RecommendationFeedback,
@@ -103,6 +104,11 @@ async def delete_memory(memory_id: int) -> None:
         raise HTTPException(status_code=404, detail="Memory not found")
 
 
+@app.post("/api/recommendations/feedback", response_model=Memory, status_code=201)
+async def create_recommendation_feedback(payload: RecommendationFeedback) -> Memory:
+    return store.record_feedback(payload)
+
+
 @app.get("/api/recommendations/{domain}", response_model=Recommendation)
 async def get_recommendation(
     domain: RecommendationDomain,
@@ -111,6 +117,12 @@ async def get_recommendation(
     return store.make_recommendation(domain, member_id)
 
 
-@app.post("/api/recommendations/feedback", response_model=Memory, status_code=201)
-async def create_recommendation_feedback(payload: RecommendationFeedback) -> Memory:
-    return store.record_feedback(payload)
+@app.post("/api/pairing/members/{member_id}", response_model=PairingToken, status_code=201)
+async def create_pairing_token(
+    member_id: int,
+    server_url: str = Query(default="http://localhost:5173"),
+) -> PairingToken:
+    token = store.create_pairing_token(member_id, server_url)
+    if token is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return token
