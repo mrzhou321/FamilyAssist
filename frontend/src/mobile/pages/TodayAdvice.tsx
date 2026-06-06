@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { DOMAINS, DOMAIN_ICONS, DOMAIN_LABELS } from '@shared/constants'
 import type { Domain } from '@shared/constants'
 import { DOMAIN_CARD_COLORS } from '@shared/constants/colors'
@@ -16,7 +17,7 @@ import {
   getCachedRecommendations,
   getCachedWeather,
 } from '../offline/cachedData'
-import { getCurrentMemberId, getCurrentMemberName } from '../session'
+import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
 const FALLBACK: Record<Domain, Recommendation> = {
   dressing: {
@@ -64,10 +65,12 @@ export default function TodayAdvice() {
   const [message, setMessage] = useState('')
   const [pendingKey, setPendingKey] = useState('')
   const [sourceNote, setSourceNote] = useState<Note | null>(null)
+  const isPaired = hasPairedMember()
   const memberId = getCurrentMemberId()
   const memberName = getCurrentMemberName()
 
   useEffect(() => {
+    if (!isPaired) return
     let active = true
     api
       .get<WeatherContext>('/weather/today')
@@ -82,9 +85,10 @@ export default function TodayAdvice() {
     return () => {
       active = false
     }
-  }, [])
+  }, [isPaired])
 
   useEffect(() => {
+    if (!isPaired) return
     const params = new URLSearchParams()
     DOMAINS.forEach((domain) => params.append('domains', domain))
     if (memberId !== null) params.set('member_id', String(memberId))
@@ -142,9 +146,13 @@ export default function TodayAdvice() {
       active = false
       streamStops.forEach((stop) => stop())
     }
-  }, [memberId])
+  }, [isPaired, memberId])
 
   async function sendFeedback(domain: Domain, content: string, accepted: boolean) {
+    if (!isPaired) {
+      setMessage('请先配对设备，再反馈建议是否合适')
+      return
+    }
     const key = `${domain}-${accepted ? 'yes' : 'no'}`
     setPendingKey(key)
     try {
@@ -163,6 +171,10 @@ export default function TodayAdvice() {
   }
 
   async function openBasis(ref: RecommendationBasisRef) {
+    if (!isPaired) {
+      setMessage('请先配对设备，再查看建议依据')
+      return
+    }
     if (!ref.source_note_id) {
       setMessage('这条依据来自种子记忆，暂无原始速记')
       return
@@ -201,6 +213,20 @@ export default function TodayAdvice() {
         </div>
       ) : null}
 
+      {!isPaired ? (
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="text-sm leading-6 text-[var(--color-fg)]">
+            配对后，今日建议会结合当前成员的记忆、健康档案和天气生成；离线时会保留上次加载过的建议。
+          </p>
+          <Link
+            to="/pair"
+            className="mt-4 block rounded-[var(--radius-sm)] bg-[var(--color-accent)] py-3 text-center text-sm text-white"
+          >
+            去配对
+          </Link>
+        </section>
+      ) : null}
+
       {sourceNote ? (
         <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
           <div className="mb-1 flex items-center justify-between gap-3">
@@ -213,7 +239,7 @@ export default function TodayAdvice() {
         </div>
       ) : null}
 
-      {DOMAINS.map((domain, index) => {
+      {isPaired ? DOMAINS.map((domain, index) => {
         const advice = recommendations[domain]
         const colors = DOMAIN_CARD_COLORS[domain]
         const basisRefs = advice.basis_refs.length > 0
@@ -270,7 +296,7 @@ export default function TodayAdvice() {
             </div>
           </article>
         )
-      })}
+      }) : null}
     </div>
   )
 }

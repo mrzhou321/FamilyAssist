@@ -50,6 +50,9 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
     throw "Today advice does not use offline recommendation and weather cache"
   }
+  if ($todayAdvice.IndexOf("hasPairedMember") -lt 0 -or $todayAdvice.IndexOf("if (!isPaired) return") -lt 0 -or $todayAdvice.IndexOf('to="/pair"') -lt 0) {
+    throw "Today advice does not gate recommendations behind pairing"
+  }
   $memoryVault = Get-Content "$root\frontend\src\mobile\pages\MemoryVault.tsx" -Raw -Encoding UTF8
   $memoryVaultHasPairingCheck = $memoryVault.IndexOf("hasPairedMember") -ge 0
   $memoryVaultUsesEnabledQuery = $memoryVault.IndexOf("useMemberMemories(memberId, isPaired)") -ge 0
