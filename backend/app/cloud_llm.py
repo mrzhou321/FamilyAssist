@@ -17,6 +17,8 @@ PROVIDER_DEFAULTS = {
     },
 }
 
+STREAM_TIMEOUT = httpx.Timeout(connect=2.0, read=4.0, write=5.0, pool=5.0)
+
 
 def provider_base_url(system_settings: SystemSettings) -> str:
     return (
@@ -70,7 +72,7 @@ async def stream_chat_completion(
     temperature: float = 0.3,
 ) -> AsyncIterator[str]:
     headers = _headers(system_settings)
-    async with httpx.AsyncClient(base_url=provider_base_url(system_settings), timeout=None) as client:
+    async with httpx.AsyncClient(base_url=provider_base_url(system_settings), timeout=STREAM_TIMEOUT) as client:
         async with client.stream(
             "POST",
             "/chat/completions",

@@ -1086,7 +1086,7 @@ class MockStreamResponse:
 
 class MockOllamaClient:
     def __init__(self, *args, **kwargs):
-        pass
+        assert kwargs.get("timeout") is not None
 
     async def __aenter__(self):
         return self
@@ -1108,6 +1108,14 @@ class MockOllamaClient:
 class BadOllamaClient(MockOllamaClient):
     def stream(self, method, path, json):
         return MockStreamResponse(["not-json"])
+
+
+class PartialBadOllamaClient(MockOllamaClient):
+    def stream(self, method, path, json):
+        return MockStreamResponse([
+            "{\"response\":\"partial\",\"done\":false}",
+            "not-json",
+        ])
 
 
 async def collect(settings):
@@ -1135,6 +1143,13 @@ async def main():
     finally:
         recommender.httpx.AsyncClient = original_client
     assert fallback == "\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b"
+
+    recommender.httpx.AsyncClient = PartialBadOllamaClient
+    try:
+        partial = await collect(SystemSettings(llm_provider="ollama"))
+    finally:
+        recommender.httpx.AsyncClient = original_client
+    assert partial == "partial"
 
     cloud_fallback = await collect(SystemSettings(llm_provider="deepseek", cloud_llm_risk_acknowledged=True))
     assert cloud_fallback == "\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b"
@@ -1167,6 +1182,11 @@ Step "Backend recommendation event recording wiring" {
   }
   if ($mainSource.IndexOf("def _sse_data") -lt 0 -or $mainSource.IndexOf("chunk.splitlines()") -lt 0 -or $mainSource.IndexOf("yield _sse_data(chunk)") -lt 0) {
     throw "Streaming recommendation endpoint does not encode multiline chunks as valid SSE data"
+  }
+  $recommenderSource = Get-Content "$root\backend\app\llm_recommender.py" -Raw -Encoding UTF8
+  $cloudLlmSource = Get-Content "$root\backend\app\cloud_llm.py" -Raw -Encoding UTF8
+  if ($recommenderSource.IndexOf("STREAM_TIMEOUT = httpx.Timeout") -lt 0 -or $recommenderSource.IndexOf("timeout=STREAM_TIMEOUT") -lt 0 -or $cloudLlmSource.IndexOf("STREAM_TIMEOUT = httpx.Timeout") -lt 0 -or $cloudLlmSource.IndexOf("timeout=STREAM_TIMEOUT") -lt 0) {
+    throw "Streaming LLM clients should have bounded timeouts for first-token fallback"
   }
   if ($dataSource.IndexOf("record_events: bool = True") -lt 0 -or $dataSource.IndexOf("record_event: bool = True") -lt 0 -or $storeSource.IndexOf("record_recommendation_event") -lt 0) {
     throw "Recommendation event recording controls are not wired through data stores"
@@ -1211,6 +1231,7 @@ class MockStreamResponse:
 class MockCloudClient(httpx.AsyncClient):
     def __init__(self, *args, **kwargs):
         self.base_url_seen = kwargs.get("base_url")
+        assert kwargs.get("timeout") is not None
         transport = httpx.MockTransport(self._handler)
         super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://cloud.test"))
 

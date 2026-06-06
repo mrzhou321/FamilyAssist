@@ -14,6 +14,8 @@ SYSTEM_PROMPT = (
     "Use the supplied weather, profile and memory basis only."
 )
 
+STREAM_TIMEOUT = httpx.Timeout(connect=2.0, read=4.0, write=5.0, pool=5.0)
+
 
 async def stream_recommendation_content(
     recommendation: Recommendation,
@@ -28,7 +30,7 @@ async def stream_recommendation_content(
                         emitted = True
                         yield chunk
             except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-                emitted = False
+                pass
             if emitted:
                 return
         async for chunk in fallback_chunks(recommendation.content):
@@ -42,7 +44,7 @@ async def stream_recommendation_content(
                 emitted = True
                 yield chunk
     except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-        emitted = False
+        pass
 
     if not emitted:
         async for chunk in fallback_chunks(recommendation.content):
@@ -53,7 +55,7 @@ async def _stream_ollama_content(
     recommendation: Recommendation,
     system_settings: SystemSettings,
 ) -> AsyncIterator[str]:
-    async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=None) as client:
+    async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=STREAM_TIMEOUT) as client:
         async with client.stream(
             "POST",
             "/api/generate",
