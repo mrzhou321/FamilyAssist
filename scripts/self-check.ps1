@@ -313,6 +313,29 @@ Step "Frontend auth token constants" {
   Write-Host "frontend_auth_token_constants_ok"
 }
 
+Step "Frontend design token colors" {
+  $colors = Get-Content "$root\frontend\src\shared\constants\colors.ts" -Raw -Encoding UTF8
+  $globals = Get-Content "$root\frontend\src\globals.css" -Raw -Encoding UTF8
+  if (($colors | Select-String -Pattern "#[0-9A-Fa-f]{3,8}").Count -gt 0) {
+    throw "Shared color constants should use design tokens instead of raw hex values"
+  }
+  foreach ($token in @(
+    "--color-clay",
+    "--color-marigold",
+    "--color-dressing-bg",
+    "--color-diet-bg",
+    "--color-exercise-bg",
+    "--color-dressing-border",
+    "--color-diet-border",
+    "--color-exercise-border"
+  )) {
+    if ($globals.IndexOf($token) -lt 0 -or $colors.IndexOf($token) -lt 0) {
+      throw "Design token $token is missing from globals.css or shared color constants"
+    }
+  }
+  Write-Host "frontend_design_token_colors_ok"
+}
+
 Step "Frontend admin auth expiry wiring" {
   $constants = Get-Content "$root\frontend\src\shared\constants\index.ts" -Raw -Encoding UTF8
   $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
