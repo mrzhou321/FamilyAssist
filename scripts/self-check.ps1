@@ -31,6 +31,20 @@ Step "Frontend lint" {
   }
 }
 
+Step "Deployment and backup docs" {
+  $readme = Get-Content "$root\README.md" -Raw -Encoding UTF8
+  if ($readme.IndexOf("docker compose up --build") -lt 0 -or $readme.IndexOf("http://localhost/admin/") -lt 0 -or $readme.IndexOf("http://localhost/mobile/") -lt 0) {
+    throw "README does not document local compose startup and app entrypoints"
+  }
+  if ($readme.IndexOf("pg_dump") -lt 0 -or $readme.IndexOf("pg_restore") -lt 0 -or $readme.IndexOf("postgres_data") -lt 0) {
+    throw "README does not document self-hosted database backup and restore"
+  }
+  if ($readme.IndexOf("ADMIN_PASSWORD") -lt 0 -or $readme.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
+    throw "README does not remind operators to rotate default secrets"
+  }
+  Write-Host "deployment_backup_docs_ok"
+}
+
 Step "Frontend offline cache wiring" {
   $cachedData = Get-Content "$root\frontend\src\mobile\offline\cachedData.ts" -Raw
   if ($cachedData -notmatch "cached-memories" -or $cachedData -notmatch "cacheMemories" -or $cachedData -notmatch "getCachedMemories") {
