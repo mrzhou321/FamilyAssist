@@ -4,8 +4,8 @@ import type { Member, Memory, Note, NoteCreatePayload, Recommendation, Feedback,
 import { cacheMemories, getCachedMemories } from '../../mobile/offline/cachedData'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
 
-export const useMembers = () =>
-  useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/members') })
+export const useMembers = (enabled = true) =>
+  useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/members'), enabled })
 
 export const useMemberMemories = (memberId: number | null) =>
   useQuery({

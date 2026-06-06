@@ -60,8 +60,9 @@ export default function QuickNote() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const { mutate: createNote, isPending } = useCreateNote()
   const { data: queuedNotes = [] } = useQueuedNotes()
+  const isPaired = hasPairedMember()
   const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId)
-  const { data: apiMembers = [] } = useMembers()
+  const { data: apiMembers = [] } = useMembers(isPaired)
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
   const memberChoices = apiMembers.length > 0
     ? apiMembers.map((member) => ({ id: member.id, label: member.relation || member.name }))
@@ -137,6 +138,10 @@ export default function QuickNote() {
 
   function handleSubmit() {
     if (!text.trim()) return
+    if (!isPaired) {
+      setMessage('请先由管理员生成配对码，扫码绑定后再记录家庭记忆')
+      return
+    }
     createNote(
       { content: text, member_id: memberId, source },
       {
@@ -162,8 +167,8 @@ export default function QuickNote() {
         <h1 className="font-[var(--font-display)] text-3xl text-[var(--color-fg)] leading-tight">
           {getCurrentMemberName()}，<span className="text-[var(--color-accent)]">随手记一笔</span>
         </h1>
-        {!hasPairedMember() ? (
-          <p className="mt-1 text-xs text-[var(--color-muted)]">当前使用演示身份，扫码配对后会自动切换。</p>
+        {!isPaired ? (
+          <p className="mt-1 text-xs text-[var(--color-muted)]">??????????????????????</p>
         ) : null}
       </div>
 
@@ -245,7 +250,7 @@ export default function QuickNote() {
 
       {/* 提交按钮 */}
       <button
-        disabled={!text.trim() || isPending}
+        disabled={!text.trim() || isPending || !isPaired}
         onClick={handleSubmit}
         className="w-full py-3 rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-white
                    font-[var(--font-body)] text-base disabled:opacity-40 transition-opacity active:scale-[0.98]"
