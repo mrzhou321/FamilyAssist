@@ -6,6 +6,13 @@ import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../se
 
 type NoteSource = 'text' | 'voice' | 'photo'
 
+interface PhotoCapture {
+  name: string
+  type: string
+  size: number
+  capturedAt: string
+}
+
 interface SpeechRecognitionAlternativeLike {
   transcript: string
 }
@@ -57,6 +64,7 @@ export default function QuickNote() {
   const [message, setMessage] = useState('')
   const [source, setSource] = useState<NoteSource>('text')
   const [isListening, setIsListening] = useState(false)
+  const [photoCapture, setPhotoCapture] = useState<PhotoCapture | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const { mutate: createNote, isPending } = useCreateNote()
@@ -89,6 +97,22 @@ export default function QuickNote() {
   function appendCapturedText(nextText: string, nextSource: NoteSource) {
     setText((current) => [current.trim(), nextText].filter(Boolean).join('\n'))
     setSource(nextSource)
+  }
+
+  function formatPhotoSize(size: number) {
+    if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`
+    return `${(size / 1024 / 1024).toFixed(1)}MB`
+  }
+
+  function buildPhotoNoteText(file: File) {
+    const capturedAt = new Date(file.lastModified || Date.now()).toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    const mediaType = file.type || 'image/*'
+    return `拍照记录：${file.name}\n照片信息：${mediaType}，${formatPhotoSize(file.size)}，拍摄/选择时间 ${capturedAt}`
   }
 
   function handleVoiceInput() {
@@ -135,7 +159,14 @@ export default function QuickNote() {
 
   function handlePhotoCapture(file: File | undefined) {
     if (!file) return
-    appendCapturedText(`拍照记录：${file.name}`, 'photo')
+    setPhotoCapture({
+      name: file.name,
+      type: file.type || 'image/*',
+      size: file.size,
+      capturedAt: new Date(file.lastModified || Date.now()).toISOString(),
+    })
+    appendCapturedText(buildPhotoNoteText(file), 'photo')
+    if (photoInputRef.current) photoInputRef.current.value = ''
     setMessage('照片已加入速记，补一句说明会更容易理解')
   }
 
@@ -151,11 +182,13 @@ export default function QuickNote() {
         onSuccess: () => {
           setText('')
           setSource('text')
+          setPhotoCapture(null)
           setMessage(navigator.onLine ? '已记下，正在理解中' : '已离线暂存，联网后自动同步')
         },
         onError: () => {
           setText('')
           setSource('text')
+          setPhotoCapture(null)
           setMessage('后端暂不可用，已暂存本地队列')
         },
       },
@@ -214,12 +247,19 @@ export default function QuickNote() {
               onChange={e => {
                 setText(e.target.value)
                 setSource('text')
+                setPhotoCapture(null)
               }}
               placeholder="记录家人的习惯、身体状况、饮食偏好……"
               rows={4}
               className="w-full bg-transparent resize-none outline-none font-[var(--font-body)] text-base
                          text-[var(--color-fg)] placeholder:text-[var(--color-muted)]"
             />
+            {photoCapture ? (
+              <div className="mb-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white/70 px-3 py-2 text-xs text-[var(--color-muted)]">
+                <span className="text-[var(--color-fg)]">照片：</span>
+                {photoCapture.name} · {formatPhotoSize(photoCapture.size)} · {photoCapture.type}
+              </div>
+            ) : null}
             <div className="flex items-center gap-3 pt-3 border-t border-dashed border-[var(--color-border)]">
               <button
                 type="button"

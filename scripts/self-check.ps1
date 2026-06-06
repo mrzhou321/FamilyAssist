@@ -74,6 +74,12 @@ Step "Frontend offline cache wiring" {
   if (-not $quickNoteShowsPairingCopy -or -not $quickNoteGatesMockMembers -or -not $quickNoteDisablesNotesBeforePairing) {
     throw "Quick note does not gate member choices behind pairing"
   }
+  if ($quickNote.IndexOf("PhotoCapture") -lt 0 -or $quickNote.IndexOf("buildPhotoNoteText") -lt 0 -or $quickNote.IndexOf("formatPhotoSize") -lt 0) {
+    throw "Quick note photo capture metadata is incomplete"
+  }
+  if ($quickNote.IndexOf("setPhotoCapture(null)") -lt 0 -or $quickNote.IndexOf("photoInputRef.current.value = ''") -lt 0) {
+    throw "Quick note does not clear photo capture state after submit or recapture"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"
