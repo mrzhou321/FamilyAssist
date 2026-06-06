@@ -624,7 +624,29 @@ class BadOllamaClient(httpx.AsyncClient):
         super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://ollama.test"))
 
 
+class LooseOllamaClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        transport = httpx.MockTransport(self._handler)
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://ollama.test"))
+
+    @staticmethod
+    def _handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode("utf-8"))
+        assert payload["format"]["properties"]["candidates"]["items"]["additionalProperties"] is False
+        return httpx.Response(
+            200,
+            json={
+                "response": (
+                    "{\"candidates\":[{\"type\":\"fact\",\"domain\":\"diet\","
+                    "\"content\":\"妈妈不吃香菜\",\"confidence\":0.91,\"unexpected\":\"drop-me\"}]}"
+                )
+            },
+        )
+
+
 async def main():
+    assert extractor.MEMORY_DRAFT_SCHEMA["additionalProperties"] is False
+
     original_client = extractor.httpx.AsyncClient
     extractor.httpx.AsyncClient = MockOllamaClient
     try:
@@ -644,6 +666,15 @@ async def main():
     assert failed_extract is None
     assert fallback.candidates[0].content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
     assert fallback.candidates[0].domain == MemoryDomain.diet
+
+    extractor.httpx.AsyncClient = LooseOllamaClient
+    try:
+        loose_extract = await build_extracted_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", SystemSettings(extraction_retries=1))
+        loose_fallback = await build_review_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", SystemSettings(extraction_retries=1))
+    finally:
+        extractor.httpx.AsyncClient = original_client
+    assert loose_extract is None
+    assert loose_fallback.candidates[0].content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
 
 
 asyncio.run(main())

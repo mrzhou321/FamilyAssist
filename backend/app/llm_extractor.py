@@ -8,6 +8,8 @@ from .core.config import settings
 from .memory_dedupe import build_review_candidate_from_text
 from .schemas import MemoryDraft, ReviewCandidate, SystemSettings
 
+MEMORY_DRAFT_SCHEMA = MemoryDraft.model_json_schema()
+
 EXTRACTION_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -17,7 +19,7 @@ EXTRACTION_SCHEMA = {
             "type": "array",
             "minItems": 1,
             "maxItems": 5,
-            "items": MemoryDraft.model_json_schema(),
+            "items": MEMORY_DRAFT_SCHEMA,
         }
     },
 }
