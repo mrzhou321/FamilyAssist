@@ -314,6 +314,9 @@ Step "Frontend PWA install wiring" {
   if ($serviceWorker.IndexOf("/mobile/index.html") -ge 0) {
     throw "Service worker should not precache a mobile index path that nginx does not serve directly"
   }
+  if ($serviceWorker.IndexOf("family-assister-shell-v2") -lt 0) {
+    throw "Service worker cache version should be bumped after shell precache changes"
+  }
   $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
   if ($mobileMain.IndexOf("beforeinstallprompt") -lt 0 -or $mobileMain.IndexOf("useInstallPrompt") -lt 0 -or $mobileMain.IndexOf("navigator.serviceWorker.register") -lt 0) {
     throw "Mobile app install prompt or service worker registration is missing"

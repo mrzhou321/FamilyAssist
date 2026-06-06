@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-assister-shell-v1'
+const CACHE_NAME = 'family-assister-shell-v2'
 const SHELL_URLS = [
   '/mobile/',
   '/favicon.svg',
