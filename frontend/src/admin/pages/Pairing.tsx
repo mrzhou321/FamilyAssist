@@ -44,8 +44,8 @@ export default function Pairing() {
       margin: 2,
       scale: 7,
       color: {
-        dark: '#26312F',
-        light: '#FFFFFF',
+        dark: getCssToken('--color-qr-dark'),
+        light: getCssToken('--color-qr-light'),
       },
     }).catch(() => setMessage('二维码渲染失败，请复制链接配对'))
   }, [pairing])
@@ -270,4 +270,8 @@ export default function Pairing() {
       </section>
     </div>
   )
+}
+
+function getCssToken(name: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }

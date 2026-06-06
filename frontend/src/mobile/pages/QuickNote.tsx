@@ -256,7 +256,7 @@ export default function QuickNote() {
 
       {isPaired ? (
         <>
-          <div className="relative noise tilt-1 bg-gradient-to-br from-[#FFF8E8] to-[#FDEFD3]
+          <div className="relative noise tilt-1 bg-gradient-to-br from-[var(--color-note-paper-from)] to-[var(--color-note-paper-to)]
                           rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-card)] border border-[var(--color-border)]">
             <textarea
               value={text}

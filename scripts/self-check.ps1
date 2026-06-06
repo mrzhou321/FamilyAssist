@@ -327,11 +327,37 @@ Step "Frontend design token colors" {
     "--color-exercise-bg",
     "--color-dressing-border",
     "--color-diet-border",
+    "--color-exercise-border",
+    "--color-note-paper-from",
+    "--color-note-paper-to",
+    "--color-qr-dark",
+    "--color-qr-light"
+  )) {
+    if ($globals.IndexOf($token) -lt 0) {
+      throw "Design token $token is missing from globals.css"
+    }
+  }
+  foreach ($token in @(
+    "--color-clay",
+    "--color-marigold",
+    "--color-dressing-bg",
+    "--color-diet-bg",
+    "--color-exercise-bg",
+    "--color-dressing-border",
+    "--color-diet-border",
     "--color-exercise-border"
   )) {
-    if ($globals.IndexOf($token) -lt 0 -or $colors.IndexOf($token) -lt 0) {
-      throw "Design token $token is missing from globals.css or shared color constants"
+    if ($colors.IndexOf($token) -lt 0) {
+      throw "Design token $token is missing from shared color constants"
     }
+  }
+  $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
+  $pairing = Get-Content "$root\frontend\src\admin\pages\Pairing.tsx" -Raw -Encoding UTF8
+  if ($quickNote.IndexOf("from-[var(--color-note-paper-from)]") -lt 0 -or $quickNote.IndexOf("to-[var(--color-note-paper-to)]") -lt 0) {
+    throw "Quick note paper colors should use design tokens"
+  }
+  if ($pairing.IndexOf("getCssToken('--color-qr-dark')") -lt 0 -or $pairing.IndexOf("getCssToken('--color-qr-light')") -lt 0) {
+    throw "Pairing QR colors should use design tokens"
   }
   Write-Host "frontend_design_token_colors_ok"
 }
