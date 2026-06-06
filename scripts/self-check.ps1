@@ -1314,6 +1314,18 @@ session = client.post(
     json={"pairing_token": pairing.json()["pairing_token"], "device_name": "self-check-phone"},
 )
 assert session.status_code == 200
+blank_device_pairing = client.post("/api/pairing/members/1", headers=admin_headers)
+assert blank_device_pairing.status_code == 201
+assert client.post(
+    "/api/pairing/exchange",
+    json={"pairing_token": blank_device_pairing.json()["pairing_token"], "device_name": ""},
+).status_code == 422
+long_device_pairing = client.post("/api/pairing/members/1", headers=admin_headers)
+assert long_device_pairing.status_code == 201
+assert client.post(
+    "/api/pairing/exchange",
+    json={"pairing_token": long_device_pairing.json()["pairing_token"], "device_name": "x" * 161},
+).status_code == 422
 member_token = session.json()["access_token"]
 assert member_token.count(".") == 2
 token_payload = decode_member_token(member_token)

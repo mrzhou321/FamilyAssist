@@ -195,7 +195,7 @@ class PairingTokenRecord(BaseModel):
 
 class PairingExchange(BaseModel):
     pairing_token: str
-    device_name: str = "mobile-browser"
+    device_name: str = Field(default="mobile-browser", min_length=1, max_length=160)
 
 
 class MemberSession(BaseModel):
