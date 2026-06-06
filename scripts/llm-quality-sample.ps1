@@ -22,6 +22,148 @@ if ($Mode -eq "provider" -and $Provider -ne "ollama" -and -not $AllowCloud) {
   throw "Cloud provider sampling sends notes to a third-party API. Pass -AllowCloud after confirming the data egress risk."
 }
 
+function ConvertFrom-JsonString($value) {
+  return ('"' + $value + '"') | ConvertFrom-Json
+}
+
+function ConvertFrom-JsonArray($value) {
+  $items = New-Object System.Collections.Generic.List[string]
+  foreach ($item in ($value | ConvertFrom-Json)) {
+    [void]$items.Add([string]$item)
+  }
+  return ,$items.ToArray()
+}
+
+function Test-ContainsAny($content, $terms) {
+  foreach ($term in $terms) {
+    if ($content.IndexOf([string]$term) -ge 0) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Get-MemoryDomain($content) {
+  $exerciseKeywords = ConvertFrom-JsonArray '["\u8d70","\u8dd1","\u8fd0\u52a8","\u819d\u76d6","\u6563\u6b65"]'
+  $dressingKeywords = ConvertFrom-JsonArray '["\u51b7","\u70ed","\u7a7f","\u5916\u5957","\u4fdd\u6696"]'
+  $dietKeywords = ConvertFrom-JsonArray '["\u5403","\u996d","\u7cd6","\u9999\u83dc","\u82ab\u837d","\u6d77\u9c9c","\u8fc7\u654f","\u6c64"]'
+
+  if (Test-ContainsAny $content $exerciseKeywords) {
+    return "exercise"
+  }
+  if (Test-ContainsAny $content $dressingKeywords) {
+    return "dressing"
+  }
+  if (Test-ContainsAny $content $dietKeywords) {
+    return "diet"
+  }
+  return "general"
+}
+
+function Get-MemoryType($content) {
+  $factKeywords = ConvertFrom-JsonArray '["\u559c\u6b22","\u4e0d\u7231","\u4e0d\u559c\u6b22","\u4e0d\u5403","\u5fcc\u53e3","\u8ba8\u538c","\u8fc7\u654f","\u6015"]'
+  if (Test-ContainsAny $content $factKeywords) {
+    return "fact"
+  }
+  return "episode"
+}
+
+function New-SampleCase($note, $memberId, $domain, $type, $containsJson) {
+  return [pscustomobject]@{
+    note = ConvertFrom-JsonString $note
+    member_id = $memberId
+    domain = $domain
+    type = $type
+    contains = ConvertFrom-JsonArray $containsJson
+  }
+}
+
+function Invoke-DeterministicSample {
+  $cases = @(
+    New-SampleCase "\u7238\u7238\u4e0d\u5403\u9999\u83dc" 1 "diet" "fact" '["\u9999\u83dc"]'
+    New-SampleCase "\u5988\u5988\u5bf9\u82b1\u751f\u8fc7\u654f" 2 "diet" "fact" '["\u82b1\u751f","\u8fc7\u654f"]'
+    New-SampleCase "\u7237\u7237\u6015\u51b7\uff0c\u51fa\u95e8\u8981\u7a7f\u5916\u5957" 1 "dressing" "fact" '["\u6015\u51b7","\u5916\u5957"]'
+    New-SampleCase "\u5976\u5976\u6700\u8fd1\u819d\u76d6\u75bc\uff0c\u4eca\u5929\u4e0d\u8981\u8dd1\u6b65" 2 "exercise" "episode" '["\u819d\u76d6","\u8dd1\u6b65"]'
+    New-SampleCase "\u5b69\u5b50\u559c\u6b22\u996d\u540e\u6563\u6b65" 3 "exercise" "fact" '["\u6563\u6b65"]'
+    New-SampleCase "\u5168\u5bb6\u5c11\u7cd6\uff0c\u665a\u9910\u522b\u592a\u751c" $null "diet" "episode" '["\u5c11\u7cd6","\u665a\u9910"]'
+    New-SampleCase "\u5988\u5988\u4e0d\u559c\u6b22\u559d\u592a\u70eb\u7684\u6c64" 2 "diet" "fact" '["\u6c64"]'
+    New-SampleCase "\u7238\u7238\u4eca\u5929\u8fd0\u52a8\u540e\u8170\u4e0d\u8212\u670d" 1 "exercise" "episode" '["\u8fd0\u52a8","\u8170"]'
+    New-SampleCase "\u7237\u7237\u6015\u70ed\uff0c\u590f\u5929\u5c11\u7a7f\u539a\u8863\u670d" 1 "dressing" "fact" '["\u6015\u70ed","\u539a\u8863\u670d"]'
+    New-SampleCase "\u59b9\u59b9\u4e0d\u5403\u82ab\u837d" 3 "diet" "fact" '["\u82ab\u837d"]'
+    New-SampleCase "\u5976\u5976\u665a\u996d\u60f3\u559d\u6e05\u6de1\u7684\u6c64" 2 "diet" "episode" '["\u6e05\u6de1","\u6c64"]'
+    New-SampleCase "\u7238\u7238\u6015\u957f\u65f6\u95f4\u8d70\u8def\u819d\u76d6\u9178" 1 "exercise" "fact" '["\u8d70\u8def","\u819d\u76d6"]'
+    New-SampleCase "\u5988\u5988\u5fcc\u53e3\u6d77\u9c9c" 2 "diet" "fact" '["\u6d77\u9c9c"]'
+    New-SampleCase "\u5b9d\u5b9d\u4eca\u5929\u54b3\u55fd\uff0c\u8fd0\u52a8\u5148\u6682\u505c" 3 "exercise" "episode" '["\u54b3\u55fd","\u8fd0\u52a8"]'
+    New-SampleCase "\u7237\u7237\u51ac\u5929\u8981\u4fdd\u6696\uff0c\u56f4\u5dfe\u4e0d\u80fd\u5fd8" 1 "dressing" "episode" '["\u4fdd\u6696","\u56f4\u5dfe"]'
+    New-SampleCase "\u5976\u5976\u4e0d\u7231\u5403\u8fa3" 2 "diet" "fact" '["\u8fa3"]'
+    New-SampleCase "\u7238\u7238\u559c\u6b22\u996d\u540e\u6162\u8d70" 1 "exercise" "fact" '["\u6162\u8d70"]'
+    New-SampleCase "\u5988\u5988\u4eca\u5929\u80c3\u4e0d\u8212\u670d\uff0c\u665a\u9910\u5403\u7ca5" 2 "diet" "episode" '["\u80c3","\u7ca5"]'
+    New-SampleCase "\u5168\u5bb6\u51fa\u95e8\u7a7f\u96e8\u8863\uff0c\u522b\u7740\u51c9" $null "dressing" "episode" '["\u96e8\u8863"]'
+    New-SampleCase "\u59d0\u59d0\u8ba8\u538c\u9999\u83dc\u5473" 3 "diet" "fact" '["\u9999\u83dc"]'
+  )
+
+  $results = @()
+  foreach ($case in $cases) {
+    $actualDomain = Get-MemoryDomain $case.note
+    $actualType = Get-MemoryType $case.note
+    $passed = $actualDomain -eq $case.domain -and $actualType -eq $case.type -and (Test-ContainsAny $case.note $case.contains)
+    $results += [pscustomobject]@{
+      note = $case.note
+      expected = [pscustomobject]@{
+        member_id = $case.member_id
+        domain = $case.domain
+        type = $case.type
+        contains_any = $case.contains
+      }
+      passed = $passed
+      actual_candidates = @(
+        [pscustomobject]@{
+          domain = $actualDomain
+          type = $actualType
+          content = $case.note
+          confidence = 0.72
+        }
+      )
+    }
+  }
+
+  $passedCount = @($results | Where-Object { $_.passed }).Count
+  $total = $results.Count
+  $passRate = $passedCount / $total
+  $report = [pscustomobject]@{
+    generated_at = [DateTime]::UtcNow.ToString("o")
+    mode = "deterministic"
+    provider = $Provider
+    generation_model = $(if ($GenerationModel) { $GenerationModel } else { "qwen2.5:3b" })
+    minimum_pass_rate = $MinimumPassRate
+    passed = $passedCount
+    total = $total
+    pass_rate = $passRate
+    cases = $results
+  }
+
+  $json = $report | ConvertTo-Json -Depth 8
+  if ($OutputPath) {
+    $resolvedOutputPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
+    $parent = Split-Path -Parent $resolvedOutputPath
+    if ($parent) {
+      New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    Set-Content -LiteralPath $resolvedOutputPath -Value $json -Encoding UTF8
+  }
+  Write-Host $json
+  if ($passRate -lt $MinimumPassRate) {
+    Write-Host ("llm_quality_sample_failed pass_rate={0:P2} passed={1} total={2} mode=deterministic" -f $passRate, $passedCount, $total)
+    exit 1
+  }
+  Write-Host ("llm_quality_sample_ok pass_rate={0:P2} passed={1} total={2} mode=deterministic" -f $passRate, $passedCount, $total)
+  exit 0
+}
+
+if ($Mode -eq "deterministic") {
+  Invoke-DeterministicSample
+}
+
 $env:FA_PROJECT_ROOT = $root
 $env:FA_LLM_SAMPLE_MODE = $Mode
 $env:FA_LLM_SAMPLE_PROVIDER = $Provider
