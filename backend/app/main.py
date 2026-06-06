@@ -356,6 +356,8 @@ async def update_settings(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
 ) -> SystemSettings:
+    if payload.llm_provider != "ollama" and not payload.cloud_llm_risk_acknowledged:
+        raise HTTPException(status_code=400, detail="Cloud LLM risk acknowledgement is required")
     return await data.update_settings(payload)
 
 

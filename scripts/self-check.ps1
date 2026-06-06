@@ -115,6 +115,16 @@ members = client.get("/api/members", headers=admin_headers)
 assert members.status_code == 200
 assert len(members.json()) >= 1
 
+settings = client.get("/api/settings", headers=admin_headers)
+assert settings.status_code == 200
+cloud_settings = {**settings.json(), "llm_provider": "deepseek", "cloud_llm_risk_acknowledged": False}
+assert client.patch("/api/settings", json=cloud_settings, headers=admin_headers).status_code == 400
+cloud_settings["cloud_llm_risk_acknowledged"] = True
+updated_settings = client.patch("/api/settings", json=cloud_settings, headers=admin_headers)
+assert updated_settings.status_code == 200
+assert updated_settings.json()["llm_provider"] == "deepseek"
+assert client.patch("/api/settings", json={**updated_settings.json(), "llm_provider": "ollama"}, headers=admin_headers).status_code == 200
+
 assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous note", "source": "text"}).status_code == 401
 assert client.get("/api/memories?member_id=1").status_code == 401
 assert client.get("/api/recommendations?member_id=1").status_code == 401
