@@ -977,9 +977,17 @@ source_note = client.get(f"/api/notes/{note_id}", headers=headers)
 assert source_note.status_code == 200
 assert source_note.json()["content"] == "member 1 knee note"
 
+first_token_start = perf_counter()
 with client.stream("GET", "/api/recommendations/diet/stream?member_id=1", headers=headers) as stream:
     assert stream.status_code == 200
-    assert "data:" in "".join(stream.iter_text())
+    first_chunk = ""
+    for chunk in stream.iter_text():
+        if chunk.strip():
+            first_chunk = chunk
+            break
+    first_token_latency = perf_counter() - first_token_start
+    assert "data:" in first_chunk
+    assert first_token_latency < 5, f"recommendation first token exceeded 5s: {first_token_latency}"
 
 feedback = client.post(
     "/api/recommendations/feedback",
