@@ -620,5 +620,25 @@ Step "Backend migration smoke" {
   Write-Host "backend_migration_smoke_ok"
 }
 
+Step "Docker compose model bootstrap" {
+  $compose = Get-Content "$root\docker-compose.yml" -Raw -Encoding UTF8
+  if ($compose.IndexOf("ollama-models:") -lt 0 -or $compose.IndexOf("ollama pull") -lt 0 -or $compose.IndexOf("GENERATION_MODEL") -lt 0) {
+    throw "Docker compose does not bootstrap the Ollama generation model"
+  }
+  if ($compose.IndexOf("condition: service_completed_successfully") -lt 0) {
+    throw "Backend does not wait for Ollama model bootstrap"
+  }
+  Push-Location $root
+  try {
+    docker compose config | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      throw "Docker compose config failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+  }
+  Write-Host "docker_compose_model_bootstrap_ok"
+}
+
 Write-Host ""
 Write-Host "Self-check passed." -ForegroundColor Green
