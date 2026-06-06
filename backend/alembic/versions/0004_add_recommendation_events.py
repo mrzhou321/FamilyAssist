@@ -16,12 +16,15 @@ branch_labels = None
 depends_on = None
 
 
+memory_domain = postgresql.ENUM("dressing", "diet", "exercise", "general", name="memory_domain", create_type=False)
+
+
 def upgrade() -> None:
     op.create_table(
         "recommendation_events",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("member_id", sa.Integer(), sa.ForeignKey("members.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("domain", sa.Enum("dressing", "diet", "exercise", "general", name="memory_domain"), nullable=False),
+        sa.Column("domain", memory_domain, nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("memory_ids", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("basis", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default=sa.text("'[]'::jsonb")),

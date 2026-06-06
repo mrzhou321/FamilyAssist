@@ -1,4 +1,5 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -7,10 +8,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.models import Base
 
 config = context.config
-if config.config_file_name:
+if config.config_file_name and config.file_config.has_section("formatters"):
     fileConfig(config.config_file_name)
 
-import os
 db_url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
 # asyncpg driver required for async engine
 if db_url and db_url.startswith("postgresql://"):

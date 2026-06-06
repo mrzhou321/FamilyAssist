@@ -16,9 +16,9 @@ branch_labels = None
 depends_on = None
 
 
-note_source = postgresql.ENUM("text", "voice", "photo", name="note_source")
-memory_type = postgresql.ENUM("fact", "episode", name="memory_type")
-memory_domain = postgresql.ENUM("dressing", "diet", "exercise", "general", name="memory_domain")
+note_source = postgresql.ENUM("text", "voice", "photo", name="note_source", create_type=False)
+memory_type = postgresql.ENUM("fact", "episode", name="memory_type", create_type=False)
+memory_domain = postgresql.ENUM("dressing", "diet", "exercise", "general", name="memory_domain", create_type=False)
 
 
 def upgrade() -> None:

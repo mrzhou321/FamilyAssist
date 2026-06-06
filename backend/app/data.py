@@ -404,7 +404,7 @@ class DatabaseDataStore:
         if existing is None:
             candidates = await self.session.scalars(
                 select(models.Memory).where(
-                    (models.Memory.member_id == note.member_id)
+                    ((models.Memory.member_id == note.member_id) | (models.Memory.member_id.is_(None)))
                     & (models.Memory.domain == models.MemoryDomain(draft.domain.value))
                     & (models.Memory.type == models.MemoryType(draft.type.value))
                 )

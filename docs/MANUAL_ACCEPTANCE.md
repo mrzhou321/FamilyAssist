@@ -23,6 +23,8 @@ After completing each section, open `/admin/settings`, tick the matching accepta
 
 ## LLM Quality Sampling
 
+- Run the repeatable baseline sample: `powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1`.
+- When a real provider is configured, run `powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1 -Mode provider -OutputPath docs\llm-quality-provider-sample.json`; for cloud providers add `-Provider deepseek` or `-Provider qwen` plus `-AllowCloud` only after confirming data egress risk.
 - Submit at least 20 representative quick notes across allergies, dislikes, thermal preference, injury, recent discomfort, diet, dressing, and exercise.
 - In `/admin/review`, compare original notes with extracted candidates.
 - Count a case as accepted when the candidate captures the correct member, domain, type, content, and confidence is plausible.

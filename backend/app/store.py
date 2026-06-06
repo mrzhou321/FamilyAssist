@@ -257,7 +257,7 @@ class InMemoryStore:
         draft_embedding = build_text_embedding(draft.content)
         if any(
             memory.source_note_id == note_id or (
-                memory.member_id == note.member_id
+                memory.member_id in {note.member_id, None}
                 and memory.domain == draft.domain
                 and memory.type == draft.type
                 and is_semantic_duplicate_memory(

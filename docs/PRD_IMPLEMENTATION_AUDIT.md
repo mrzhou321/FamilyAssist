@@ -8,6 +8,7 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 
 - Full regression gate: `powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1`
 - Optional deployment smoke: `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1`
+- Repeatable LLM quality sample: `powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1`
 - Manual acceptance checklist: `docs\MANUAL_ACCEPTANCE.md`
 - Deployment entrypoint: `README.md`, `docker-compose.yml`
 - Backend API: `backend/app/main.py`
@@ -23,11 +24,11 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 | Voice quick notes | `QuickNote.tsx` uses `SpeechRecognition` / `webkitSpeechRecognition` and appends transcript as `source: "voice"`. | Covered by code wiring; device/browser compatibility still needs manual mobile testing |
 | Photo quick notes | `QuickNote.tsx` uses `input accept="image/*" capture="environment"` and records photo metadata in note text. | Covered for capture metadata; no OCR or binary archive by PRD scope |
 | Offline quick notes | IndexedDB queue in `noteQueue.ts`; online listener syncs queued notes; failed items remain queued while later items continue. Self-check covers cache and queue wiring. | Covered |
-| LLM extraction | `llm_extractor.py` calls Ollama JSON schema or cloud OpenAI-compatible providers, validates with Pydantic, retries, and falls back to manual-review candidate only for review UI. | Covered, but implementation uses Ollama JSON schema rather than literal GBNF |
+| LLM extraction | `llm_extractor.py` calls Ollama JSON schema or cloud OpenAI-compatible providers, validates with Pydantic, retries, and falls back to manual-review candidate only for review UI. `scripts\llm-quality-sample.ps1` runs 20 representative extraction cases and can produce a provider-mode JSON evidence report. | Covered, but implementation uses Ollama JSON schema rather than literal GBNF |
 | Failed extraction handoff | `DatabaseDataStore.extract_memory_from_note` uses `build_extracted_candidate`; when extraction fails, note remains `understanding`. Self-check covers this handoff. | Covered |
 | Memory metadata | `Memory` has `source_note_id`, `confidence`, `expires_at`, `domain`, embedding. Admin memory library shows source and expiry and can edit expiry. | Covered |
 | Memory CRUD and review | Admin review page approves/rejects candidates; memory library filters by member/domain/type and edits/deletes memories. | Covered |
-| Semantic dedupe | Backend uses deterministic and embedding similarity dedupe with configurable threshold; self-check covers alias and semantic duplicate behavior. | Covered |
+| Semantic dedupe | Backend uses deterministic and embedding similarity dedupe with configurable threshold; self-check covers alias, semantic duplicate behavior, and member notes deduping against family-shared memories. | Covered |
 | Expired episode filtering | Memory list and vector recommendation paths filter expired memories; cleanup action is exposed in settings. | Covered |
 | Three-domain advice | Backend supports dressing/diet/exercise recommendation batch and domain endpoints; mobile renders all three. | Covered |
 | Weather context | QWeather adapter with local estimate fallback; provider status shows weather source. | Covered |
@@ -47,5 +48,5 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 - Literal GBNF is not implemented; Ollama JSON schema constrained generation plus Pydantic validation is the current guardrail.
 - Voice recognition support still depends on real mobile browser Web Speech behavior and should be manually tested on target Android/iOS browsers using `docs\MANUAL_ACCEPTANCE.md`.
 - Full `docker compose up` with model pulls is heavier than the default self-check. Use `scripts\deploy-smoke.ps1`; use `-SkipModelPull` for a faster container-build smoke.
-- LLM extraction quality target `>=80%` is inherently subjective; current automation checks representative scenarios and fallback behavior, and `docs\MANUAL_ACCEPTANCE.md` defines the manual sampling protocol.
+- LLM extraction quality target `>=80%` still benefits from human review for real providers; `scripts\llm-quality-sample.ps1` provides repeatable baseline/provider sampling evidence, and `docs\MANUAL_ACCEPTANCE.md` defines the manual sign-off protocol.
 - Photo support captures metadata and user description, not image OCR or long-term binary storage.

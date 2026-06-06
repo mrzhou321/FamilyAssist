@@ -92,14 +92,23 @@ Step "Deployment smoke script" {
   if ($deploySmoke.IndexOf("docker compose") -lt 0 -or $deploySmoke.IndexOf("--build") -lt 0 -or $deploySmoke.IndexOf("backend") -lt 0 -or $deploySmoke.IndexOf("nginx") -lt 0) {
     throw "Deploy smoke script does not exercise compose build and health checks"
   }
-  if ($deploySmoke.IndexOf("Test-SmokeHttpStatus") -lt 0 -or $deploySmoke.IndexOf("[TimeSpan]::FromSeconds(10)") -lt 0 -or $deploySmoke.IndexOf("http://localhost/mobile/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/admin/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/api/members") -lt 0) {
+  if ($deploySmoke.IndexOf("Test-SmokeHttpStatus") -lt 0 -or $deploySmoke.IndexOf("TimeoutSec 10") -lt 0 -or $deploySmoke.IndexOf("http://localhost/mobile/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/admin/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/api/members") -lt 0) {
     throw "Deploy smoke script does not verify nginx app and same-origin API routes"
   }
   if ($deploySmoke.IndexOf("SkipModelPull") -lt 0 -or $deploySmoke.IndexOf("skip model pull") -lt 0) {
     throw "Deploy smoke script does not expose a fast no-model-pull mode"
   }
+  if ($deploySmoke.IndexOf("image: alpine:3.20") -lt 0 -or $deploySmoke.IndexOf('entrypoint: ["/bin/sh", "-c", "sleep 300"]') -lt 0) {
+    throw "Fast deploy smoke should avoid pulling the full Ollama image"
+  }
   if ($deploySmoke.IndexOf("Test-DockerDaemon") -lt 0 -or $deploySmoke.IndexOf("Docker daemon is not reachable") -lt 0) {
     throw "Deploy smoke script does not preflight Docker daemon availability"
+  }
+  if ($deploySmoke.IndexOf("ConvertFrom-Json") -lt 0 -or $deploySmoke.IndexOf('$_.Service -eq "backend"') -lt 0) {
+    throw "Deploy smoke script should parse Docker Compose status JSON by service fields"
+  }
+  if ($deploySmoke.IndexOf("Invoke-WebRequest") -lt 0 -or $deploySmoke.IndexOf('$_.Exception.Response') -lt 0) {
+    throw "Deploy smoke HTTP checks should run under Windows PowerShell and handle expected error statuses"
   }
   if ($deploySmoke.IndexOf("SkipIfDockerUnavailable") -lt 0 -or $deploySmoke.IndexOf("DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE") -lt 0 -or $deploySmoke.IndexOf("deploy_smoke_skipped_docker_unavailable") -lt 0) {
     throw "Deploy smoke script does not expose an explicit Docker-unavailable skip path"
@@ -116,6 +125,23 @@ Step "Deployment security defaults" {
   $nginx = Get-Content "$root\docker\nginx\nginx.conf" -Raw -Encoding UTF8
   if ($compose.IndexOf('DEBUG: "false"') -lt 0) {
     throw "Docker compose should not enable debug CORS by default"
+  }
+  $backendDockerfile = Get-Content "$root\backend\Dockerfile" -Raw -Encoding UTF8
+  if ($backendDockerfile.IndexOf("PYTHONPATH=/app") -lt 0) {
+    throw "Backend Docker image must expose the app package to Alembic and Uvicorn"
+  }
+  $alembicEnv = Get-Content "$root\backend\alembic\env.py" -Raw -Encoding UTF8
+  if ($alembicEnv.IndexOf('config.file_config.has_section("formatters")') -lt 0) {
+    throw "Alembic env should tolerate minimal alembic.ini files in the Docker image"
+  }
+  $firstMigration = Get-Content "$root\backend\alembic\versions\0001_enable_pgvector.py" -Raw -Encoding UTF8
+  if ($firstMigration.IndexOf('revision = "0001"') -lt 0 -or $firstMigration.IndexOf("down_revision = None") -lt 0) {
+    throw "Alembic migrations must declare revision metadata for Docker startup"
+  }
+  $coreMigration = Get-Content "$root\backend\alembic\versions\0002_create_core_tables.py" -Raw -Encoding UTF8
+  $eventsMigration = Get-Content "$root\backend\alembic\versions\0004_add_recommendation_events.py" -Raw -Encoding UTF8
+  if ($coreMigration.IndexOf("create_type=False") -lt 0 -or $eventsMigration.IndexOf("create_type=False") -lt 0) {
+    throw "Postgres enum migrations must reuse existing enum types during Docker startup"
   }
   if ($compose.IndexOf("ADMIN_PASSWORD") -lt 0 -or $compose.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
     throw "Docker compose must expose admin secret environment variables"
@@ -147,6 +173,9 @@ Step "PRD implementation audit docs" {
   }
   if ($audit.IndexOf("MANUAL_ACCEPTANCE.md") -lt 0) {
     throw "PRD implementation audit does not point to the manual acceptance checklist"
+  }
+  if ($audit.IndexOf("llm-quality-sample.ps1") -lt 0 -or $manualAcceptance.IndexOf("llm-quality-sample.ps1") -lt 0) {
+    throw "LLM quality sampling docs do not point to the repeatable sample script"
   }
   foreach ($manualItem in @("Mobile Device Checks", "Deployment Smoke", "LLM Quality Sampling", "Recommendation Sampling", "JSON evidence", "provider diagnostics", "80%")) {
     if ($manualAcceptance.IndexOf($manualItem) -lt 0) {
@@ -1082,6 +1111,28 @@ print("backend_extraction_golden_cases_ok")
   }
 }
 
+Step "LLM quality sample script" {
+  $sampleScriptPath = "$root\scripts\llm-quality-sample.ps1"
+  if (-not (Test-Path $sampleScriptPath)) {
+    throw "LLM quality sample script is missing"
+  }
+  $parseErrors = $null
+  $parseTokens = $null
+  [System.Management.Automation.Language.Parser]::ParseFile($sampleScriptPath, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    throw "LLM quality sample script has PowerShell syntax errors"
+  }
+  $sampleScript = Get-Content $sampleScriptPath -Raw -Encoding UTF8
+  if ($sampleScript.IndexOf("MinimumPassRate") -lt 0 -or $sampleScript.IndexOf("AllowCloud") -lt 0 -or $sampleScript.IndexOf("OutputPath") -lt 0) {
+    throw "LLM quality sample script does not expose quality threshold, cloud acknowledgement, and evidence output options"
+  }
+  & powershell -ExecutionPolicy Bypass -File $sampleScriptPath -Mode deterministic -MinimumPassRate 0.8
+  if ($LASTEXITCODE -ne 0) {
+    throw "LLM quality deterministic sample failed with exit code $LASTEXITCODE"
+  }
+  Write-Host "llm_quality_sample_script_ok"
+}
+
 Step "Backend LLM recommender smoke" {
   $recommendSmoke = New-TemporaryFile
   @'
@@ -1690,6 +1741,17 @@ assert family_source_note.json()["member_id"] is None
 member_visible_memories = client.get("/api/memories?member_id=1", headers=headers)
 assert member_visible_memories.status_code == 200
 assert any(item["member_id"] is None and item["source_note_id"] == family_note_id for item in member_visible_memories.json())
+before_shared_duplicate = len(member_visible_memories.json())
+shared_duplicate_note = client.post(
+    "/api/notes",
+    json={"member_id": 1, "content": "\u5168\u5bb6\u6015\u51b7\uff0c\u51fa\u95e8\u8981\u7a7f\u5916\u5957", "source": "text"},
+    headers=headers,
+)
+assert shared_duplicate_note.status_code == 202
+after_shared_duplicate = client.get("/api/memories?member_id=1", headers=headers)
+assert after_shared_duplicate.status_code == 200
+assert len(after_shared_duplicate.json()) == before_shared_duplicate
+assert client.get(f"/api/notes/{shared_duplicate_note.json()['id']}", headers=headers).json()["status"] == "reviewed"
 
 batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1", headers=headers)
 assert batch.status_code == 200
@@ -1964,6 +2026,11 @@ shared_memory = store.extract_memory_from_note(shared_note.id)
 assert shared_memory is not None
 assert shared_memory.member_id is None
 assert any(memory.id == shared_memory.id for memory in store.list_memories(1))
+shared_count = len(store.list_memories(1))
+shared_duplicate_note = store.create_note(NoteCreate(member_id=1, content="\u5168\u5bb6\u6015\u51b7\uff0c\u51fa\u95e8\u8981\u7a7f\u5916\u5957"))
+assert store.extract_memory_from_note(shared_duplicate_note.id) is None
+assert store.notes[shared_duplicate_note.id].status == "reviewed"
+assert len(store.list_memories(1)) == shared_count
 shared_dressing = store.make_recommendation(RecommendationDomain.dressing, 1, record_event=False)
 assert any(ref.source_note_id == shared_note.id for ref in shared_dressing.basis_refs)
 

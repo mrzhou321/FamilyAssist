@@ -51,17 +51,40 @@ function Compose($arguments) {
 }
 
 function Test-SmokeHttpStatus($url, $expectedStatus) {
-  $client = [System.Net.Http.HttpClient]::new()
   try {
-    $client.Timeout = [TimeSpan]::FromSeconds(10)
-    $response = $client.GetAsync($url).GetAwaiter().GetResult()
+    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10 -Method GET
     $actualStatus = [int]$response.StatusCode
-    if ($actualStatus -ne $expectedStatus) {
-      throw "$url returned HTTP $actualStatus, expected $expectedStatus"
+  } catch {
+    if ($_.Exception.Response) {
+      $actualStatus = [int]$_.Exception.Response.StatusCode
+    } else {
+      throw
+    }
+  }
+
+  if ($actualStatus -ne $expectedStatus) {
+    throw "$url returned HTTP $actualStatus, expected $expectedStatus"
+  }
+}
+
+function Get-ComposeStatus {
+  Push-Location $root
+  try {
+    $lines = docker compose -p $project ps --format json
+    if ($LASTEXITCODE -ne 0) {
+      throw "docker compose ps failed with exit code $LASTEXITCODE"
     }
   } finally {
-    $client.Dispose()
+    Pop-Location
   }
+
+  return @($lines | Where-Object { $_.Trim().Length -gt 0 } | ForEach-Object { $_ | ConvertFrom-Json })
+}
+
+function Test-ServicesReady($containers) {
+  $backend = $containers | Where-Object { $_.Service -eq "backend" } | Select-Object -First 1
+  $nginx = $containers | Where-Object { $_.Service -eq "nginx" } | Select-Object -First 1
+  return $backend -and $backend.Health -eq "healthy" -and $nginx -and $nginx.State -eq "running"
 }
 
 try {
@@ -77,9 +100,12 @@ try {
     $override = Join-Path ([System.IO.Path]::GetTempPath()) "familyassister-compose-smoke.override.yml"
     @"
 services:
+  ollama:
+    image: alpine:3.20
+    entrypoint: ["/bin/sh", "-c", "sleep 300"]
   ollama-models:
-    entrypoint: ["/bin/sh", "-c"]
-    command: "echo skip model pull"
+    image: alpine:3.20
+    entrypoint: ["/bin/sh", "-c", "echo skip model pull"]
 "@ | Set-Content -LiteralPath $override -Encoding UTF8
   }
 
@@ -90,13 +116,8 @@ services:
   $deadline = (Get-Date).AddMinutes(3)
   do {
     Start-Sleep -Seconds 5
-    Push-Location $root
-    try {
-      $health = docker compose -p $project ps --format json
-    } finally {
-      Pop-Location
-    }
-    if ($health -match '"Service":"backend".*"Health":"healthy"' -and $health -match '"Service":"nginx".*"State":"running"') {
+    $containers = Get-ComposeStatus
+    if (Test-ServicesReady $containers) {
       Test-SmokeHttpStatus "http://localhost/health" 200
       Test-SmokeHttpStatus "http://localhost/mobile/" 200
       Test-SmokeHttpStatus "http://localhost/admin/" 200

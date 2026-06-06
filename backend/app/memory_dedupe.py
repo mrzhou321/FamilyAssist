@@ -50,6 +50,7 @@ DIET_KEYWORDS = (
     "\u7cd6",
     "\u9999\u83dc",
     "\u82ab\u837d",
+    "\u6d77\u9c9c",
     "\u8fc7\u654f",
     "\u6c64",
 )
