@@ -715,6 +715,8 @@ print("backend_embedding_provider_ok")
 Step "Backend API smoke" {
   $apiSmoke = New-TemporaryFile
   @'
+from time import perf_counter
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -810,6 +812,22 @@ assert token_payload["member_id"] == 1
 assert token_payload["device"] == "self-check-phone"
 headers = {"Authorization": f"Bearer {member_token}"}
 
+latencies = []
+for index in range(5):
+    start = perf_counter()
+    perf_note = client.post(
+        "/api/notes",
+        json={
+            "member_id": 1,
+            "content": f"performance smoke note {index}",
+            "source": "text",
+        },
+        headers=headers,
+    )
+    latencies.append(perf_counter() - start)
+    assert perf_note.status_code == 202
+assert max(latencies) < 0.3, f"note submit exceeded 300ms: {latencies}"
+
 note = client.post(
     "/api/notes",
     json={
@@ -862,6 +880,14 @@ feedback = client.post(
 assert feedback.status_code == 201
 assert "\u91c7\u7eb3" in feedback.json()["content"]
 assert "\u00b0C" in feedback.json()["content"]
+
+retrieval_latencies = []
+for _ in range(5):
+    start = perf_counter()
+    memory_response = client.get("/api/memories?member_id=1", headers=headers)
+    retrieval_latencies.append(perf_counter() - start)
+    assert memory_response.status_code == 200
+assert max(retrieval_latencies) < 0.5, f"memory retrieval exceeded 500ms: {retrieval_latencies}"
 
 reject_note = client.post(
     "/api/notes",
