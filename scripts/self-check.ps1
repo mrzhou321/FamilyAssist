@@ -478,6 +478,17 @@ Step "Frontend member auth expiry wiring" {
   if ($quickNote.IndexOf("useMembers") -ge 0 -or $quickNote.IndexOf("MOCK_MEMBERS.map") -ge 0) {
     throw "Mobile quick note should not request admin-only member lists with member auth"
   }
+  $memberPage = Get-Content "$root\frontend\src\admin\pages\Members.tsx" -Raw -Encoding UTF8
+  $memberPayloadStart = $memberPage.IndexOf("function toApiPayload")
+  $memberPayloadEnd = $memberPage.IndexOf("export default function Members")
+  $memberPayload = if ($memberPayloadStart -ge 0 -and $memberPayloadEnd -gt $memberPayloadStart) {
+    $memberPage.Substring($memberPayloadStart, $memberPayloadEnd - $memberPayloadStart)
+  } else {
+    ""
+  }
+  if ($memberPayload.IndexOf("bound:") -ge 0 -or $memberPage.IndexOf("已完成移动端配对") -ge 0 -or $memberPage.IndexOf("暂无有效移动端配对") -lt 0 -or $memberPage.IndexOf('type="checkbox"') -ge 0) {
+    throw "Admin member form should show pairing status as session-derived read-only state"
+  }
   Write-Host "frontend_member_auth_expiry_wiring_ok"
 }
 
@@ -1518,6 +1529,8 @@ sessions = client.get("/api/pairing/sessions?member_id=1", headers=admin_headers
 assert sessions.status_code == 200
 device_session = next(item for item in sessions.json() if item["device_name"] == "self-check-phone")
 assert device_session["revoked"] is False
+member_after_pair = next(item for item in client.get("/api/members", headers=admin_headers).json() if item["id"] == 1)
+assert member_after_pair["bound"] is True
 
 own_notes = client.get("/api/notes?member_id=1", headers=headers)
 assert own_notes.status_code == 200
@@ -1551,6 +1564,8 @@ revoked = client.post(f"/api/pairing/sessions/{device_session['token_hash']}/rev
 assert revoked.status_code == 200
 assert revoked.json()["revoked"] is True
 assert client.get("/api/notes?member_id=1", headers=headers).status_code == 401
+member_after_revoke = next(item for item in client.get("/api/members", headers=admin_headers).json() if item["id"] == 1)
+assert member_after_revoke["bound"] is False
 
 print("backend_api_smoke_ok")
 '@ | Set-Content -LiteralPath $apiSmoke -Encoding UTF8
@@ -1613,9 +1628,11 @@ assert store.validate_member_token(session.access_token + "tampered") is None
 sessions = store.list_member_sessions(1)
 assert len(sessions) == 1
 assert sessions[0].device_name == "store-smoke-phone"
+assert store.members[1].bound is True
 assert store.validate_member_token(session.access_token) is not None
 assert store.revoke_member_session(sessions[0].token_hash) is True
 assert store.validate_member_token(session.access_token) is None
+assert store.members[1].bound is False
 
 batch = store.make_recommendations(
     [RecommendationDomain.dressing, RecommendationDomain.diet, RecommendationDomain.exercise],

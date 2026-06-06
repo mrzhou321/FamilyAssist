@@ -63,7 +63,6 @@ class MemberUpdate(BaseModel):
     birthday: str | None = None
     relation: str | None = None
     profile: MemberProfile | None = None
-    bound: bool | None = None
 
     _strip_optional_text = field_validator("name", "relation")(_strip_optional_non_blank)
 

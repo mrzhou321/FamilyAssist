@@ -441,6 +441,13 @@ class InMemoryStore:
         if session is None:
             return False
         self.member_sessions[token_hash] = session.model_copy(update={"revoked": True})
+        has_active_session = any(
+            other.token_hash != token_hash and other.member_id == session.member_id and not other.revoked
+            for other in self.member_sessions.values()
+        )
+        if not has_active_session and session.member_id in self.members:
+            member = self.members[session.member_id]
+            self.members[member.id] = member.model_copy(update={"bound": False, "updated_at": now()})
         return True
 
     def get_settings(self) -> SystemSettings:

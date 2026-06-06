@@ -80,7 +80,6 @@ function toApiPayload(member: MemberProfileForm) {
     name: member.name,
     birthday: member.birthday || null,
     relation: member.relation,
-    bound: member.bound,
     profile: {
       height: member.height ? Number(member.height) : null,
       weight: member.weight ? Number(member.weight) : null,
@@ -423,15 +422,9 @@ export default function Members() {
               />
             </Field>
             <Field label="设备状态">
-              <label className="flex h-11 items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] px-3 text-sm text-[var(--color-fg)]">
-                <input
-                  type="checkbox"
-                  checked={draft.bound}
-                  onChange={(event) => updateDraft('bound', event.target.checked)}
-                  className="accent-[var(--color-accent)]"
-                />
-                已完成移动端配对
-              </label>
+              <div className="flex h-11 items-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] px-3 text-sm text-[var(--color-fg)]">
+                {draft.bound ? '已有有效移动端配对' : '暂无有效移动端配对'}
+              </div>
             </Field>
           </div>
         </form>

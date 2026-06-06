@@ -628,6 +628,19 @@ class DatabaseDataStore:
         if session is None:
             return False
         session.revoked = True
+        active_session = await self.session.scalar(
+            select(models.MemberSession)
+            .where(
+                models.MemberSession.member_id == session.member_id,
+                models.MemberSession.token_hash != token_hash,
+                models.MemberSession.revoked.is_(False),
+            )
+            .limit(1)
+        )
+        if active_session is None:
+            member = await self.session.get(models.Member, session.member_id)
+            if member is not None:
+                member.bound = False
         await self.session.commit()
         return True
 
