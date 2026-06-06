@@ -42,7 +42,21 @@ Step "Deployment and backup docs" {
   if ($readme.IndexOf("ADMIN_PASSWORD") -lt 0 -or $readme.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
     throw "README does not remind operators to rotate default secrets"
   }
+  if ($readme.IndexOf("scripts\deploy-smoke.ps1") -lt 0 -or $readme.IndexOf("-SkipModelPull") -lt 0) {
+    throw "README does not document optional Docker compose smoke test"
+  }
   Write-Host "deployment_backup_docs_ok"
+}
+
+Step "Deployment smoke script" {
+  $deploySmoke = Get-Content "$root\scripts\deploy-smoke.ps1" -Raw -Encoding UTF8
+  if ($deploySmoke.IndexOf("docker compose") -lt 0 -or $deploySmoke.IndexOf("--build") -lt 0 -or $deploySmoke.IndexOf("backend") -lt 0 -or $deploySmoke.IndexOf("nginx") -lt 0) {
+    throw "Deploy smoke script does not exercise compose build and health checks"
+  }
+  if ($deploySmoke.IndexOf("SkipModelPull") -lt 0 -or $deploySmoke.IndexOf("skip model pull") -lt 0) {
+    throw "Deploy smoke script does not expose a fast no-model-pull mode"
+  }
+  Write-Host "deployment_smoke_script_ok"
 }
 
 Step "PRD implementation audit docs" {

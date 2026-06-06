@@ -50,3 +50,14 @@ docker volume ls
 powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1
 ```
 
+Optional full Docker Compose smoke test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1
+```
+
+For a faster container-build smoke test that skips model pulls:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull
+```

@@ -7,6 +7,7 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 ## Evidence Gates
 
 - Full regression gate: `powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1`
+- Optional deployment smoke: `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1`
 - Deployment entrypoint: `README.md`, `docker-compose.yml`
 - Backend API: `backend/app/main.py`
 - Data stores: `backend/app/data.py`, `backend/app/store.py`
@@ -44,7 +45,6 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 
 - Literal GBNF is not implemented; Ollama JSON schema constrained generation plus Pydantic validation is the current guardrail.
 - Voice recognition support still depends on real mobile browser Web Speech behavior and should be manually tested on target Android/iOS browsers.
-- Full `docker compose up` with model pulls is heavier than the default self-check and has not been made part of the automated gate.
+- Full `docker compose up` with model pulls is heavier than the default self-check. Use `scripts\deploy-smoke.ps1`; use `-SkipModelPull` for a faster container-build smoke.
 - LLM extraction quality target `>=80%` is inherently subjective; current automation checks representative scenarios and fallback behavior, not a statistically valid quality benchmark.
 - Photo support captures metadata and user description, not image OCR or long-term binary storage.
-
