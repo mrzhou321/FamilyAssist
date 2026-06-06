@@ -1298,8 +1298,17 @@ assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous not
 assert client.get("/api/memories?member_id=1").status_code == 401
 assert client.get("/api/recommendations?member_id=1").status_code == 401
 assert client.post("/api/pairing/members/1").status_code == 401
+assert client.post("/api/pairing/members/1?server_url=javascript%3Aalert(1)", headers=admin_headers).status_code == 422
+assert client.post("/api/pairing/members/1?server_url=%2Fmobile", headers=admin_headers).status_code == 422
 pairing = client.post("/api/pairing/members/1", headers=admin_headers)
 assert pairing.status_code == 201
+origin_pairing = client.post(
+    "/api/pairing/members/1?server_url=https%3A%2F%2Ffamily.local%2Fadmin%2F",
+    headers=admin_headers,
+)
+assert origin_pairing.status_code == 201
+assert origin_pairing.json()["server_url"] == "https://family.local"
+assert origin_pairing.json()["pairing_url"].startswith("https://family.local/mobile/pair?token=")
 session = client.post(
     "/api/pairing/exchange",
     json={"pairing_token": pairing.json()["pairing_token"], "device_name": "self-check-phone"},

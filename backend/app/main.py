@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from collections.abc import AsyncIterator
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
@@ -76,6 +77,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def normalize_pairing_server_url(server_url: str) -> str:
+    parsed = urlparse(server_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=422, detail="server_url must be an absolute http(s) URL")
+    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
 
 
 @app.get("/health", response_model=HealthStatus)
@@ -326,7 +334,7 @@ async def create_pairing_token(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
 ) -> PairingToken:
-    token = await data.create_pairing_token(member_id, server_url)
+    token = await data.create_pairing_token(member_id, normalize_pairing_server_url(server_url))
     if token is None:
         raise HTTPException(status_code=404, detail="Member not found")
     return token
