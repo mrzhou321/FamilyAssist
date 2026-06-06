@@ -1721,6 +1721,8 @@ from app.tokens import decode_member_token
 store = InMemoryStore()
 assert len(build_text_embedding("stable vector smoke")) == EMBEDDING_DIMENSION
 assert all(len(memory.embedding) == EMBEDDING_DIMENSION for memory in store.list_memories())
+assert all(not member.bound for member in store.list_members())
+assert store.list_member_sessions() == []
 token = store.create_pairing_token(1, "http://localhost:5173")
 assert token is not None
 session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token, device_name="store-smoke-phone"))

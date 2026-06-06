@@ -81,7 +81,7 @@ class InMemoryStore:
                 name="李秋梅",
                 birthday="1967-10-04",
                 relation="妈妈",
-                bound=True,
+                bound=False,
                 created_at=created,
                 updated_at=created,
                 profile=MemberProfile(
