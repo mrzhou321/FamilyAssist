@@ -111,15 +111,19 @@ export default function Settings() {
   }
 
   function exportAcceptanceChecks() {
+    const checks = ACCEPTANCE_CHECKS.map((item) => ({
+      id: item.id,
+      label: item.label,
+      detail: item.detail,
+      status: item.status,
+      completed: Boolean(acceptanceChecks[item.id]),
+    }))
     const payload = {
       exported_at: new Date().toISOString(),
-      checks: ACCEPTANCE_CHECKS.map((item) => ({
-        id: item.id,
-        label: item.label,
-        detail: item.detail,
-        status: item.status,
-        completed: Boolean(acceptanceChecks[item.id]),
-      })),
+      completed_count: checks.filter((item) => item.completed).length,
+      total_count: checks.length,
+      provider_status: providerStatus,
+      checks,
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)

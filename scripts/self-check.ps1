@@ -292,6 +292,9 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("exportAcceptanceChecks") -lt 0 -or $settingsPage.IndexOf("new Blob") -lt 0 -or $settingsPage.IndexOf("URL.createObjectURL") -lt 0 -or $settingsPage.IndexOf("completed: Boolean(acceptanceChecks[item.id])") -lt 0) {
     throw "Settings page does not export manual acceptance evidence"
   }
+  if ($settingsPage.IndexOf("provider_status: providerStatus") -lt 0 -or $settingsPage.IndexOf("completed_count") -lt 0 -or $settingsPage.IndexOf("total_count") -lt 0) {
+    throw "Settings page acceptance export does not include status summary"
+  }
   $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
   $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
   if (-not $usesParallelLoad -or -not $hasRefreshButton) {
