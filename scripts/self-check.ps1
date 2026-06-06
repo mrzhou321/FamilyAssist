@@ -295,6 +295,30 @@ Step "Frontend admin auth expiry wiring" {
   Write-Host "frontend_admin_auth_expiry_wiring_ok"
 }
 
+Step "Frontend member auth expiry wiring" {
+  $constants = Get-Content "$root\frontend\src\shared\constants\index.ts" -Raw -Encoding UTF8
+  $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
+  $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
+  $session = Get-Content "$root\frontend\src\mobile\session\index.ts" -Raw -Encoding UTF8
+  $pairDevice = Get-Content "$root\frontend\src\mobile\pages\PairDevice.tsx" -Raw -Encoding UTF8
+  if ($constants.IndexOf("MEMBER_AUTH_EXPIRED_EVENT") -lt 0) {
+    throw "Frontend does not define a member auth expiry event"
+  }
+  if ($session.IndexOf("clearMemberSession") -lt 0 -or $session.IndexOf("localStorage.removeItem(MEMBER_TOKEN_KEY)") -lt 0 -or $session.IndexOf("localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)") -lt 0) {
+    throw "Mobile session module does not centralize paired member cleanup"
+  }
+  if ($api.IndexOf("expireMemberAuth") -lt 0 -or $api.IndexOf("localStorage.removeItem(MEMBER_ID_KEY)") -lt 0 -or $api.IndexOf("window.dispatchEvent(new Event(MEMBER_AUTH_EXPIRED_EVENT))") -lt 0) {
+    throw "API wrapper does not clear member session on 401"
+  }
+  if ($mobileMain.IndexOf("useNavigate") -lt 0 -or $mobileMain.IndexOf("MEMBER_AUTH_EXPIRED_EVENT") -lt 0 -or $mobileMain.IndexOf("navigate('/pair', { replace: true })") -lt 0) {
+    throw "Mobile shell does not send revoked or expired member sessions back to pairing"
+  }
+  if ($pairDevice.IndexOf("clearMemberSession()") -lt 0 -or $pairDevice.IndexOf("localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)") -ge 0) {
+    throw "Pairing flow does not clear stale member session through the shared helper"
+  }
+  Write-Host "frontend_member_auth_expiry_wiring_ok"
+}
+
 Step "Frontend copy placeholders" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }

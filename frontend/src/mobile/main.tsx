@@ -1,7 +1,8 @@
 import '../globals.css'
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { MEMBER_AUTH_EXPIRED_EVENT } from '../shared/constants'
 import MemoryVault from './pages/MemoryVault'
 import PairDevice from './pages/PairDevice'
 import QuickNote from './pages/QuickNote'
@@ -28,9 +29,17 @@ export function MobileApp() {
 
 function MobileShell() {
   const location = useLocation()
+  const navigate = useNavigate()
   const isPairing = location.pathname === '/pair'
   const { waitingWorker, refresh } = useServiceWorkerUpdate()
   const { canInstall, install } = useInstallPrompt()
+
+  useEffect(() => {
+    const handleExpiredMemberAuth = () => navigate('/pair', { replace: true })
+    window.addEventListener(MEMBER_AUTH_EXPIRED_EVENT, handleExpiredMemberAuth)
+    return () => window.removeEventListener(MEMBER_AUTH_EXPIRED_EVENT, handleExpiredMemberAuth)
+  }, [navigate])
+
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col bg-[var(--color-bg)]">
       {waitingWorker ? (

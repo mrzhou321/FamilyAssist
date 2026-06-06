@@ -2,6 +2,7 @@
 
 export const ADMIN_TOKEN_KEY = 'admin_token'
 export const ADMIN_AUTH_EXPIRED_EVENT = 'familyassister:admin-auth-expired'
+export const MEMBER_AUTH_EXPIRED_EVENT = 'familyassister:member-auth-expired'
 export const MEMBER_TOKEN_KEY = 'token'
 export const LEGACY_MEMBER_TOKEN_KEY = 'hearth_token'
 export const MEMBER_ID_KEY = 'member_id'

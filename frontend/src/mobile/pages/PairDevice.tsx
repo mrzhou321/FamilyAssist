@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../shared/api'
-import { LEGACY_MEMBER_TOKEN_KEY, MEMBER_ID_KEY, MEMBER_NAME_KEY, MEMBER_TOKEN_KEY } from '../../shared/constants'
+import { MEMBER_ID_KEY, MEMBER_NAME_KEY, MEMBER_TOKEN_KEY } from '../../shared/constants'
 import { detectMobileCapabilities } from '../capabilities'
+import { clearMemberSession } from '../session'
 
 interface MemberSession {
   member_id: number
@@ -122,8 +123,8 @@ function PairDeviceForm() {
         pairing_token: pairingToken,
         device_name: navigator.userAgent.slice(0, 80),
       })
+      clearMemberSession()
       localStorage.setItem(MEMBER_TOKEN_KEY, session.access_token)
-      localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)
       localStorage.setItem(MEMBER_ID_KEY, String(session.member_id))
       localStorage.setItem(MEMBER_NAME_KEY, session.member_name)
       setMessage(`已绑定 ${session.member_name}`)

@@ -15,3 +15,10 @@ export function getCurrentMemberName() {
 export function hasPairedMember() {
   return Boolean((localStorage.getItem(MEMBER_TOKEN_KEY) ?? localStorage.getItem(LEGACY_MEMBER_TOKEN_KEY)) && getCurrentMemberId() !== null)
 }
+
+export function clearMemberSession() {
+  localStorage.removeItem(MEMBER_TOKEN_KEY)
+  localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)
+  localStorage.removeItem(MEMBER_ID_KEY)
+  localStorage.removeItem(MEMBER_NAME_KEY)
+}

@@ -1,5 +1,13 @@
 // Thin fetch wrapper — base URL from env, auth header injected automatically
-import { ADMIN_AUTH_EXPIRED_EVENT, ADMIN_TOKEN_KEY, LEGACY_MEMBER_TOKEN_KEY, MEMBER_TOKEN_KEY } from '../constants'
+import {
+  ADMIN_AUTH_EXPIRED_EVENT,
+  ADMIN_TOKEN_KEY,
+  LEGACY_MEMBER_TOKEN_KEY,
+  MEMBER_AUTH_EXPIRED_EVENT,
+  MEMBER_ID_KEY,
+  MEMBER_NAME_KEY,
+  MEMBER_TOKEN_KEY,
+} from '../constants'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -15,6 +23,15 @@ function expireAdminAuth(path: string) {
   window.dispatchEvent(new Event(ADMIN_AUTH_EXPIRED_EVENT))
 }
 
+function expireMemberAuth() {
+  if (!window.location.pathname.startsWith('/mobile')) return
+  localStorage.removeItem(MEMBER_TOKEN_KEY)
+  localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)
+  localStorage.removeItem(MEMBER_ID_KEY)
+  localStorage.removeItem(MEMBER_NAME_KEY)
+  window.dispatchEvent(new Event(MEMBER_AUTH_EXPIRED_EVENT))
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
@@ -26,7 +43,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   })
   if (!res.ok) {
-    if (res.status === 401) expireAdminAuth(path)
+    if (res.status === 401) {
+      expireAdminAuth(path)
+      expireMemberAuth()
+    }
     throw new Error(`${res.status} ${res.statusText}`)
   }
   if (res.status === 204) return undefined as T
@@ -48,7 +68,10 @@ export const api = {
       signal: ctrl.signal,
     }).then(async res => {
       if (!res.ok) {
-        if (res.status === 401) expireAdminAuth(path)
+        if (res.status === 401) {
+          expireAdminAuth(path)
+          expireMemberAuth()
+        }
         throw new Error(`${res.status} ${res.statusText}`)
       }
       if (!res.body) throw new Error('Response body is null')
