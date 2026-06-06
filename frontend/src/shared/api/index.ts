@@ -11,6 +11,18 @@ import {
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
+export class ApiError extends Error {
+  readonly status: number
+  readonly statusText: string
+
+  constructor(status: number, statusText: string) {
+    super(`${status} ${statusText}`)
+    this.name = 'ApiError'
+    this.status = status
+    this.statusText = statusText
+  }
+}
+
 function getToken() {
   return window.location.pathname.startsWith('/admin')
     ? localStorage.getItem(ADMIN_TOKEN_KEY)
@@ -47,7 +59,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       expireAdminAuth(path)
       expireMemberAuth()
     }
-    throw new Error(`${res.status} ${res.statusText}`)
+    throw new ApiError(res.status, res.statusText)
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
@@ -72,7 +84,7 @@ export const api = {
           expireAdminAuth(path)
           expireMemberAuth()
         }
-        throw new Error(`${res.status} ${res.statusText}`)
+        throw new ApiError(res.status, res.statusText)
       }
       if (!res.body) throw new Error('Response body is null')
       const reader = res.body.getReader()

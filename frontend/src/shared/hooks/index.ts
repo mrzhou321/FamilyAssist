@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@shared/api'
+import { ApiError, api } from '@shared/api'
 import type { Member, Memory, Note, NoteCreatePayload, Recommendation, Feedback, PairingToken, Domain } from '@shared/types'
 import { cacheMemories, getCachedMemories } from '../../mobile/offline/cachedData'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
@@ -38,6 +38,7 @@ export const useCreateNote = () => {
       try {
         return await api.post<Note>('/notes', note)
       } catch (error) {
+        if (error instanceof ApiError && [401, 403].includes(error.status)) throw error
         await enqueueNote(note)
         throw error
       }

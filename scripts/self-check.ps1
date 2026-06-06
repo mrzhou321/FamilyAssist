@@ -161,6 +161,14 @@ Step "Frontend offline cache wiring" {
   if ($noteQueue.IndexOf("for (const note of queued)") -lt 0 -or $noteQueue.IndexOf("catch {") -lt 0 -or $noteQueue.IndexOf("Keep failed items queued") -lt 0) {
     throw "Offline note sync does not keep later queued notes moving after a failure"
   }
+  $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
+  $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw -Encoding UTF8
+  if ($api.IndexOf("class ApiError") -lt 0 -or $api.IndexOf("throw new ApiError(res.status, res.statusText)") -lt 0) {
+    throw "API wrapper does not expose HTTP status for offline queue decisions"
+  }
+  if ($hooks.IndexOf("error instanceof ApiError") -lt 0 -or $hooks.IndexOf("[401, 403].includes(error.status)") -lt 0 -or $hooks.IndexOf("await enqueueNote(note)") -lt 0) {
+    throw "Quick note offline queue should not enqueue authentication or authorization failures"
+  }
   Write-Host "frontend_offline_cache_wiring_ok"
 }
 
