@@ -176,10 +176,13 @@ expected = {
     "pairing_tokens",
     "member_sessions",
     "system_settings",
+    "recommendation_events",
 }
 assert expected.issubset(Base.metadata.tables.keys())
 memory_embedding = Base.metadata.tables["memories"].c.embedding
 assert memory_embedding.type.dim == EMBEDDING_DIMENSION
+event_table = Base.metadata.tables["recommendation_events"]
+assert {"member_id", "domain", "content", "memory_ids", "basis", "created_at"}.issubset(event_table.c.keys())
 print("backend_db_metadata_ok")
 '@ | Set-Content -LiteralPath $metadataCheck -Encoding UTF8
   Push-Location "$root\backend"
@@ -512,6 +515,12 @@ assert "\u5c11\u7cd6" in contents["diet"]
 assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
 assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
 assert "\u819d\u76d6" in contents["exercise"]
+events = client.get("/api/recommendation-events?member_id=1", headers=admin_headers)
+assert events.status_code == 200
+assert len(events.json()) >= 3
+diet_event = next(item for item in events.json() if item["domain"] == "diet")
+assert diet_event["memory_ids"]
+assert any("member 1 knee note" in item for item in diet_event["basis"])
 
 source_note = client.get(f"/api/notes/{note_id}", headers=headers)
 assert source_note.status_code == 200
@@ -725,6 +734,10 @@ store.memories[101] = Memory(
 exercise_recommendation = store.make_recommendation(RecommendationDomain.exercise, 1)
 assert len(exercise_recommendation.basis_refs) <= 5
 assert exercise_recommendation.basis_refs[0].memory_id == 101
+events = store.list_recommendation_events(1)
+assert events
+assert events[0].domain == RecommendationDomain.exercise
+assert 101 in events[0].memory_ids
 
 print("backend_store_smoke_ok")
 '@ | Set-Content -LiteralPath $smoke -Encoding UTF8
@@ -744,6 +757,10 @@ Step "Backend migration smoke" {
   $migration = Get-Content "$root\backend\alembic\versions\0003_add_memory_embeddings.py" -Raw -Encoding UTF8
   if ($migration -notmatch "Vector\(EMBEDDING_DIMENSION\)" -or $migration -notmatch "ivfflat" -or $migration -notmatch "vector_cosine_ops") {
     throw "Memory embedding migration is incomplete"
+  }
+  $eventMigration = Get-Content "$root\backend\alembic\versions\0004_add_recommendation_events.py" -Raw -Encoding UTF8
+  if ($eventMigration -notmatch "recommendation_events" -or $eventMigration -notmatch "memory_ids" -or $eventMigration -notmatch "ix_recommendation_events_member_created") {
+    throw "Recommendation event migration is incomplete"
   }
   Write-Host "backend_migration_smoke_ok"
 }

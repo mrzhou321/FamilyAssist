@@ -150,6 +150,16 @@ class RecommendationBatch(BaseModel):
     recommendations: list[Recommendation]
 
 
+class RecommendationEvent(BaseModel):
+    id: int
+    member_id: int | None = None
+    domain: RecommendationDomain
+    content: str
+    memory_ids: list[int] = Field(default_factory=list)
+    basis: list[str] = Field(default_factory=list)
+    created_at: datetime
+
+
 class WeatherContext(BaseModel):
     city: str
     temperature_c: int

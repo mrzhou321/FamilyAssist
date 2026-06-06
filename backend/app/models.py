@@ -86,6 +86,18 @@ class Memory(Base):
     source_note: Mapped[Note | None] = relationship(back_populates="memories")
 
 
+class RecommendationEvent(Base):
+    __tablename__ = "recommendation_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id", ondelete="SET NULL"))
+    domain: Mapped[MemoryDomain] = mapped_column(SqlEnum(MemoryDomain, name="memory_domain"), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    memory_ids: Mapped[list[int]] = mapped_column(JSONB, nullable=False, default=list)
+    basis: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class PairingToken(Base):
     __tablename__ = "pairing_tokens"
 

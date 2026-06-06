@@ -43,6 +43,7 @@ from .schemas import (
     Recommendation,
     RecommendationBatch,
     RecommendationDomain,
+    RecommendationEvent,
     RecommendationFeedback,
     ReviewCandidate,
     SystemSettings,
@@ -285,6 +286,15 @@ async def stream_recommendation(
             yield f"data: {chunk}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.get("/api/recommendation-events", response_model=list[RecommendationEvent])
+async def list_recommendation_events(
+    member_id: int | None = Query(default=None),
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> list[RecommendationEvent]:
+    return await data.list_recommendation_events(member_id)
 
 
 @app.get("/api/weather/today", response_model=WeatherContext)

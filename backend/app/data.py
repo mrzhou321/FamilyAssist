@@ -39,6 +39,7 @@ from .schemas import (
     Recommendation,
     RecommendationBatch,
     RecommendationDomain,
+    RecommendationEvent,
     RecommendationFeedback,
     ReviewCandidate,
     SystemSettings,
@@ -69,6 +70,7 @@ class DataStore(Protocol):
         domains: list[RecommendationDomain],
         member_id: int | None,
     ) -> RecommendationBatch: ...
+    async def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]: ...
     async def record_feedback(self, payload: RecommendationFeedback) -> Memory: ...
     async def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None: ...
     async def exchange_pairing_token(self, payload: PairingExchange) -> MemberSession | None: ...
@@ -136,6 +138,9 @@ class InMemoryDataStore:
         member_id: int | None,
     ) -> RecommendationBatch:
         return self.inner.make_recommendations(domains, member_id)
+
+    async def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]:
+        return self.inner.list_recommendation_events(member_id)
 
     async def record_feedback(self, payload: RecommendationFeedback) -> Memory:
         return self.inner.record_feedback(payload)
@@ -217,6 +222,17 @@ class DatabaseDataStore:
             device_name=session.device_name,
             revoked=session.revoked,
             created_at=session.created_at,
+        )
+
+    def _to_recommendation_event(self, event: models.RecommendationEvent) -> RecommendationEvent:
+        return RecommendationEvent(
+            id=event.id,
+            member_id=event.member_id,
+            domain=event.domain.value,
+            content=event.content,
+            memory_ids=list(event.memory_ids or []),
+            basis=list(event.basis or []),
+            created_at=event.created_at,
         )
 
     async def list_members(self) -> list[Member]:
@@ -407,7 +423,25 @@ class DatabaseDataStore:
             ),
             reverse=True,
         )[:5]
-        return build_recommendation(domain, member, related_memories, weather)
+        recommendation = build_recommendation(domain, member, related_memories, weather)
+        await self._record_recommendation_event(member_id, recommendation)
+        return recommendation
+
+    async def _record_recommendation_event(
+        self,
+        member_id: int | None,
+        recommendation: Recommendation,
+    ) -> None:
+        self.session.add(
+            models.RecommendationEvent(
+                member_id=member_id,
+                domain=models.MemoryDomain(recommendation.domain.value),
+                content=recommendation.content,
+                memory_ids=[ref.memory_id for ref in recommendation.basis_refs],
+                basis=recommendation.basis,
+            )
+        )
+        await self.session.commit()
 
     async def _vector_ranked_memories(
         self,
@@ -438,6 +472,13 @@ class DatabaseDataStore:
         return RecommendationBatch(
             recommendations=[await self.make_recommendation(domain, member_id) for domain in domains]
         )
+
+    async def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]:
+        statement = select(models.RecommendationEvent)
+        if member_id is not None:
+            statement = statement.where(models.RecommendationEvent.member_id == member_id)
+        result = await self.session.scalars(statement.order_by(models.RecommendationEvent.created_at.desc()))
+        return [self._to_recommendation_event(event) for event in result.all()]
 
     async def record_feedback(self, payload: RecommendationFeedback) -> Memory:
         domain_map = {

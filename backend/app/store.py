@@ -30,6 +30,7 @@ from .schemas import (
     Recommendation,
     RecommendationBatch,
     RecommendationDomain,
+    RecommendationEvent,
     RecommendationFeedback,
     ReviewCandidate,
     SystemSettings,
@@ -51,8 +52,10 @@ class InMemoryStore:
         self._member_id = 2
         self._note_id = 0
         self._memory_id = 3
+        self._recommendation_event_id = 0
         self.pairing_tokens: dict[str, PairingTokenRecord] = {}
         self.member_sessions: dict[str, MemberDeviceSession] = {}
+        self.recommendation_events: dict[int, RecommendationEvent] = {}
         self.settings = SystemSettings()
         created = now()
         self.members: dict[int, Member] = {
@@ -264,7 +267,23 @@ class InMemoryStore:
             ),
             reverse=True,
         )[:5]
-        return build_recommendation(domain, member, related_memories, weather)
+        recommendation = build_recommendation(domain, member, related_memories, weather)
+        self._record_recommendation_event(member_id, recommendation)
+        return recommendation
+
+    def _record_recommendation_event(self, member_id: int | None, recommendation: Recommendation) -> RecommendationEvent:
+        self._recommendation_event_id += 1
+        event = RecommendationEvent(
+            id=self._recommendation_event_id,
+            member_id=member_id,
+            domain=recommendation.domain,
+            content=recommendation.content,
+            memory_ids=[ref.memory_id for ref in recommendation.basis_refs],
+            basis=recommendation.basis,
+            created_at=now(),
+        )
+        self.recommendation_events[event.id] = event
+        return event
 
     def make_recommendations(
         self,
@@ -274,6 +293,12 @@ class InMemoryStore:
         return RecommendationBatch(
             recommendations=[self.make_recommendation(domain, member_id) for domain in domains]
         )
+
+    def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]:
+        events = list(self.recommendation_events.values())
+        if member_id is not None:
+            events = [event for event in events if event.member_id == member_id]
+        return sorted(events, key=lambda event: event.created_at, reverse=True)
 
     def record_feedback(self, payload: RecommendationFeedback) -> Memory:
         domain_map = {
