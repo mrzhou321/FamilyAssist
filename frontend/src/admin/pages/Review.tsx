@@ -175,8 +175,18 @@ export default function Review() {
 
   async function approve() {
     if (!activeSelectedId || !draft) return
+    const content = draft.content.trim()
+    if (!content) {
+      setMessage('记忆内容不能为空')
+      return
+    }
+    if (!Number.isFinite(draft.confidence) || draft.confidence < 0 || draft.confidence > 1) {
+      setMessage('置信度必须在 0 到 1 之间')
+      return
+    }
     try {
-      await api.post(`/review/notes/${activeSelectedId}/approve`, draft)
+      await api.post(`/review/notes/${activeSelectedId}/approve`, { ...draft, content })
+      setDraft({ ...draft, content })
       updateSelectedStatus('reviewed')
       setMessage('候选记忆已写入记忆库')
     } catch {

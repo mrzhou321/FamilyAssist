@@ -298,6 +298,12 @@ Step "Frontend review workflow wiring" {
   if ($reviewPage -notmatch "/review/notes/\$\{activeSelectedId\}/approve" -or $reviewPage -notmatch "/review/notes/\$\{activeSelectedId\}/reject") {
     throw "Review page approve/reject actions are not wired"
   }
+  if ($reviewPage.IndexOf("const content = draft.content.trim()") -lt 0 -or $reviewPage.IndexOf("记忆内容不能为空") -lt 0) {
+    throw "Review page should trim and reject blank candidate content before approving"
+  }
+  if ($reviewPage.IndexOf("Number.isFinite(draft.confidence)") -lt 0 -or $reviewPage.IndexOf("置信度必须在 0 到 1 之间") -lt 0) {
+    throw "Review page should reject invalid candidate confidence before approving"
+  }
   Write-Host "frontend_review_workflow_wiring_ok"
 }
 
@@ -1578,6 +1584,18 @@ bad_memory_member = client.patch(
     headers=admin_headers,
 )
 assert bad_memory_member.status_code == 404
+blank_review_note = client.post(
+    "/api/notes",
+    json={"member_id": 1, "content": "manual blank review validation note", "source": "text"},
+    headers=headers,
+)
+assert blank_review_note.status_code == 202
+blank_review_approve = client.post(
+    f"/api/review/notes/{blank_review_note.json()['id']}/approve",
+    json={"type": "fact", "domain": "general", "content": "   ", "confidence": 0.8},
+    headers=admin_headers,
+)
+assert blank_review_approve.status_code == 422
 
 family_note = client.post(
     "/api/notes",
