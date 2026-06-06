@@ -45,6 +45,17 @@ Step "Deployment and backup docs" {
   Write-Host "deployment_backup_docs_ok"
 }
 
+Step "PRD implementation audit docs" {
+  $audit = Get-Content "$root\docs\PRD_IMPLEMENTATION_AUDIT.md" -Raw -Encoding UTF8
+  if ($audit.IndexOf("Text quick notes") -lt 0 -or $audit.IndexOf("Pairing QR login") -lt 0 -or $audit.IndexOf("Performance smoke") -lt 0) {
+    throw "PRD implementation audit does not cover core product areas"
+  }
+  if ($audit.IndexOf("Residual Risks") -lt 0 -or $audit.IndexOf("GBNF") -lt 0 -or $audit.IndexOf("manual mobile testing") -lt 0) {
+    throw "PRD implementation audit does not preserve known residual risks"
+  }
+  Write-Host "prd_implementation_audit_docs_ok"
+}
+
 Step "Frontend offline cache wiring" {
   $cachedData = Get-Content "$root\frontend\src\mobile\offline\cachedData.ts" -Raw
   if ($cachedData -notmatch "cached-memories" -or $cachedData -notmatch "cacheMemories" -or $cachedData -notmatch "getCachedMemories") {
