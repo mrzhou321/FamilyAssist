@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCreateNote, useMemberNotes, useMembers, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
-import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
+import { useCreateNote, useMemberNotes, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
+import { MOCK_RECENT_NOTES } from '@shared/mocks'
 import { detectMobileCapabilities } from '../capabilities'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
@@ -72,15 +72,11 @@ export default function QuickNote() {
   const { mutate: createNote, isPending } = useCreateNote()
   const { data: queuedNotes = [] } = useQueuedNotes()
   const isPaired = hasPairedMember()
+  const currentMemberName = getCurrentMemberName()
   const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId, isPaired)
-  const { data: apiMembers = [] } = useMembers(isPaired)
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
   const [capabilities] = useState(() => detectMobileCapabilities())
-  const memberChoices = apiMembers.length > 0
-    ? apiMembers.map((member) => ({ id: member.id, label: member.relation || member.name }))
-    : isPaired
-      ? MOCK_MEMBERS.map((member) => ({ id: member.id, label: member.role }))
-      : []
+  const memberChoices = isPaired && memberId !== null ? [{ id: memberId, label: currentMemberName }] : []
   const memberLabel = new Map(memberChoices.map((member) => [member.id, member.label]))
 
   useEffect(() => {

@@ -115,7 +115,7 @@ Step "Frontend offline cache wiring" {
   }
   $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
   $quickNoteShowsPairingCopy = $quickNote.IndexOf('to="/pair"') -ge 0
-  $quickNoteGatesMockMembers = ($quickNote.IndexOf(": isPaired") -ge 0) -and ($quickNote.IndexOf("MOCK_MEMBERS.map") -ge 0) -and ($quickNote.IndexOf(": []") -ge 0)
+  $quickNoteGatesMockMembers = ($quickNote.IndexOf("currentMemberName") -ge 0) -and ($quickNote.IndexOf("MOCK_MEMBERS.map") -lt 0) -and ($quickNote.IndexOf("useMembers") -lt 0)
   $quickNoteDisablesNotesBeforePairing = $quickNote.IndexOf("useMemberNotes(memberId, isPaired)") -ge 0
   if (-not $quickNoteShowsPairingCopy -or -not $quickNoteGatesMockMembers -or -not $quickNoteDisablesNotesBeforePairing) {
     throw "Quick note does not gate member choices behind pairing"
@@ -315,6 +315,10 @@ Step "Frontend member auth expiry wiring" {
   }
   if ($pairDevice.IndexOf("clearMemberSession()") -lt 0 -or $pairDevice.IndexOf("localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)") -ge 0) {
     throw "Pairing flow does not clear stale member session through the shared helper"
+  }
+  $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
+  if ($quickNote.IndexOf("useMembers") -ge 0 -or $quickNote.IndexOf("MOCK_MEMBERS.map") -ge 0) {
+    throw "Mobile quick note should not request admin-only member lists with member auth"
   }
   Write-Host "frontend_member_auth_expiry_wiring_ok"
 }
