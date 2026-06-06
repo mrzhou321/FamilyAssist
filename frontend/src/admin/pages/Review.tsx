@@ -10,6 +10,12 @@ interface Note {
   created_at: string
 }
 
+interface Member {
+  id: number
+  name: string
+  relation: string
+}
+
 interface MemoryDraft {
   type: 'fact' | 'episode'
   domain: 'dressing' | 'diet' | 'exercise' | 'general'
@@ -90,6 +96,7 @@ function formatTime(value: string) {
 
 export default function Review() {
   const [notes, setNotes] = useState<Note[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [candidate, setCandidate] = useState<ReviewCandidate | null>(null)
   const [draft, setDraft] = useState<MemoryDraft | null>(null)
@@ -122,16 +129,24 @@ export default function Review() {
     () => filteredNotes.find((note) => note.id === activeSelectedId) ?? null,
     [activeSelectedId, filteredNotes],
   )
+  const memberName = useMemo(() => {
+    return new Map(members.map((member) => [member.id, `${member.name} · ${member.relation}`]))
+  }, [members])
   const isLoadingCandidate =
     activeSelectedId !== null &&
     candidate?.note_id !== activeSelectedId &&
     failedCandidateId !== activeSelectedId
 
+  function formatMember(memberId: number | null) {
+    if (memberId === null) return '全家'
+    return memberName.get(memberId) ?? `成员 #${memberId}`
+  }
+
   useEffect(() => {
-    api
-      .get<Note[]>('/notes')
-      .then((items) => {
-        setNotes(items)
+    Promise.all([api.get<Note[]>('/notes'), api.get<Member[]>('/members')])
+      .then(([noteItems, memberItems]) => {
+        setNotes(noteItems)
+        setMembers(memberItems)
         setMessage('')
       })
       .catch(() => setMessage('后端暂不可用，请先在移动端提交一条速记'))
@@ -297,7 +312,7 @@ export default function Review() {
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm text-[var(--color-muted)]">原始速记</p>
                   <p className="text-xs text-[var(--color-muted)]">
-                    成员 {candidate.member_id ?? '全家'} · note #{candidate.note_id}
+                    {formatMember(candidate.member_id)} · note #{candidate.note_id}
                   </p>
                 </div>
                 <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] p-4 text-[var(--color-fg)]">

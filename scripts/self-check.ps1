@@ -310,6 +310,9 @@ Step "Frontend review workflow wiring" {
   if ($reviewPage.IndexOf("selectedNote?.status === 'reviewed'") -lt 0 -or $reviewPage.IndexOf("disabled={selectedNote.status === 'reviewed'}") -lt 0) {
     throw "Review page should not allow rejecting notes that already have reviewed memories"
   }
+  if ($reviewPage.IndexOf("api.get<Member[]>('/members')") -lt 0 -or $reviewPage.IndexOf("formatMember(candidate.member_id)") -lt 0) {
+    throw "Review page should show member names while reviewing notes"
+  }
   if ($reviewPage.IndexOf("const content = draft.content.trim()") -lt 0 -or $reviewPage.IndexOf("记忆内容不能为空") -lt 0) {
     throw "Review page should trim and reject blank candidate content before approving"
   }
