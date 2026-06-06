@@ -1552,6 +1552,12 @@ assert any(item["source_note_id"] == note_id for item in memories.json())
 auto_memory = next(item for item in memories.json() if item["source_note_id"] == note_id)
 assert auto_memory["type"] == "episode"
 assert auto_memory["expires_at"] is not None
+bad_memory_update = client.patch(
+    f"/api/memories/{auto_memory['id']}",
+    json={"confidence": 1.5},
+    headers=admin_headers,
+)
+assert bad_memory_update.status_code == 422
 
 family_note = client.post(
     "/api/notes",
