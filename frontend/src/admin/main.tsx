@@ -7,6 +7,7 @@ import MemoryLibrary from './pages/MemoryLibrary'
 import Login from './pages/Login'
 import Members from './pages/Members'
 import Pairing from './pages/Pairing'
+import RecommendationEvents from './pages/RecommendationEvents'
 import Review from './pages/Review'
 import Settings from './pages/Settings'
 
@@ -14,6 +15,7 @@ const NAV = [
   { to: '/', icon: '♥', label: '成员管理' },
   { to: '/memory', icon: '✓', label: '记忆库' },
   { to: '/review', icon: '◫', label: '速记审核' },
+  { to: '/recommendations', icon: '≡', label: '推荐记录' },
   { to: '/qr', icon: '▦', label: '配对二维码' },
   { to: '/settings', icon: '⚙', label: '系统设置' },
 ]
@@ -77,6 +79,7 @@ export function AdminApp() {
             <Route path="/" element={<Members />} />
             <Route path="/memory" element={<MemoryLibrary />} />
             <Route path="/review" element={<Review />} />
+            <Route path="/recommendations" element={<RecommendationEvents />} />
             <Route path="/qr" element={<Pairing />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

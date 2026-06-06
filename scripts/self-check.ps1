@@ -114,6 +114,21 @@ Step "Frontend provider status wiring" {
   Write-Host "frontend_provider_status_wiring_ok"
 }
 
+Step "Frontend recommendation events wiring" {
+  $adminMain = Get-Content "$root\frontend\src\admin\main.tsx" -Raw -Encoding UTF8
+  $eventsPage = Get-Content "$root\frontend\src\admin\pages\RecommendationEvents.tsx" -Raw -Encoding UTF8
+  if ($adminMain.IndexOf("RecommendationEvents") -lt 0 -or $adminMain.IndexOf("/recommendations") -lt 0) {
+    throw "Admin recommendation events route is missing"
+  }
+  if ($eventsPage.IndexOf("/recommendation-events") -lt 0 -or $eventsPage.IndexOf("memory_ids") -lt 0 -or $eventsPage.IndexOf("basis") -lt 0) {
+    throw "Recommendation events page does not render audit details"
+  }
+  if ($eventsPage.IndexOf("setMemberFilter") -lt 0 -or $eventsPage.IndexOf("setDomainFilter") -lt 0) {
+    throw "Recommendation events filters are missing"
+  }
+  Write-Host "frontend_recommendation_events_wiring_ok"
+}
+
 Step "Frontend PWA install wiring" {
   $mobileHtml = Get-Content "$root\frontend\mobile\index.html" -Raw -Encoding UTF8
   if ($mobileHtml.IndexOf("manifest.webmanifest") -lt 0 -or $mobileHtml.IndexOf("apple-mobile-web-app-capable") -lt 0) {
