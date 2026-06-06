@@ -8,8 +8,9 @@ export const useMemberMemories = (memberId: number | null, enabled = true) =>
   useQuery({
     queryKey: ['memories', memberId],
     queryFn: async () => {
+      if (memberId === null) return []
       try {
-        const items = await api.get<Memory[]>(memberId === null ? '/memories' : `/memories?member_id=${memberId}`)
+        const items = await api.get<Memory[]>(`/memories?member_id=${memberId}`)
         return cacheMemories(memberId, items)
       } catch (error) {
         const cached = await getCachedMemories(memberId)
@@ -17,14 +18,14 @@ export const useMemberMemories = (memberId: number | null, enabled = true) =>
         throw error
       }
     },
-    enabled,
+    enabled: enabled && memberId !== null,
   })
 
 export const useMemberNotes = (memberId: number | null, enabled = true) =>
   useQuery({
     queryKey: ['notes', memberId],
-    queryFn: () => api.get<Note[]>(memberId === null ? '/notes' : `/notes?member_id=${memberId}`),
-    enabled,
+    queryFn: () => (memberId === null ? Promise.resolve([]) : api.get<Note[]>(`/notes?member_id=${memberId}`)),
+    enabled: enabled && memberId !== null,
   })
 
 export const useCreateNote = () => {

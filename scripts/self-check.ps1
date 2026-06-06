@@ -133,6 +133,9 @@ Step "Frontend offline cache wiring" {
   if ($hooks -notmatch "cacheMemories" -or $hooks -notmatch "getCachedMemories") {
     throw "Memory query does not use offline cache"
   }
+  if ($hooks.IndexOf("enabled: enabled && memberId !== null") -lt 0 -or $hooks.IndexOf("memberId === null ? '/memories'") -ge 0 -or $hooks.IndexOf("memberId === null ? '/notes'") -ge 0) {
+    throw "Mobile member hooks should require a paired member id before requesting member data"
+  }
   $todayAdvice = Get-Content "$root\frontend\src\mobile\pages\TodayAdvice.tsx" -Raw
   if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
     throw "Today advice does not use offline recommendation and weather cache"
