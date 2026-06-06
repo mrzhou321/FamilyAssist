@@ -1467,6 +1467,17 @@ assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous not
 assert client.get("/api/memories?member_id=1").status_code == 401
 assert client.get("/api/recommendations?member_id=1").status_code == 401
 assert client.post("/api/pairing/members/1").status_code == 401
+assert client.post(
+    "/api/notes",
+    json={"member_id": 999999, "content": "invalid member note", "source": "text"},
+    headers=admin_headers,
+).status_code == 404
+assert client.get("/api/recommendations?member_id=999999", headers=admin_headers).status_code == 404
+assert client.post(
+    "/api/recommendations/feedback",
+    json={"member_id": 999999, "domain": "dressing", "content": "invalid member feedback", "accepted": True},
+    headers=admin_headers,
+).status_code == 404
 bad_profile_member = client.post(
     "/api/members",
     json={"name": "Bad Profile", "relation": "test", "profile": {"height": -1, "weight": 0}},
@@ -1558,6 +1569,12 @@ bad_memory_update = client.patch(
     headers=admin_headers,
 )
 assert bad_memory_update.status_code == 422
+bad_memory_member = client.patch(
+    f"/api/memories/{auto_memory['id']}",
+    json={"member_id": 999999},
+    headers=admin_headers,
+)
+assert bad_memory_member.status_code == 404
 
 family_note = client.post(
     "/api/notes",

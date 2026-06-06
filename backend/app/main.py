@@ -125,6 +125,13 @@ def normalize_system_settings(system_settings: SystemSettings) -> SystemSettings
     )
 
 
+async def assert_existing_member(member_id: int | None, data: DataStore) -> None:
+    if member_id is None:
+        return
+    if not any(member.id == member_id for member in await data.list_members()):
+        raise HTTPException(status_code=404, detail="Member not found")
+
+
 def _sse_data(chunk: str) -> str:
     lines = chunk.splitlines() or [""]
     return "".join(f"data: {line}\n" for line in lines) + "\n"
@@ -194,7 +201,9 @@ async def create_note(
     context: RequestContext = Depends(get_request_context),
 ) -> Note:
     assert_member_payload(payload.member_id, context)
-    scoped_payload = payload.model_copy(update={"member_id": scoped_member_id(payload.member_id, context)})
+    scoped_id = scoped_member_id(payload.member_id, context)
+    await assert_existing_member(scoped_id, data)
+    scoped_payload = payload.model_copy(update={"member_id": scoped_id})
     note = await data.create_note(scoped_payload)
     background_tasks.add_task(extract_note_memory_task, note.id)
     return note
@@ -282,6 +291,7 @@ async def update_memory(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
 ) -> Memory:
+    await assert_existing_member(payload.member_id, data)
     memory = await data.update_memory(memory_id, payload)
     if memory is None:
         raise HTTPException(status_code=404, detail="Memory not found")
@@ -305,7 +315,9 @@ async def create_recommendation_feedback(
     context: RequestContext = Depends(get_request_context),
 ) -> Memory:
     assert_member_payload(payload.member_id, context)
-    scoped_payload = payload.model_copy(update={"member_id": scoped_member_id(payload.member_id, context)})
+    scoped_id = scoped_member_id(payload.member_id, context)
+    await assert_existing_member(scoped_id, data)
+    scoped_payload = payload.model_copy(update={"member_id": scoped_id})
     return await data.record_feedback(scoped_payload)
 
 
@@ -323,7 +335,9 @@ async def list_recommendations(
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> RecommendationBatch:
-    return await data.make_recommendations(domains, scoped_member_id(member_id, context), record_events)
+    scoped_id = scoped_member_id(member_id, context)
+    await assert_existing_member(scoped_id, data)
+    return await data.make_recommendations(domains, scoped_id, record_events)
 
 
 @app.get("/api/recommendations/{domain}", response_model=Recommendation)
@@ -333,7 +347,9 @@ async def get_recommendation(
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> Recommendation:
-    return await data.make_recommendation(domain, scoped_member_id(member_id, context))
+    scoped_id = scoped_member_id(member_id, context)
+    await assert_existing_member(scoped_id, data)
+    return await data.make_recommendation(domain, scoped_id)
 
 
 @app.get("/api/recommendations/{domain}/stream")
@@ -344,6 +360,7 @@ async def stream_recommendation(
     context: RequestContext = Depends(get_request_context),
 ) -> StreamingResponse:
     scoped_id = scoped_member_id(member_id, context)
+    await assert_existing_member(scoped_id, data)
     recommendation = await data.make_recommendation(domain, scoped_id, record_event=False)
     system_settings = await data.get_settings()
 
