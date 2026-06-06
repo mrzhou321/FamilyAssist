@@ -547,6 +547,9 @@ Step "Frontend member auth expiry wiring" {
   if ($api.IndexOf("expireMemberAuth") -lt 0 -or $api.IndexOf("localStorage.removeItem(MEMBER_ID_KEY)") -lt 0 -or $api.IndexOf("window.dispatchEvent(new Event(MEMBER_AUTH_EXPIRED_EVENT))") -lt 0) {
     throw "API wrapper does not clear member session on 401"
   }
+  if ($api.IndexOf("shouldExpireMemberAuth") -lt 0 -or $api.IndexOf("status === 401 || status === 403") -lt 0) {
+    throw "API wrapper does not clear tampered or forbidden member sessions on 403"
+  }
   if ($mobileMain.IndexOf("useNavigate") -lt 0 -or $mobileMain.IndexOf("MEMBER_AUTH_EXPIRED_EVENT") -lt 0 -or $mobileMain.IndexOf("navigate('/pair', { replace: true })") -lt 0) {
     throw "Mobile shell does not send revoked or expired member sessions back to pairing"
   }

@@ -44,6 +44,10 @@ function expireMemberAuth() {
   window.dispatchEvent(new Event(MEMBER_AUTH_EXPIRED_EVENT))
 }
 
+function shouldExpireMemberAuth(status: number) {
+  return status === 401 || status === 403
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
@@ -57,6 +61,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     if (res.status === 401) {
       expireAdminAuth(path)
+    }
+    if (shouldExpireMemberAuth(res.status)) {
       expireMemberAuth()
     }
     throw new ApiError(res.status, res.statusText)
@@ -82,6 +88,8 @@ export const api = {
       if (!res.ok) {
         if (res.status === 401) {
           expireAdminAuth(path)
+        }
+        if (shouldExpireMemberAuth(res.status)) {
           expireMemberAuth()
         }
         throw new ApiError(res.status, res.statusText)
