@@ -643,6 +643,17 @@ Step "Backend migration smoke" {
   Write-Host "backend_migration_smoke_ok"
 }
 
+Step "Backend vector ranking wiring" {
+  $dataSource = Get-Content "$root\backend\app\data.py" -Raw -Encoding UTF8
+  if ($dataSource.IndexOf("cosine_distance(query_embedding)") -lt 0 -or $dataSource.IndexOf("limit(40)") -lt 0) {
+    throw "Database recommendation path does not use pgvector ranking"
+  }
+  if ($dataSource.IndexOf("candidates = await self._vector_ranked_memories") -lt 0) {
+    throw "Database recommendation path still bypasses vector-ranked memories"
+  }
+  Write-Host "backend_vector_ranking_wiring_ok"
+}
+
 Step "Docker compose model bootstrap" {
   $compose = Get-Content "$root\docker-compose.yml" -Raw -Encoding UTF8
   if ($compose.IndexOf("ollama-models:") -lt 0 -or $compose.IndexOf("ollama pull") -lt 0 -or $compose.IndexOf("GENERATION_MODEL") -lt 0) {

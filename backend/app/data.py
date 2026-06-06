@@ -398,12 +398,7 @@ class DatabaseDataStore:
         member_model = await self.session.get(models.Member, member_id) if member_id is not None else None
         member = self._to_member(member_model) if member_model is not None else None
         query_embedding = build_text_embedding(build_recommendation_query(domain, member, weather))
-        memories = await self.list_memories(member_id)
-        candidates = [
-            memory
-            for memory in memories
-            if memory.domain == domain.value or memory.domain == MemoryDomain.general.value
-        ]
+        candidates = await self._vector_ranked_memories(domain, member_id, query_embedding)
         related_memories = sorted(
             candidates,
             key=lambda memory: (
@@ -413,6 +408,27 @@ class DatabaseDataStore:
             reverse=True,
         )[:5]
         return build_recommendation(domain, member, related_memories, weather)
+
+    async def _vector_ranked_memories(
+        self,
+        domain: RecommendationDomain,
+        member_id: int | None,
+        query_embedding: list[float],
+    ) -> list[Memory]:
+        statement = select(models.Memory).where(
+            ((models.Memory.expires_at.is_(None)) | (models.Memory.expires_at > now()))
+            & models.Memory.embedding.is_not(None)
+            & (
+                (models.Memory.domain == models.MemoryDomain(domain.value))
+                | (models.Memory.domain == models.MemoryDomain.general)
+            )
+        )
+        if member_id is not None:
+            statement = statement.where(models.Memory.member_id == member_id)
+
+        distance = models.Memory.embedding.cosine_distance(query_embedding)
+        result = await self.session.scalars(statement.order_by(distance).limit(40))
+        return [self._to_memory(memory) for memory in result.all()]
 
     async def make_recommendations(
         self,
