@@ -50,6 +50,19 @@ function Compose($arguments) {
   }
 }
 
+function Test-SmokeHttpStatus($url, $expectedStatus) {
+  $client = [System.Net.Http.HttpClient]::new()
+  try {
+    $response = $client.GetAsync($url).GetAwaiter().GetResult()
+    $actualStatus = [int]$response.StatusCode
+    if ($actualStatus -ne $expectedStatus) {
+      throw "$url returned HTTP $actualStatus, expected $expectedStatus"
+    }
+  } finally {
+    $client.Dispose()
+  }
+}
+
 try {
   if (-not (Test-DockerDaemon)) {
     if (Test-ShouldSkipMissingDocker) {
@@ -83,6 +96,10 @@ services:
       Pop-Location
     }
     if ($health -match '"Service":"backend".*"Health":"healthy"' -and $health -match '"Service":"nginx".*"State":"running"') {
+      Test-SmokeHttpStatus "http://localhost/health" 200
+      Test-SmokeHttpStatus "http://localhost/mobile/" 200
+      Test-SmokeHttpStatus "http://localhost/admin/" 200
+      Test-SmokeHttpStatus "http://localhost/api/members" 401
       Write-Host "deploy_smoke_ok"
       exit 0
     }
