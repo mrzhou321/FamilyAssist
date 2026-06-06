@@ -82,6 +82,7 @@ class DataStore(Protocol):
     async def update_settings(self, payload: SystemSettings) -> SystemSettings: ...
     async def get_weather(self) -> WeatherContext: ...
     async def cleanup_expired_memories(self) -> int: ...
+    async def rebuild_memory_embeddings(self) -> int: ...
 
 
 class InMemoryDataStore:
@@ -172,6 +173,9 @@ class InMemoryDataStore:
 
     async def cleanup_expired_memories(self) -> int:
         return self.inner.cleanup_expired_memories()
+
+    async def rebuild_memory_embeddings(self) -> int:
+        return self.inner.rebuild_memory_embeddings()
 
 
 class DatabaseDataStore:
@@ -612,6 +616,14 @@ class DatabaseDataStore:
         )
         await self.session.commit()
         return result.rowcount or 0
+
+    async def rebuild_memory_embeddings(self) -> int:
+        result = await self.session.scalars(select(models.Memory).order_by(models.Memory.id))
+        memories = result.all()
+        for memory in memories:
+            memory.embedding = await self._build_embedding(memory.content)
+        await self.session.commit()
+        return len(memories)
 
 
 async def get_data_store() -> AsyncIterator[DataStore]:

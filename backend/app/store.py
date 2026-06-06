@@ -419,5 +419,12 @@ class InMemoryStore:
             self.memories.pop(memory_id, None)
         return len(expired_ids)
 
+    def rebuild_memory_embeddings(self) -> int:
+        self.memories = {
+            memory_id: memory.model_copy(update={"embedding": build_text_embedding(memory.content)})
+            for memory_id, memory in self.memories.items()
+        }
+        return len(self.memories)
+
 
 store = InMemoryStore()

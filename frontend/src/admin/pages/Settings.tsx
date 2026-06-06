@@ -102,6 +102,17 @@ export default function Settings() {
     }
   }
 
+  async function rebuildEmbeddings() {
+    try {
+      const result = await api.post<{ rebuilt: number }>('/settings/rebuild-memory-embeddings', {})
+      setMessage(`已重建 ${result.rebuilt} 条记忆向量`)
+      const status = await api.get<ProviderStatus>('/settings/provider-status')
+      setProviderStatus(status)
+    } catch {
+      setMessage('重建向量失败，请稍后重试')
+    }
+  }
+
   const usesCloudProvider = settings.llm_provider !== 'ollama'
 
   return (
@@ -261,13 +272,22 @@ export default function Settings() {
 
           <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
             <h3 className="mb-4 text-lg text-[var(--color-fg)]">内存管理</h3>
-            <button
-              type="button"
-              onClick={cleanupExpired}
-              className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted)]"
-            >
-              清理过期情景记忆
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={cleanupExpired}
+                className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted)]"
+              >
+                清理过期情景记忆
+              </button>
+              <button
+                type="button"
+                onClick={rebuildEmbeddings}
+                className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted)]"
+              >
+                重建记忆向量
+              </button>
+            </div>
           </section>
 
           <button

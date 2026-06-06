@@ -230,6 +230,10 @@ class ExpiredMemoryCleanup(BaseModel):
     removed: int
 
 
+class MemoryEmbeddingRebuild(BaseModel):
+    rebuilt: int
+
+
 class ProviderCheck(BaseModel):
     status: str
     label: str

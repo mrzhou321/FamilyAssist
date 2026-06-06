@@ -115,6 +115,9 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("cloud_llm_api_key") -lt 0 -or $settingsPage.IndexOf("cloud_llm_base_url") -lt 0 -or $settingsPage.IndexOf("cloud_generation_model") -lt 0) {
     throw "Settings page does not expose cloud LLM provider configuration"
   }
+  if ($settingsPage.IndexOf("rebuild-memory-embeddings") -lt 0 -or $settingsPage.IndexOf("rebuildEmbeddings") -lt 0) {
+    throw "Settings page does not expose memory embedding rebuild action"
+  }
   $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
   $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
   if (-not $usesParallelLoad -or -not $hasRefreshButton) {
@@ -848,6 +851,10 @@ assert weather.status_code == 200
 assert weather.json()["city"]
 assert isinstance(weather.json()["temperature_c"], int)
 
+rebuild_embeddings = client.post("/api/settings/rebuild-memory-embeddings", headers=admin_headers)
+assert rebuild_embeddings.status_code == 200
+assert rebuild_embeddings.json()["rebuilt"] >= 1
+
 other_notes = client.get("/api/notes?member_id=2", headers=headers)
 assert other_notes.status_code == 403
 
@@ -961,6 +968,8 @@ assert settings.extraction_retries == 2
 weather = store.get_weather()
 assert weather.city == "Shanghai"
 assert weather.temperature_c == 22
+assert store.rebuild_memory_embeddings() == len(store.list_memories())
+assert all(len(memory.embedding) == EMBEDDING_DIMENSION for memory in store.list_memories())
 
 store.memories[99] = Memory(
     id=99,

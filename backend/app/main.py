@@ -49,6 +49,7 @@ from .schemas import (
     ReviewCandidate,
     SystemSettings,
     ExpiredMemoryCleanup,
+    MemoryEmbeddingRebuild,
     WeatherContext,
 )
 
@@ -508,3 +509,11 @@ async def cleanup_expired_memories(
     _: None = Depends(require_admin),
 ) -> ExpiredMemoryCleanup:
     return ExpiredMemoryCleanup(removed=await data.cleanup_expired_memories())
+
+
+@app.post("/api/settings/rebuild-memory-embeddings", response_model=MemoryEmbeddingRebuild)
+async def rebuild_memory_embeddings(
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> MemoryEmbeddingRebuild:
+    return MemoryEmbeddingRebuild(rebuilt=await data.rebuild_memory_embeddings())
