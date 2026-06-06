@@ -399,6 +399,54 @@ print("backend_extraction_failure_review_handoff_ok")
   }
 }
 
+Step "Backend embedding provider independence" {
+  $embeddingModeSmoke = New-TemporaryFile
+  @'
+import asyncio
+
+import app.data as data_module
+from app.data import DatabaseDataStore
+from app.schemas import SystemSettings
+
+
+async def main():
+    store = DatabaseDataStore(session=None)
+    calls = []
+
+    async def fake_get_settings():
+        return SystemSettings(llm_provider="deepseek", embedding_model="custom-embedding-model")
+
+    async def fake_build_embedding(content, model):
+        calls.append((content, model))
+        return [1.0, 0.0]
+
+    original_builder = data_module.build_text_embedding_async
+    data_module.build_text_embedding_async = fake_build_embedding
+    store.get_settings = fake_get_settings
+    try:
+        vector = await store._build_embedding("family memory")
+    finally:
+        data_module.build_text_embedding_async = original_builder
+
+    assert vector == [1.0, 0.0]
+    assert calls == [("family memory", "custom-embedding-model")]
+
+
+asyncio.run(main())
+print("backend_embedding_provider_independence_ok")
+'@ | Set-Content -LiteralPath $embeddingModeSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $embeddingModeSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend embedding provider independence smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $embeddingModeSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend weather provider smoke" {
   $weatherSmoke = New-TemporaryFile
   @'
@@ -1344,11 +1392,21 @@ Step "Backend migration smoke" {
 
 Step "Backend vector ranking wiring" {
   $dataSource = Get-Content "$root\backend\app\data.py" -Raw -Encoding UTF8
+  $mainSource = Get-Content "$root\backend\app\main.py" -Raw -Encoding UTF8
   if ($dataSource.IndexOf("cosine_distance(query_embedding)") -lt 0 -or $dataSource.IndexOf("limit(40)") -lt 0) {
     throw "Database recommendation path does not use pgvector ranking"
   }
   if ($dataSource.IndexOf("candidates = await self._vector_ranked_memories") -lt 0) {
     throw "Database recommendation path still bypasses vector-ranked memories"
+  }
+  if ($dataSource.IndexOf("return await build_text_embedding_async(content, system_settings.embedding_model)") -lt 0) {
+    throw "Database embedding path is not independent from generation provider"
+  }
+  $embeddingCheckStart = $mainSource.IndexOf("async def _embedding_check")
+  $weatherCheckStart = $mainSource.IndexOf("def _weather_check")
+  $embeddingCheckSource = $mainSource.Substring($embeddingCheckStart, $weatherCheckStart - $embeddingCheckStart)
+  if ($embeddingCheckSource.IndexOf("llm_provider") -ge 0) {
+    throw "Provider status does not describe independent embedding provider"
   }
   Write-Host "backend_vector_ranking_wiring_ok"
 }

@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
-from .embeddings import build_text_embedding, build_text_embedding_async, cosine_similarity
+from .embeddings import build_text_embedding_async, cosine_similarity
 from .llm_extractor import build_extracted_candidate, build_review_candidate as build_llm_review_candidate
 from .memory_dedupe import build_review_candidate_from_text, is_semantic_duplicate_memory
 from .recommendation_engine import (
@@ -606,9 +606,7 @@ class DatabaseDataStore:
 
     async def _build_embedding(self, content: str) -> list[float]:
         system_settings = await self.get_settings()
-        if system_settings.llm_provider == "ollama":
-            return await build_text_embedding_async(content, system_settings.embedding_model)
-        return build_text_embedding(content)
+        return await build_text_embedding_async(content, system_settings.embedding_model)
 
     async def cleanup_expired_memories(self) -> int:
         result = await self.session.execute(

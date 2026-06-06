@@ -465,12 +465,6 @@ async def _llm_check(current_settings: SystemSettings) -> ProviderCheck:
 
 
 async def _embedding_check(current_settings: SystemSettings) -> ProviderCheck:
-    if current_settings.llm_provider != "ollama":
-        return ProviderCheck(
-            status="degraded",
-            label=current_settings.embedding_model,
-            detail=f"云端 LLM 模式下向量使用本地确定性回退，维度 {EMBEDDING_DIMENSION}",
-        )
     try:
         await check_ollama_embedding_model(current_settings.embedding_model)
     except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
@@ -485,7 +479,7 @@ async def _embedding_check(current_settings: SystemSettings) -> ProviderCheck:
     return ProviderCheck(
         status="ready",
         label=current_settings.embedding_model,
-        detail=f"Ollama embedding 已可用，当前向量维度 {EMBEDDING_DIMENSION}",
+        detail=f"Ollama embedding 已可用，独立于生成 Provider，当前向量维度 {EMBEDDING_DIMENSION}",
     )
 
 
