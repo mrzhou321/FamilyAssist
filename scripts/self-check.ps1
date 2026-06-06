@@ -80,6 +80,12 @@ Step "Frontend copy placeholders" {
   if (($frontendSource | Select-String -Pattern "\?\?\?" -SimpleMatch).Count -gt 0) {
     throw "Frontend source contains placeholder question marks"
   }
+  $frontendText = Get-ChildItem "$root\frontend" -Recurse -Include *.ts,*.tsx,*.html,*.md |
+    Where-Object { $_.FullName -notmatch "\\node_modules\\|\\dist\\" } |
+    ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
+  if (($frontendText | Select-String -Pattern "Get started|React logo|Vite logo|React \+ TypeScript \+ Vite").Count -gt 0) {
+    throw "Frontend still contains starter template copy"
+  }
   Write-Host "frontend_copy_placeholders_ok"
 }
 
