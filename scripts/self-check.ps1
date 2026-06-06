@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 function Step($name, $script) {
   Write-Host ""
@@ -220,6 +220,9 @@ Step "Frontend offline cache wiring" {
   if ($hooks.IndexOf("error instanceof ApiError") -lt 0 -or $hooks.IndexOf("[401, 403].includes(error.status)") -lt 0 -or $hooks.IndexOf("await enqueueNote(note)") -lt 0) {
     throw "Quick note offline queue should not enqueue authentication or authorization failures"
   }
+  if (-not ($quickNote.Contains('import { ApiError }') -and $quickNote.Contains('onError: (error)') -and $quickNote.Contains('[401, 403].includes(error.status)') -and $quickNote.Contains('请重新配对后再提交'))) {
+    throw "Quick note should not clear or mislabel notes that fail member authorization"
+  }
   Write-Host "frontend_offline_cache_wiring_ok"
 }
 
@@ -292,7 +295,7 @@ Step "Frontend memory metadata wiring" {
   if ($memoryLibrary.IndexOf("formatExpiry") -lt 0 -or $memoryLibrary.IndexOf("toDateTimeLocal") -lt 0 -or $memoryLibrary.IndexOf("fromDateTimeLocal") -lt 0) {
     throw "Memory library does not format editable expiry metadata"
   }
-  if ($memoryLibrary.IndexOf("datetime-local") -lt 0 -or $memoryLibrary.IndexOf("updateEditing('expires_at', null)") -lt 0) {
+  if (-not ($memoryLibrary.Contains('datetime-local') -and $memoryLibrary.Contains("updateEditing('expires_at', null)"))) {
     throw "Memory library does not expose expiry editing controls"
   }
   if ($memoryLibrary.IndexOf("expires_at: editing.expires_at") -lt 0) {
@@ -356,7 +359,7 @@ Step "Frontend mobile pairing scanner wiring" {
 Step "Frontend auth token constants" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
-  if (($frontendSource | Select-String -Pattern "localStorage\.(getItem|setItem|removeItem)\('([^']+)'" ).Count -gt 0) {
+  if (($frontendSource | Select-String -Pattern 'localStorage\.(getItem|setItem|removeItem)\(''([^'']+)''' ).Count -gt 0) {
     throw "Frontend still uses raw localStorage auth keys"
   }
   $constants = Get-Content "$root\frontend\src\shared\constants\index.ts" -Raw -Encoding UTF8
@@ -406,10 +409,10 @@ Step "Frontend design token colors" {
   }
   $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
   $pairing = Get-Content "$root\frontend\src\admin\pages\Pairing.tsx" -Raw -Encoding UTF8
-  if ($quickNote.IndexOf("from-[var(--color-note-paper-from)]") -lt 0 -or $quickNote.IndexOf("to-[var(--color-note-paper-to)]") -lt 0) {
+  if (-not ($quickNote.Contains('from-[var(--color-note-paper-from)]') -and $quickNote.Contains('to-[var(--color-note-paper-to)]'))) {
     throw "Quick note paper colors should use design tokens"
   }
-  if ($pairing.IndexOf("getCssToken('--color-qr-dark')") -lt 0 -or $pairing.IndexOf("getCssToken('--color-qr-light')") -lt 0) {
+  if (-not ($pairing.Contains("getCssToken('--color-qr-dark')") -and $pairing.Contains("getCssToken('--color-qr-light')"))) {
     throw "Pairing QR colors should use design tokens"
   }
   if ($pairing.IndexOf("window.location.origin") -lt 0 -or $pairing.IndexOf("server_url=") -lt 0) {
@@ -1813,3 +1816,4 @@ Step "Docker compose model bootstrap" {
 
 Write-Host ""
 Write-Host "Self-check passed." -ForegroundColor Green
+

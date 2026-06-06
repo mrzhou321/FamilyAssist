@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ApiError } from '@shared/api'
 import { useCreateNote, useMemberNotes, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { detectMobileCapabilities } from '../capabilities'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
@@ -192,7 +193,11 @@ export default function QuickNote() {
           setPhotoCapture(null)
           setMessage(navigator.onLine ? '已记下，正在理解中' : '已离线暂存，联网后自动同步')
         },
-        onError: () => {
+        onError: (error) => {
+          if (error instanceof ApiError && [401, 403].includes(error.status)) {
+            setMessage('当前配对身份已失效或无权写入，请重新配对后再提交')
+            return
+          }
           setText('')
           setSource('text')
           if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
