@@ -209,6 +209,9 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice.IndexOf("record_events") -lt 0 -or $todayAdvice.IndexOf("'false'") -lt 0) {
     throw "Today advice should let streaming recommendations own event recording"
   }
+  if ($todayAdvice.IndexOf("useQueryClient") -lt 0 -or $todayAdvice.IndexOf("queryClient.invalidateQueries({ queryKey: ['memories', memberId] })") -lt 0) {
+    throw "Today advice feedback does not refresh learned memories"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"

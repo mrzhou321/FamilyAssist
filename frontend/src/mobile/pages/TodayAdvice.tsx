@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { DOMAINS, DOMAIN_ICONS, DOMAIN_LABELS } from '@shared/constants'
 import type { Domain } from '@shared/constants'
@@ -38,6 +39,7 @@ export default function TodayAdvice() {
   const isPaired = hasPairedMember()
   const memberId = getCurrentMemberId()
   const memberName = getCurrentMemberName()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (!isPaired) return
@@ -135,6 +137,7 @@ export default function TodayAdvice() {
         content,
         accepted,
       })
+      if (memberId !== null) queryClient.invalidateQueries({ queryKey: ['memories', memberId] })
       setMessage(accepted ? '已记录采纳反馈' : '已记录不合适反馈')
     } catch {
       setMessage('反馈暂未写入，稍后可重试')
