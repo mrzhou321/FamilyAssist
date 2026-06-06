@@ -1,7 +1,6 @@
 const CACHE_NAME = 'family-assister-shell-v1'
 const SHELL_URLS = [
   '/mobile/',
-  '/mobile/index.html',
   '/favicon.svg',
   '/manifest.webmanifest',
 ]
