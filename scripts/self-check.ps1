@@ -92,6 +92,20 @@ Step "PRD implementation audit docs" {
   Write-Host "prd_implementation_audit_docs_ok"
 }
 
+Step "Frontend review status docs" {
+  $review = Get-Content "$root\docs\code-review-2026-06-05.md" -Raw -Encoding UTF8
+  if ($review.IndexOf("Frontend Review Status") -lt 0 -or $review.IndexOf("Closed Findings") -lt 0 -or $review.IndexOf("Remaining Intentional Tradeoffs") -lt 0) {
+    throw "Frontend review document does not reflect current review status"
+  }
+  if ($review.IndexOf("硬编码 member_id=1") -ge 0 -or $review.IndexOf("| P0 | 硬编码 member_id") -ge 0) {
+    throw "Frontend review document still advertises stale P0 member identity findings"
+  }
+  if ($review.IndexOf("scripts\self-check.ps1") -lt 0 -or $review.IndexOf("PRD_IMPLEMENTATION_AUDIT.md") -lt 0) {
+    throw "Frontend review document does not point to current verification gates"
+  }
+  Write-Host "frontend_review_status_docs_ok"
+}
+
 Step "Frontend offline cache wiring" {
   $cachedData = Get-Content "$root\frontend\src\mobile\offline\cachedData.ts" -Raw
   if ($cachedData -notmatch "cached-memories" -or $cachedData -notmatch "cacheMemories" -or $cachedData -notmatch "getCachedMemories") {
