@@ -5,6 +5,9 @@ from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Te
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
+
+from .embeddings import EMBEDDING_DIMENSION
 
 
 class Base(DeclarativeBase):
@@ -74,6 +77,7 @@ class Memory(Base):
     domain: Mapped[MemoryDomain] = mapped_column(SqlEnum(MemoryDomain, name="memory_domain"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIMENSION))
     source_note_id: Mapped[int | None] = mapped_column(ForeignKey("notes.id", ondelete="SET NULL"))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

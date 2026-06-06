@@ -112,6 +112,7 @@ class Memory(BaseModel):
     domain: MemoryDomain
     content: str
     confidence: float = Field(ge=0, le=1)
+    embedding: list[float] = Field(default_factory=list)
     source_note_id: int | None = None
     expires_at: datetime | None = None
     created_at: datetime

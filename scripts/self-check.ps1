@@ -98,6 +98,7 @@ Step "Backend database metadata" {
   $metadataCheck = New-TemporaryFile
   @'
 from app.models import Base
+from app.embeddings import EMBEDDING_DIMENSION
 
 expected = {
     "members",
@@ -108,6 +109,8 @@ expected = {
     "system_settings",
 }
 assert expected.issubset(Base.metadata.tables.keys())
+memory_embedding = Base.metadata.tables["memories"].c.embedding
+assert memory_embedding.type.dim == EMBEDDING_DIMENSION
 print("backend_db_metadata_ok")
 '@ | Set-Content -LiteralPath $metadataCheck -Encoding UTF8
   Push-Location "$root\backend"
@@ -283,16 +286,20 @@ from app.schemas import (
     Memory,
     MemoryDomain,
     MemoryType,
+    MemoryUpdate,
     NoteCreate,
     PairingExchange,
     RecommendationDomain,
     RecommendationFeedback,
     SystemSettings,
 )
+from app.embeddings import EMBEDDING_DIMENSION, build_text_embedding
 from app.memory_dedupe import is_duplicate_memory
 from app.store import InMemoryStore, now
 
 store = InMemoryStore()
+assert len(build_text_embedding("stable vector smoke")) == EMBEDDING_DIMENSION
+assert all(len(memory.embedding) == EMBEDDING_DIMENSION for memory in store.list_memories())
 token = store.create_pairing_token(1, "http://localhost:5173")
 assert token is not None
 session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token, device_name="store-smoke-phone"))
@@ -332,6 +339,7 @@ feedback_memory = store.record_feedback(
 )
 assert "\u91c7\u7eb3" in feedback_memory.content
 assert "\u00b0C" in feedback_memory.content
+assert len(feedback_memory.embedding) == EMBEDDING_DIMENSION
 
 settings = store.update_settings(SystemSettings(default_city="Shanghai", extraction_retries=2))
 assert settings.default_city == "Shanghai"
@@ -356,6 +364,10 @@ assert 99 not in store.memories
 note = store.create_note(NoteCreate(member_id=1, content="likes walking after dinner"))
 created_memory = next(memory for memory in store.list_memories(1) if memory.source_note_id == note.id)
 assert created_memory.expires_at is not None
+assert len(created_memory.embedding) == EMBEDDING_DIMENSION
+updated_created_memory = store.update_memory(created_memory.id, MemoryUpdate(content="updated walking after dinner"))
+assert updated_created_memory is not None
+assert updated_created_memory.embedding == build_text_embedding("updated walking after dinner")
 
 assert is_duplicate_memory("\u5988\u5988\u4e0d\u7231\u9999\u83dc", "\u5988\u5988\u4e0d\u559c\u6b22\u82ab\u837d", MemoryType.fact, MemoryDomain.diet)
 note_a = store.create_note(NoteCreate(member_id=1, content="\u5988\u5988\u4e0d\u7231\u9999\u83dc"))
@@ -396,6 +408,14 @@ print("backend_store_smoke_ok")
     Pop-Location
     Remove-Item -LiteralPath $smoke -Force -ErrorAction SilentlyContinue
   }
+}
+
+Step "Backend migration smoke" {
+  $migration = Get-Content "$root\backend\alembic\versions\0003_add_memory_embeddings.py" -Raw -Encoding UTF8
+  if ($migration -notmatch "Vector\(EMBEDDING_DIMENSION\)" -or $migration -notmatch "ivfflat" -or $migration -notmatch "vector_cosine_ops") {
+    throw "Memory embedding migration is incomplete"
+  }
+  Write-Host "backend_migration_smoke_ok"
 }
 
 Write-Host ""

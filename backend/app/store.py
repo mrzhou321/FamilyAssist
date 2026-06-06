@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
 
+from .embeddings import build_text_embedding
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
 from .recommendation_engine import build_feedback_memory_content, build_recommendation
 from .schemas import (
@@ -111,6 +112,10 @@ class InMemoryStore:
                 created_at=created,
             ),
         }
+        self.memories = {
+            memory_id: memory.model_copy(update={"embedding": build_text_embedding(memory.content)})
+            for memory_id, memory in self.memories.items()
+        }
 
     def list_members(self) -> list[Member]:
         return list(self.members.values())
@@ -177,6 +182,7 @@ class InMemoryStore:
             domain=draft.domain,
             content=draft.content,
             confidence=draft.confidence,
+            embedding=build_text_embedding(draft.content),
             source_note_id=note.id,
             expires_at=default_expires_at(draft.type),
             created_at=now(),
@@ -227,6 +233,8 @@ class InMemoryStore:
             return None
         data = current.model_dump()
         data.update(payload.model_dump(exclude_unset=True))
+        if "content" in payload.model_fields_set and data.get("content") is not None:
+            data["embedding"] = build_text_embedding(data["content"])
         memory = Memory(**data)
         self.memories[memory_id] = memory
         return memory
@@ -269,6 +277,7 @@ class InMemoryStore:
             expires_at=default_expires_at(MemoryType.episode),
             created_at=now(),
         )
+        memory = memory.model_copy(update={"embedding": build_text_embedding(memory.content)})
         self.memories[memory.id] = memory
         return memory
 

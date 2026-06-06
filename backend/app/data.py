@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
+from .embeddings import build_text_embedding
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
 from .recommendation_engine import build_feedback_memory_content, build_recommendation
 from .schemas import (
@@ -195,6 +196,7 @@ class DatabaseDataStore:
             domain=memory.domain.value,
             content=memory.content,
             confidence=memory.confidence,
+            embedding=list(memory.embedding or []),
             source_note_id=memory.source_note_id,
             expires_at=memory.expires_at,
             created_at=memory.created_at,
@@ -291,6 +293,7 @@ class DatabaseDataStore:
             existing.domain = models.MemoryDomain(draft.domain.value)
             existing.content = draft.content
             existing.confidence = draft.confidence
+            existing.embedding = build_text_embedding(draft.content)
             note.status = "reviewed"
             await self.session.commit()
             await self.session.refresh(existing)
@@ -301,6 +304,7 @@ class DatabaseDataStore:
             domain=models.MemoryDomain(draft.domain.value),
             content=draft.content,
             confidence=draft.confidence,
+            embedding=build_text_embedding(draft.content),
             source_note_id=note.id,
             expires_at=default_expires_at(draft.type),
         )
@@ -369,6 +373,8 @@ class DatabaseDataStore:
             update["domain"] = models.MemoryDomain(update["domain"].value)
         for key, value in update.items():
             setattr(memory, key, value)
+        if "content" in update and update["content"] is not None:
+            memory.embedding = build_text_embedding(update["content"])
         await self.session.commit()
         await self.session.refresh(memory)
         return self._to_memory(memory)
@@ -407,12 +413,14 @@ class DatabaseDataStore:
             RecommendationDomain.diet: models.MemoryDomain.diet,
             RecommendationDomain.exercise: models.MemoryDomain.exercise,
         }
+        content = build_feedback_memory_content(payload.content, payload.accepted, await self.get_weather())
         memory = models.Memory(
             member_id=payload.member_id,
             type=models.MemoryType.episode,
             domain=domain_map[payload.domain],
-            content=build_feedback_memory_content(payload.content, payload.accepted, await self.get_weather()),
+            content=content,
             confidence=0.84,
+            embedding=build_text_embedding(content),
             expires_at=default_expires_at(MemoryType.episode),
         )
         self.session.add(memory)
@@ -547,6 +555,7 @@ async def seed_database() -> None:
                     domain=models.MemoryDomain(memory.domain.value),
                     content=memory.content,
                     confidence=memory.confidence,
+                    embedding=build_text_embedding(memory.content),
                     source_note_id=memory.source_note_id,
                     expires_at=memory.expires_at,
                     created_at=memory.created_at,
