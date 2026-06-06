@@ -11,9 +11,14 @@ from sqlalchemy.orm import selectinload
 from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
-from .embeddings import build_text_embedding
+from .embeddings import build_text_embedding, cosine_similarity
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
-from .recommendation_engine import build_feedback_memory_content, build_recommendation
+from .recommendation_engine import (
+    build_feedback_memory_content,
+    build_recommendation,
+    build_recommendation_query,
+    recommendation_keywords,
+)
 from .schemas import (
     Member,
     MemberCreate,
@@ -388,15 +393,25 @@ class DatabaseDataStore:
         return True
 
     async def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
+        weather = await self.get_weather()
+        member_model = await self.session.get(models.Member, member_id) if member_id is not None else None
+        member = self._to_member(member_model) if member_model is not None else None
+        query_embedding = build_text_embedding(build_recommendation_query(domain, member, weather))
         memories = await self.list_memories(member_id)
-        related_memories = [
+        candidates = [
             memory
             for memory in memories
             if memory.domain == domain.value or memory.domain == MemoryDomain.general.value
-        ][:3]
-        member_model = await self.session.get(models.Member, member_id) if member_id is not None else None
-        member = self._to_member(member_model) if member_model is not None else None
-        return build_recommendation(domain, member, related_memories, await self.get_weather())
+        ]
+        related_memories = sorted(
+            candidates,
+            key=lambda memory: (
+                sum(1 for keyword in recommendation_keywords(domain) if keyword in memory.content),
+                cosine_similarity(query_embedding, memory.embedding),
+            ),
+            reverse=True,
+        )[:5]
+        return build_recommendation(domain, member, related_memories, weather)
 
     async def make_recommendations(
         self,

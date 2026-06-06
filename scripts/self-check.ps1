@@ -402,6 +402,20 @@ store.memories[100] = Memory(
 assert all(memory.content != "expired recommendation basis" for memory in store.list_memories(1))
 assert "expired recommendation basis" not in store.make_recommendation(RecommendationDomain.exercise, 1).basis
 
+store.memories[101] = Memory(
+    id=101,
+    member_id=1,
+    type=MemoryType.fact,
+    domain=MemoryDomain.exercise,
+    content="\u7238\u7238\u819d\u76d6\u53d7\u51c9\u540e\u4e0d\u8212\u670d\uff0c\u8fd0\u52a8\u8981\u907f\u514d\u5267\u70c8\u8dd1\u8df3",
+    confidence=0.96,
+    embedding=build_text_embedding("\u7238\u7238\u819d\u76d6\u53d7\u51c9\u540e\u4e0d\u8212\u670d\uff0c\u8fd0\u52a8\u8981\u907f\u514d\u5267\u70c8\u8dd1\u8df3"),
+    created_at=now(),
+)
+exercise_recommendation = store.make_recommendation(RecommendationDomain.exercise, 1)
+assert len(exercise_recommendation.basis_refs) <= 5
+assert exercise_recommendation.basis_refs[0].memory_id == 101
+
 print("backend_store_smoke_ok")
 '@ | Set-Content -LiteralPath $smoke -Encoding UTF8
   Push-Location "$root\backend"

@@ -2,9 +2,14 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
 
-from .embeddings import build_text_embedding
+from .embeddings import build_text_embedding, cosine_similarity
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
-from .recommendation_engine import build_feedback_memory_content, build_recommendation
+from .recommendation_engine import (
+    build_feedback_memory_content,
+    build_recommendation,
+    build_recommendation_query,
+    recommendation_keywords,
+)
 from .schemas import (
     Member,
     MemberCreate,
@@ -243,13 +248,23 @@ class InMemoryStore:
         return self.memories.pop(memory_id, None) is not None
 
     def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
-        related_memories = [
+        weather = self.get_weather()
+        member = self.members.get(member_id) if member_id is not None else None
+        query_embedding = build_text_embedding(build_recommendation_query(domain, member, weather))
+        candidates = [
             memory
             for memory in self.list_memories(member_id)
             if memory.domain == domain or memory.domain == MemoryDomain.general
-        ][:3]
-        member = self.members.get(member_id) if member_id is not None else None
-        return build_recommendation(domain, member, related_memories, self.get_weather())
+        ]
+        related_memories = sorted(
+            candidates,
+            key=lambda memory: (
+                sum(1 for keyword in recommendation_keywords(domain) if keyword in memory.content),
+                cosine_similarity(query_embedding, memory.embedding),
+            ),
+            reverse=True,
+        )[:5]
+        return build_recommendation(domain, member, related_memories, weather)
 
     def make_recommendations(
         self,

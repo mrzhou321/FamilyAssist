@@ -1,7 +1,6 @@
 from .schemas import (
     Member,
     Memory,
-    MemoryDomain,
     Recommendation,
     RecommendationBasisRef,
     RecommendationDomain,
@@ -15,11 +14,7 @@ def build_recommendation(
     memories: list[Memory],
     weather: WeatherContext,
 ) -> Recommendation:
-    related_memories = [
-        memory
-        for memory in memories
-        if memory.domain == domain.value or memory.domain == MemoryDomain.general
-    ][:3]
+    related_memories = memories[:5]
     basis = [memory.content for memory in related_memories]
     basis_refs = [
         RecommendationBasisRef(
@@ -112,3 +107,33 @@ def _exercise_content(name: str, exercise_preference: str, injury_history: str, 
 
 def _strip_trailing_punctuation(value: str) -> str:
     return value.strip().rstrip("\u3002\uff01\uff1f.!?")
+
+
+def build_recommendation_query(
+    domain: RecommendationDomain,
+    member: Member | None,
+    weather: WeatherContext,
+) -> str:
+    name = member.name if member is not None else "\u5168\u5bb6"
+    profile = member.profile if member is not None else None
+    common = f"{name} {weather.city} {weather.temperature_c}\u00b0C {weather.condition} {weather.wind}"
+    if domain == RecommendationDomain.dressing:
+        thermal = profile.thermal_sensitivity if profile else 0
+        return f"{common} \u7a7f\u8863 \u4f53\u611f \u6015\u51b7 \u6015\u70ed \u6e29\u5ea6 {thermal}"
+    if domain == RecommendationDomain.diet:
+        restrictions = "\u3001".join(profile.diet_restrictions if profile else [])
+        allergies = "\u3001".join(profile.allergies if profile else [])
+        chronic = "\u3001".join(profile.chronic_conditions if profile else [])
+        taste = profile.taste_preference if profile else ""
+        return f"{common} \u996e\u98df \u5fcc\u53e3 \u8fc7\u654f \u6162\u75c5 \u53e3\u5473 {restrictions} {allergies} {chronic} {taste}"
+    exercise = profile.exercise_preference if profile else ""
+    injury = profile.injury_history if profile else ""
+    return f"{common} \u8fd0\u52a8 \u4f24\u75c5 \u4e60\u60ef \u5f3a\u5ea6 {exercise} {injury}"
+
+
+def recommendation_keywords(domain: RecommendationDomain) -> list[str]:
+    if domain == RecommendationDomain.dressing:
+        return ["\u7a7f", "\u8863", "\u51b7", "\u70ed", "\u6e29\u5ea6", "\u4fdd\u6696", "\u5916\u5957", "\u8fc7\u654f"]
+    if domain == RecommendationDomain.diet:
+        return ["\u996e\u98df", "\u5fcc\u53e3", "\u8fc7\u654f", "\u5c11\u7cd6", "\u6e05\u6de1", "\u53e3\u5473", "\u5403"]
+    return ["\u8fd0\u52a8", "\u6563\u6b65", "\u819d\u76d6", "\u4f24", "\u75db", "\u8dd1", "\u8df3", "\u5f3a\u5ea6"]
