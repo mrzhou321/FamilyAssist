@@ -294,6 +294,9 @@ Step "Frontend recommendation events wiring" {
   if ($api.IndexOf("sseBuffer") -lt 0 -or $api.IndexOf("stream: true") -lt 0) {
     throw "SSE stream parser does not preserve split UTF-8 chunks and partial data lines"
   }
+  if ($api.IndexOf("sseEventData") -lt 0 -or $api.IndexOf("sseEventData.join('\n')") -lt 0 -or $api.IndexOf("dispatchSseEvent()") -lt 0) {
+    throw "SSE stream parser does not aggregate multiline data events"
+  }
   Write-Host "frontend_recommendation_events_wiring_ok"
 }
 

@@ -90,6 +90,23 @@ export const api = {
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let sseBuffer = ''
+      let sseEventData: string[] = []
+      const dispatchSseEvent = () => {
+        if (sseEventData.length > 0) {
+          onChunk(sseEventData.join('\n'))
+          sseEventData = []
+        }
+      }
+      const processSseLine = (rawLine: string) => {
+        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+        if (line === '') {
+          dispatchSseEvent()
+        } else if (line.startsWith('data: ')) {
+          sseEventData.push(line.slice(6))
+        } else if (line.startsWith('data:')) {
+          sseEventData.push(line.slice(5))
+        }
+      }
       while (true) {
         const { done, value } = await reader.read()
         if (done) {
@@ -100,10 +117,11 @@ export const api = {
         const lines = sseBuffer.split('\n')
         sseBuffer = lines.pop() ?? ''
         for (const line of lines) {
-          if (line.startsWith('data: ')) onChunk(line.slice(6))
+          processSseLine(line)
         }
       }
-      if (sseBuffer.startsWith('data: ')) onChunk(sseBuffer.slice(6))
+      if (sseBuffer) processSseLine(sseBuffer)
+      dispatchSseEvent()
     }).catch(err => {
       if (err?.name !== 'AbortError') onError?.(err instanceof Error ? err : new Error(String(err)))
     })
