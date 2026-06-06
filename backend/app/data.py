@@ -13,7 +13,7 @@ from .core.config import settings
 from .core.db import AsyncSessionLocal
 from .embeddings import build_text_embedding, build_text_embedding_async, cosine_similarity
 from .llm_extractor import build_review_candidate as build_llm_review_candidate
-from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
+from .memory_dedupe import build_review_candidate_from_text, is_semantic_duplicate_memory
 from .recommendation_engine import (
     build_feedback_memory_content,
     build_recommendation,
@@ -353,6 +353,8 @@ class DatabaseDataStore:
         if note is None:
             return None
         draft = candidate.candidates[0]
+        system_settings = await self.get_settings()
+        draft_embedding = await self._build_embedding(draft.content)
         existing = await self.session.scalar(select(models.Memory).where(models.Memory.source_note_id == note_id))
         if existing is None:
             candidates = await self.session.scalars(
@@ -366,7 +368,15 @@ class DatabaseDataStore:
                 (
                     memory
                     for memory in candidates.all()
-                    if is_duplicate_memory(memory.content, draft.content, draft.type, draft.domain)
+                    if is_semantic_duplicate_memory(
+                        memory.content,
+                        draft.content,
+                        draft.type,
+                        draft.domain,
+                        list(memory.embedding or []),
+                        draft_embedding,
+                        system_settings.dedupe_threshold,
+                    )
                 ),
                 None,
             )

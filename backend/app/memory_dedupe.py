@@ -1,3 +1,4 @@
+from .embeddings import cosine_similarity
 from .schemas import MemoryDomain, MemoryDraft, MemoryType, ReviewCandidate
 
 
@@ -84,6 +85,22 @@ def is_duplicate_memory(
         memory_type,
         domain,
     )
+
+
+def is_semantic_duplicate_memory(
+    existing_content: str,
+    draft_content: str,
+    memory_type: MemoryType,
+    domain: MemoryDomain,
+    existing_embedding: list[float],
+    draft_embedding: list[float],
+    threshold: float,
+) -> bool:
+    if is_duplicate_memory(existing_content, draft_content, memory_type, domain):
+        return True
+    if not existing_embedding or not draft_embedding:
+        return False
+    return cosine_similarity(existing_embedding, draft_embedding) >= threshold
 
 
 def build_review_candidate_from_text(

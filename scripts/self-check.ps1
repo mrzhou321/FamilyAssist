@@ -902,7 +902,7 @@ from app.schemas import (
     SystemSettings,
 )
 from app.embeddings import EMBEDDING_DIMENSION, build_text_embedding
-from app.memory_dedupe import is_duplicate_memory
+from app.memory_dedupe import is_duplicate_memory, is_semantic_duplicate_memory
 from app.store import InMemoryStore, now
 from app.tokens import decode_member_token
 
@@ -985,6 +985,26 @@ assert updated_created_memory is not None
 assert updated_created_memory.embedding == build_text_embedding("updated walking after dinner")
 
 assert is_duplicate_memory("\u5988\u5988\u4e0d\u7231\u9999\u83dc", "\u5988\u5988\u4e0d\u559c\u6b22\u82ab\u837d", MemoryType.fact, MemoryDomain.diet)
+semantic_left = build_text_embedding("semantic dedupe example")
+semantic_right = build_text_embedding("semantic dedupe example")
+assert is_semantic_duplicate_memory(
+    "semantic dedupe example",
+    "semantic dedupe example",
+    MemoryType.episode,
+    MemoryDomain.general,
+    semantic_left,
+    semantic_right,
+    0.99,
+)
+assert not is_semantic_duplicate_memory(
+    "semantic dedupe example",
+    "different content",
+    MemoryType.episode,
+    MemoryDomain.general,
+    semantic_left,
+    build_text_embedding("different content"),
+    0.99,
+)
 note_a = store.create_note(NoteCreate(member_id=1, content="\u5988\u5988\u4e0d\u7231\u9999\u83dc"))
 assert store.extract_memory_from_note(note_a.id) is not None
 count_before = len(store.list_memories(1))

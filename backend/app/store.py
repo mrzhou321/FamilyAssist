@@ -3,7 +3,7 @@ from hashlib import sha256
 from secrets import token_urlsafe
 
 from .embeddings import build_text_embedding, cosine_similarity
-from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
+from .memory_dedupe import build_review_candidate_from_text, is_semantic_duplicate_memory
 from .recommendation_engine import (
     build_feedback_memory_content,
     build_recommendation,
@@ -215,12 +215,21 @@ class InMemoryStore:
         if note is None:
             return None
         draft = candidate.candidates[0]
+        draft_embedding = build_text_embedding(draft.content)
         if any(
             memory.source_note_id == note_id or (
                 memory.member_id == note.member_id
                 and memory.domain == draft.domain
                 and memory.type == draft.type
-                and is_duplicate_memory(memory.content, draft.content, draft.type, draft.domain)
+                and is_semantic_duplicate_memory(
+                    memory.content,
+                    draft.content,
+                    draft.type,
+                    draft.domain,
+                    memory.embedding,
+                    draft_embedding,
+                    self.settings.dedupe_threshold,
+                )
             )
             for memory in self.memories.values()
         ):
