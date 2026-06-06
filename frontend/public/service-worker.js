@@ -9,7 +9,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(SHELL_URLS))
+      .then(async (cache) => {
+        await cache.addAll(SHELL_URLS)
+        await cacheEntryAssets(cache, ['/mobile/', '/admin/'])
+      })
   )
 })
 
@@ -62,3 +65,23 @@ self.addEventListener('fetch', (event) => {
     }),
   )
 })
+
+async function cacheEntryAssets(cache, entryUrls) {
+  const assetUrls = new Set()
+  await Promise.all(
+    entryUrls.map(async (entryUrl) => {
+      try {
+        const response = await fetch(entryUrl, { cache: 'no-cache' })
+        if (!response.ok) return
+        const html = await response.clone().text()
+        await cache.put(entryUrl, response)
+        for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) {
+          assetUrls.add(match[1])
+        }
+      } catch {
+        // Best-effort asset warmup; the static shell cache still installs.
+      }
+    }),
+  )
+  await Promise.all([...assetUrls].map((assetUrl) => cache.add(assetUrl).catch(() => undefined)))
+}

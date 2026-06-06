@@ -317,6 +317,9 @@ Step "Frontend PWA install wiring" {
   if ($serviceWorker.IndexOf("family-assister-shell-v2") -lt 0) {
     throw "Service worker cache version should be bumped after shell precache changes"
   }
+  if ($serviceWorker.IndexOf("cacheEntryAssets") -lt 0 -or $serviceWorker.IndexOf("/assets/") -lt 0 -or $serviceWorker.IndexOf("/admin/") -lt 0) {
+    throw "Service worker does not warm current hashed entry assets for offline shell startup"
+  }
   $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
   if ($mobileMain.IndexOf("beforeinstallprompt") -lt 0 -or $mobileMain.IndexOf("useInstallPrompt") -lt 0 -or $mobileMain.IndexOf("navigator.serviceWorker.register") -lt 0) {
     throw "Mobile app install prompt or service worker registration is missing"
