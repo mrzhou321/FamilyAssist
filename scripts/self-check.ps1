@@ -172,6 +172,9 @@ Step "Frontend offline cache wiring" {
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"
   }
+  if (Test-Path "$root\frontend\src\mobile\storage\quickNoteQueue.ts") {
+    throw "Legacy quick-note queue module should not coexist with the current offline queue"
+  }
   if ($noteQueue.IndexOf("for (const note of queued)") -lt 0 -or $noteQueue.IndexOf("catch {") -lt 0 -or $noteQueue.IndexOf("Keep failed items queued") -lt 0) {
     throw "Offline note sync does not keep later queued notes moving after a failure"
   }
