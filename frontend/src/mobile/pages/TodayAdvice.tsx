@@ -72,7 +72,8 @@ export default function TodayAdvice() {
         if (!active) return
         void cacheRecommendations(memberId, recommendations)
         const items = recommendations.map((recommendation) => [recommendation.domain, recommendation] as const)
-        setRecommendations(Object.fromEntries(items) as Partial<Record<Domain, Recommendation>>)
+        const baseRecommendations = Object.fromEntries(items) as Partial<Record<Domain, Recommendation>>
+        setRecommendations(baseRecommendations)
         setMessage('正在生成今日建议...')
 
         DOMAINS.forEach((domain) => {
@@ -87,7 +88,7 @@ export default function TodayAdvice() {
               setRecommendations((current) => ({
                 ...current,
                 [domain]: {
-                  ...current[domain],
+                  ...baseRecommendations[domain],
                   content: streamed,
                 },
               }))

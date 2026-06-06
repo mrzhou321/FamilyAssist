@@ -178,6 +178,9 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice.IndexOf("const FALLBACK") -ge 0 -or $todayAdvice.IndexOf("FALLBACK_WEATHER") -ge 0 -or $todayAdvice.IndexOf("local-fallback") -ge 0) {
     throw "Today advice should not render fake fallback recommendations or weather"
   }
+  if ($todayAdvice.IndexOf("const baseRecommendations") -lt 0 -or $todayAdvice.IndexOf("...baseRecommendations[domain]") -lt 0) {
+    throw "Today advice stream updates should preserve recommendation basis metadata"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"
