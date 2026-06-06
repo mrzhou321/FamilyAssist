@@ -9,6 +9,8 @@ from fastapi import Depends, Header, HTTPException
 from .core.config import settings
 from .data import DataStore, get_data_store
 
+ADMIN_TOKEN_TTL_SECONDS = 24 * 60 * 60
+
 
 @dataclass(frozen=True)
 class RequestContext:
@@ -69,7 +71,13 @@ def is_valid_admin_token(token: str) -> bool:
         return False
     payload = ":".join(parts[:3])
     expected = hmac_new(settings.admin_token_secret.encode("utf-8"), payload.encode("utf-8"), sha256).hexdigest()
-    return compare_digest(expected, parts[3])
+    if not compare_digest(expected, parts[3]):
+        return False
+    try:
+        issued_at = int(parts[1])
+    except ValueError:
+        return False
+    return 0 <= time() - issued_at <= ADMIN_TOKEN_TTL_SECONDS
 
 
 async def require_admin(authorization: str | None = Header(default=None)) -> None:

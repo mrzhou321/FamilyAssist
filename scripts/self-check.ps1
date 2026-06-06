@@ -302,6 +302,53 @@ Step "Backend compile" {
   }
 }
 
+Step "Backend admin token smoke" {
+  $authSmoke = New-TemporaryFile
+  @'
+import app.auth as auth
+
+token = auth.create_admin_token()
+assert auth.is_valid_admin_token(token)
+assert not auth.is_valid_admin_token(token + "tampered")
+
+original_time = auth.time
+auth.time = lambda: original_time() + auth.ADMIN_TOKEN_TTL_SECONDS + 1
+try:
+    assert not auth.is_valid_admin_token(token)
+finally:
+    auth.time = original_time
+
+bad_payload = "admin:not-a-time:nonce"
+bad_signature = auth.hmac_new(
+    auth.settings.admin_token_secret.encode("utf-8"),
+    bad_payload.encode("utf-8"),
+    auth.sha256,
+).hexdigest()
+assert not auth.is_valid_admin_token(f"{bad_payload}:{bad_signature}")
+
+future_issued_at = int(original_time() + 30)
+future_payload = f"admin:{future_issued_at}:nonce"
+future_signature = auth.hmac_new(
+    auth.settings.admin_token_secret.encode("utf-8"),
+    future_payload.encode("utf-8"),
+    auth.sha256,
+).hexdigest()
+assert not auth.is_valid_admin_token(f"{future_payload}:{future_signature}")
+
+print("backend_admin_token_smoke_ok")
+'@ | Set-Content -LiteralPath $authSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $authSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend admin token smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $authSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend database metadata" {
   $metadataCheck = New-TemporaryFile
   @'
