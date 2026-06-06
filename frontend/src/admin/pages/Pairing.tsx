@@ -24,14 +24,18 @@ export default function Pairing() {
   )
 
   useEffect(() => {
-    api
-      .get<Member[]>('/members')
-      .then((items) => {
-        setMembers(items)
-        if (items[0]) setSelectedId(items[0].id)
-      })
-      .catch(() => setMessage('后端暂不可用，无法生成配对码'))
+    void loadMembers()
   }, [])
+
+  async function loadMembers() {
+    try {
+      const items = await api.get<Member[]>('/members')
+      setMembers(items)
+      setSelectedId((current) => current ?? items[0]?.id ?? null)
+    } catch {
+      setMessage('后端暂不可用，无法生成配对码')
+    }
+  }
 
   useEffect(() => {
     void loadSessions(selectedId)
@@ -70,6 +74,7 @@ export default function Pairing() {
       )
       setPairing(token)
       setMessage('配对码已生成，5 分钟内有效')
+      await loadMembers()
       await loadSessions(selectedId)
     } catch {
       setMessage('生成配对码失败，请稍后重试')
@@ -86,6 +91,7 @@ export default function Pairing() {
     try {
       await api.post<MemberDeviceSession>(`/pairing/sessions/${tokenHash}/revoke`, {})
       setMessage('设备会话已吊销，该手机需要重新扫码配对')
+      await loadMembers()
       await loadSessions(selectedId)
     } catch {
       setMessage('吊销会话失败，请稍后重试')
