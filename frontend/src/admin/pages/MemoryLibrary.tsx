@@ -102,6 +102,10 @@ export default function MemoryLibrary() {
       setMessage('记忆内容不能为空')
       return
     }
+    if (!Number.isFinite(editing.confidence) || editing.confidence < 0 || editing.confidence > 1) {
+      setMessage('置信度必须在 0 到 1 之间')
+      return
+    }
     try {
       const saved = await api.patch<Memory>(`/memories/${editing.id}`, {
         member_id: editing.member_id,

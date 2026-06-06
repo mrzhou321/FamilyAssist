@@ -374,6 +374,9 @@ Step "Frontend memory metadata wiring" {
   if ($memoryLibrary.IndexOf("const trimmedContent = editing.content.trim()") -lt 0 -or $memoryLibrary.IndexOf("content: trimmedContent") -lt 0) {
     throw "Memory library should trim and reject blank memory content before saving"
   }
+  if ($memoryLibrary.IndexOf("Number.isFinite(editing.confidence)") -lt 0 -or $memoryLibrary.IndexOf("置信度必须在 0 到 1 之间") -lt 0) {
+    throw "Memory library should validate editable confidence before saving"
+  }
   Write-Host "frontend_memory_metadata_wiring_ok"
 }
 
