@@ -66,6 +66,21 @@ Step "Deployment smoke script" {
   Write-Host "deployment_smoke_script_ok"
 }
 
+Step "Deployment security defaults" {
+  $compose = Get-Content "$root\docker-compose.yml" -Raw -Encoding UTF8
+  $nginx = Get-Content "$root\docker\nginx\nginx.conf" -Raw -Encoding UTF8
+  if ($compose.IndexOf('DEBUG: "false"') -lt 0) {
+    throw "Docker compose should not enable debug CORS by default"
+  }
+  if ($compose.IndexOf("ADMIN_PASSWORD") -lt 0 -or $compose.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
+    throw "Docker compose must expose admin secret environment variables"
+  }
+  if ($nginx.IndexOf("location /api") -lt 0 -or $nginx.IndexOf("proxy_pass http://backend:8000") -lt 0) {
+    throw "Nginx does not proxy same-origin API requests to the backend"
+  }
+  Write-Host "deployment_security_defaults_ok"
+}
+
 Step "PRD implementation audit docs" {
   $audit = Get-Content "$root\docs\PRD_IMPLEMENTATION_AUDIT.md" -Raw -Encoding UTF8
   if ($audit.IndexOf("Text quick notes") -lt 0 -or $audit.IndexOf("Pairing QR login") -lt 0 -or $audit.IndexOf("Performance smoke") -lt 0) {

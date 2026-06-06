@@ -52,7 +52,7 @@ services:
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: family-admin
       ADMIN_TOKEN_SECRET: family-assister-dev-secret
-      DEBUG: "true"
+      DEBUG: "false"
       REQUIRE_DATABASE: "true"
     ports:
       - "8000:8000"
