@@ -428,6 +428,9 @@ Step "Frontend mobile pairing scanner wiring" {
   if ($pairDevice.IndexOf("extractPairingToken") -lt 0 -or $pairDevice.IndexOf("searchParams.get('token')") -lt 0) {
     throw "Mobile pairing page does not extract token from scanned pairing URLs"
   }
+  if ($pairDevice.IndexOf("new URL(trimmed, window.location.origin)") -lt 0) {
+    throw "Mobile pairing page does not extract tokens from relative pairing URLs"
+  }
   if ($pairDevice.IndexOf("onClick={isScanning ? stopScanner : startScanner}") -lt 0 -or $pairDevice.IndexOf("value={token}") -lt 0 -or $pairDevice.IndexOf("setToken(event.target.value)") -lt 0) {
     throw "Mobile pairing page does not expose scan and manual token controls"
   }

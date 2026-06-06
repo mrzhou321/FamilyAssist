@@ -24,7 +24,7 @@ function extractPairingToken(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return ''
   try {
-    const url = new URL(trimmed)
+    const url = new URL(trimmed, window.location.origin)
     return url.searchParams.get('token')?.trim() ?? trimmed
   } catch {
     return trimmed
