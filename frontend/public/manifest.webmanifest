@@ -4,16 +4,34 @@
   "description": "家庭私人助手：速记、记忆和个性化建议。",
   "start_url": "/mobile/",
   "scope": "/",
+  "id": "/mobile/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F0F4FA",
   "theme_color": "#2F6FEB",
+  "categories": ["health", "lifestyle", "productivity"],
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "随手速记",
+      "short_name": "速记",
+      "description": "快速记录家人的身体、饮食和日常偏好。",
+      "url": "/mobile/",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "今日建议",
+      "short_name": "建议",
+      "description": "查看穿衣、饮食和运动建议。",
+      "url": "/mobile/advice",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]
 }

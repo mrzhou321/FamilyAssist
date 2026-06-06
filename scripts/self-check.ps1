@@ -114,6 +114,29 @@ Step "Frontend provider status wiring" {
   Write-Host "frontend_provider_status_wiring_ok"
 }
 
+Step "Frontend PWA install wiring" {
+  $mobileHtml = Get-Content "$root\frontend\mobile\index.html" -Raw -Encoding UTF8
+  if ($mobileHtml.IndexOf("manifest.webmanifest") -lt 0 -or $mobileHtml.IndexOf("apple-mobile-web-app-capable") -lt 0) {
+    throw "Mobile HTML is missing installable PWA metadata"
+  }
+  $manifest = Get-Content "$root\frontend\public\manifest.webmanifest" -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($manifest.start_url -ne "/mobile/" -or $manifest.display -ne "standalone" -or $manifest.id -ne "/mobile/") {
+    throw "PWA manifest install scope is incorrect"
+  }
+  if (-not $manifest.shortcuts -or $manifest.shortcuts.Count -lt 2) {
+    throw "PWA manifest shortcuts are missing"
+  }
+  $serviceWorker = Get-Content "$root\frontend\public\service-worker.js" -Raw -Encoding UTF8
+  if ($serviceWorker.IndexOf("SHELL_URLS") -lt 0 -or $serviceWorker.IndexOf("/mobile/") -lt 0 -or $serviceWorker.IndexOf("SKIP_WAITING") -lt 0) {
+    throw "Service worker app shell/update wiring is incomplete"
+  }
+  $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
+  if ($mobileMain.IndexOf("beforeinstallprompt") -lt 0 -or $mobileMain.IndexOf("useInstallPrompt") -lt 0 -or $mobileMain.IndexOf("navigator.serviceWorker.register") -lt 0) {
+    throw "Mobile app install prompt or service worker registration is missing"
+  }
+  Write-Host "frontend_pwa_install_wiring_ok"
+}
+
 Step "Frontend copy placeholders" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }

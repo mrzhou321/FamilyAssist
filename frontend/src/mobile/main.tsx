@@ -7,6 +7,11 @@ import PairDevice from './pages/PairDevice'
 import QuickNote from './pages/QuickNote'
 import TodayAdvice from './pages/TodayAdvice'
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 const NAV = [
   { to: '/', icon: '✎', label: '速记' },
   { to: '/advice', icon: '☀', label: '建议' },
@@ -25,6 +30,7 @@ function MobileShell() {
   const location = useLocation()
   const isPairing = location.pathname === '/pair'
   const { waitingWorker, refresh } = useServiceWorkerUpdate()
+  const { canInstall, install } = useInstallPrompt()
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col bg-[var(--color-bg)]">
       {waitingWorker ? (
@@ -34,6 +40,15 @@ function MobileShell() {
           className="border-b border-[var(--color-border)] bg-[var(--color-accent)] px-4 py-2 text-xs text-white"
         >
           有新版本可用，点击刷新
+        </button>
+      ) : null}
+      {canInstall ? (
+        <button
+          type="button"
+          onClick={install}
+          className="border-b border-[var(--color-border)] bg-white px-4 py-2 text-xs text-[var(--color-accent)]"
+        >
+          安装到桌面，离线也能打开
         </button>
       ) : null}
       <main className="flex-1 overflow-y-auto">
@@ -64,6 +79,47 @@ function MobileShell() {
         </nav>
       )}
     </div>
+  )
+}
+
+function useInstallPrompt() {
+  const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  const [isStandalone, setIsStandalone] = useState(() => isRunningStandalone())
+
+  useEffect(() => {
+    function handleBeforeInstallPrompt(event: Event) {
+      event.preventDefault()
+      setPromptEvent(event as BeforeInstallPromptEvent)
+    }
+
+    function handleInstalled() {
+      setPromptEvent(null)
+      setIsStandalone(true)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleInstalled)
+    }
+  }, [])
+
+  return {
+    canInstall: Boolean(promptEvent) && !isStandalone,
+    async install() {
+      if (!promptEvent) return
+      await promptEvent.prompt()
+      await promptEvent.userChoice
+      setPromptEvent(null)
+    },
+  }
+}
+
+function isRunningStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
   )
 }
 
