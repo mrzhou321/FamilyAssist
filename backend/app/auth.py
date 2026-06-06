@@ -25,7 +25,7 @@ async def get_request_context(
     data: DataStore = Depends(get_data_store),
 ) -> RequestContext:
     if not authorization:
-        return RequestContext()
+        raise HTTPException(status_code=401, detail="Login required")
 
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer" or not token:

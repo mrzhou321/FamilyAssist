@@ -115,6 +115,19 @@ members = client.get("/api/members", headers=admin_headers)
 assert members.status_code == 200
 assert len(members.json()) >= 1
 
+assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous note", "source": "text"}).status_code == 401
+assert client.get("/api/memories?member_id=1").status_code == 401
+assert client.get("/api/recommendations?member_id=1").status_code == 401
+assert client.post("/api/pairing/members/1").status_code == 401
+pairing = client.post("/api/pairing/members/1", headers=admin_headers)
+assert pairing.status_code == 201
+session = client.post(
+    "/api/pairing/exchange",
+    json={"pairing_token": pairing.json()["pairing_token"], "device_name": "self-check-phone"},
+)
+assert session.status_code == 200
+headers = {"Authorization": f"Bearer {session.json()['access_token']}"}
+
 note = client.post(
     "/api/notes",
     json={
@@ -122,17 +135,18 @@ note = client.post(
         "content": "member 1 knee note",
         "source": "text",
     },
+    headers=headers,
 )
 assert note.status_code == 202
 note_id = note.json()["id"]
-memories = client.get("/api/memories?member_id=1")
+memories = client.get("/api/memories?member_id=1", headers=headers)
 assert memories.status_code == 200
 assert any(item["source_note_id"] == note_id for item in memories.json())
 auto_memory = next(item for item in memories.json() if item["source_note_id"] == note_id)
 assert auto_memory["type"] == "episode"
 assert auto_memory["expires_at"] is not None
 
-batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1")
+batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1", headers=headers)
 assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
 assert any("member 1 knee note" in basis for item in batch.json()["recommendations"] for basis in item["basis"])
@@ -144,31 +158,22 @@ assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
 assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
 assert "\u819d\u76d6" in contents["exercise"]
 
-source_note = client.get(f"/api/notes/{note_id}")
+source_note = client.get(f"/api/notes/{note_id}", headers=headers)
 assert source_note.status_code == 200
 assert source_note.json()["content"] == "member 1 knee note"
 
-with client.stream("GET", "/api/recommendations/diet/stream?member_id=1") as stream:
+with client.stream("GET", "/api/recommendations/diet/stream?member_id=1", headers=headers) as stream:
     assert stream.status_code == 200
     assert "data:" in "".join(stream.iter_text())
 
 feedback = client.post(
     "/api/recommendations/feedback",
     json={"domain": "dressing", "member_id": 1, "content": contents["dressing"], "accepted": True},
+    headers=headers,
 )
 assert feedback.status_code == 201
 assert "\u91c7\u7eb3" in feedback.json()["content"]
 assert "\u00b0C" in feedback.json()["content"]
-
-assert client.post("/api/pairing/members/1").status_code == 401
-pairing = client.post("/api/pairing/members/1", headers=admin_headers)
-assert pairing.status_code == 201
-session = client.post(
-    "/api/pairing/exchange",
-    json={"pairing_token": pairing.json()["pairing_token"], "device_name": "self-check-phone"},
-)
-assert session.status_code == 200
-headers = {"Authorization": f"Bearer {session.json()['access_token']}"}
 
 sessions = client.get("/api/pairing/sessions?member_id=1", headers=admin_headers)
 assert sessions.status_code == 200
