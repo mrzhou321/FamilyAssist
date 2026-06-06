@@ -1413,6 +1413,20 @@ auto_memory = next(item for item in memories.json() if item["source_note_id"] ==
 assert auto_memory["type"] == "episode"
 assert auto_memory["expires_at"] is not None
 
+family_note = client.post(
+    "/api/notes",
+    json={
+        "member_id": None,
+        "content": "admin family-only note",
+        "source": "text",
+    },
+    headers=admin_headers,
+)
+assert family_note.status_code == 202
+family_note_id = family_note.json()["id"]
+assert client.get(f"/api/notes/{family_note_id}", headers=admin_headers).status_code == 200
+assert client.get(f"/api/notes/{family_note_id}", headers=headers).status_code == 403
+
 batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1", headers=headers)
 assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
