@@ -254,8 +254,9 @@ print("backend_weather_provider_ok")
 
 Step "Backend LLM extractor smoke" {
   $llmSmoke = New-TemporaryFile
-  @'
+@'
 import asyncio
+import json
 
 import httpx
 
@@ -271,6 +272,9 @@ class MockOllamaClient(httpx.AsyncClient):
 
     @staticmethod
     def _handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode("utf-8"))
+        assert isinstance(payload["format"], dict)
+        assert payload["format"]["properties"]["candidates"]["maxItems"] == 5
         return httpx.Response(
             200,
             json={

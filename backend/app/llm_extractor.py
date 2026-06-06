@@ -7,6 +7,19 @@ from .core.config import settings
 from .memory_dedupe import build_review_candidate_from_text
 from .schemas import MemoryDraft, ReviewCandidate, SystemSettings
 
+EXTRACTION_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["candidates"],
+    "properties": {
+        "candidates": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": MemoryDraft.model_json_schema(),
+        }
+    },
+}
 
 SYSTEM_PROMPT = (
     "You extract structured family memory candidates from one quick note. "
@@ -45,7 +58,7 @@ async def _try_ollama_candidate(
                 json={
                     "model": model,
                     "prompt": f"{SYSTEM_PROMPT}\nQuick note: {content}",
-                    "format": "json",
+                    "format": EXTRACTION_SCHEMA,
                     "stream": False,
                 },
             )
