@@ -184,6 +184,18 @@ async def approve_review_candidate(
     return memory
 
 
+@app.post("/api/review/notes/{note_id}/reject", response_model=Note)
+async def reject_review_candidate(
+    note_id: int,
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> Note:
+    note = await data.reject_review_candidate(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+
 @app.get("/api/memories", response_model=list[Memory])
 async def list_memories(
     member_id: int | None = Query(default=None),

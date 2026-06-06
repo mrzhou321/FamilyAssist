@@ -185,6 +185,14 @@ class InMemoryStore:
         self.notes[note.id] = note.model_copy(update={"status": "reviewed"})
         return memory
 
+    def reject_review_candidate(self, note_id: int) -> Note | None:
+        note = self.notes.get(note_id)
+        if note is None:
+            return None
+        rejected = note.model_copy(update={"status": "rejected"})
+        self.notes[note.id] = rejected
+        return rejected
+
     def extract_memory_from_note(self, note_id: int) -> Memory | None:
         candidate = self.build_review_candidate(note_id)
         if candidate is None or not candidate.candidates:

@@ -175,6 +175,20 @@ assert feedback.status_code == 201
 assert "\u91c7\u7eb3" in feedback.json()["content"]
 assert "\u00b0C" in feedback.json()["content"]
 
+reject_note = client.post(
+    "/api/notes",
+    json={"member_id": 1, "content": "manual review reject note", "source": "text"},
+    headers=headers,
+)
+assert reject_note.status_code == 202
+reject_note_id = reject_note.json()["id"]
+before_reject_memories = client.get("/api/memories?member_id=1", headers=headers).json()
+rejected = client.post(f"/api/review/notes/{reject_note_id}/reject", headers=admin_headers)
+assert rejected.status_code == 200
+assert rejected.json()["status"] == "rejected"
+after_reject_memories = client.get("/api/memories?member_id=1", headers=headers).json()
+assert len(after_reject_memories) == len(before_reject_memories)
+
 sessions = client.get("/api/pairing/sessions?member_id=1", headers=admin_headers)
 assert sessions.status_code == 200
 device_session = next(item for item in sessions.json() if item["device_name"] == "self-check-phone")

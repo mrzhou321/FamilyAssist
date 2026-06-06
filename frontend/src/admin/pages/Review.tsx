@@ -91,6 +91,19 @@ export default function Review() {
     }
   }
 
+  async function reject() {
+    if (!selectedId) return
+    try {
+      await api.post<Note>(`/review/notes/${selectedId}/reject`, {})
+      setNotes((current) =>
+        current.map((note) => (note.id === selectedId ? { ...note, status: 'rejected' } : note)),
+      )
+      setMessage('已忽略这条候选记忆，原始速记保留在记录中')
+    } catch {
+      setMessage('忽略候选失败，请稍后重试')
+    }
+  }
+
   return (
     <div className="p-10">
       <header className="mb-8 animate-[fadeUp_0.4s_ease_both]">
@@ -127,7 +140,7 @@ export default function Review() {
                 }`}
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-xs text-[var(--color-muted)]">#{note.id}</span>
+                    {note.status === 'reviewed' ? '???' : note.status === 'rejected' ? '???' : '???'}
                   <span className="rounded-full bg-[var(--color-sage)]/10 px-2 py-0.5 text-[10px] text-[var(--color-sage)]">
                     {note.status === 'reviewed' ? '已入库' : '待审核'}
                   </span>
@@ -188,7 +201,7 @@ export default function Review() {
                 </div>
 
                 <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
-                  记忆内容
+                  ??????
                   <textarea
                     value={draft.content}
                     onChange={(event) => updateDraft('content', event.target.value)}
@@ -196,13 +209,20 @@ export default function Review() {
                   />
                 </label>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={reject}
+                    className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-5 py-2 text-sm text-[var(--color-muted)]"
+                  >
+                    ????
+                  </button>
                   <button
                     type="button"
                     onClick={approve}
                     className="rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-5 py-2 text-sm text-white"
                   >
-                    审核通过并入库
+                    ???????
                   </button>
                 </div>
               </section>

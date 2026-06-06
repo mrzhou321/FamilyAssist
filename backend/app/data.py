@@ -51,6 +51,7 @@ class DataStore(Protocol):
     async def get_note(self, note_id: int) -> Note | None: ...
     async def build_review_candidate(self, note_id: int) -> ReviewCandidate | None: ...
     async def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None: ...
+    async def reject_review_candidate(self, note_id: int) -> Note | None: ...
     async def extract_memory_from_note(self, note_id: int) -> Memory | None: ...
     async def list_memories(self, member_id: int | None = None) -> list[Memory]: ...
     async def update_memory(self, memory_id: int, payload: MemoryUpdate) -> Memory | None: ...
@@ -103,6 +104,9 @@ class InMemoryDataStore:
 
     async def approve_review_candidate(self, note_id: int, draft: MemoryDraft) -> Memory | None:
         return self.inner.approve_review_candidate(note_id, draft)
+
+    async def reject_review_candidate(self, note_id: int) -> Note | None:
+        return self.inner.reject_review_candidate(note_id)
 
     async def extract_memory_from_note(self, note_id: int) -> Memory | None:
         return self.inner.extract_memory_from_note(note_id)
@@ -305,6 +309,15 @@ class DatabaseDataStore:
         await self.session.commit()
         await self.session.refresh(memory)
         return self._to_memory(memory)
+
+    async def reject_review_candidate(self, note_id: int) -> Note | None:
+        note = await self.session.get(models.Note, note_id)
+        if note is None:
+            return None
+        note.status = "rejected"
+        await self.session.commit()
+        await self.session.refresh(note)
+        return self._to_note(note)
 
     async def extract_memory_from_note(self, note_id: int) -> Memory | None:
         candidate = await self.build_review_candidate(note_id)
