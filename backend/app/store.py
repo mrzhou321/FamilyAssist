@@ -155,7 +155,29 @@ class InMemoryStore:
         return member
 
     def delete_member(self, member_id: int) -> bool:
-        return self.members.pop(member_id, None) is not None
+        if self.members.pop(member_id, None) is None:
+            return False
+        self.notes = {
+            note_id: note.model_copy(update={"member_id": None}) if note.member_id == member_id else note
+            for note_id, note in self.notes.items()
+        }
+        self.memories = {
+            memory_id: memory.model_copy(update={"member_id": None}) if memory.member_id == member_id else memory
+            for memory_id, memory in self.memories.items()
+        }
+        self.recommendation_events = {
+            event_id: event.model_copy(update={"member_id": None}) if event.member_id == member_id else event
+            for event_id, event in self.recommendation_events.items()
+        }
+        self.pairing_tokens = {
+            token_hash: token for token_hash, token in self.pairing_tokens.items() if token.member_id != member_id
+        }
+        self.member_sessions = {
+            token_hash: session
+            for token_hash, session in self.member_sessions.items()
+            if session.member_id != member_id
+        }
+        return True
 
     def create_note(self, payload: NoteCreate) -> Note:
         self._note_id += 1

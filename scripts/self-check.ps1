@@ -1727,6 +1727,26 @@ assert events
 assert events[0].domain == RecommendationDomain.exercise
 assert 101 in events[0].memory_ids
 
+delete_store = InMemoryStore()
+delete_token = delete_store.create_pairing_token(1, "http://localhost:5173")
+assert delete_token is not None
+delete_session = delete_store.exchange_pairing_token(
+    PairingExchange(pairing_token=delete_token.pairing_token, device_name="delete-member-phone")
+)
+assert delete_session is not None
+delete_note = delete_store.create_note(NoteCreate(member_id=1, content="delete member note"))
+delete_memory = delete_store.extract_memory_from_note(delete_note.id)
+delete_store.make_recommendation(RecommendationDomain.exercise, 1)
+assert delete_store.delete_member(1) is True
+assert delete_store.delete_member(1) is False
+assert delete_store.validate_member_token(delete_session.access_token) is None
+assert delete_store.list_member_sessions(1) == []
+assert all(token.member_id != 1 for token in delete_store.pairing_tokens.values())
+assert delete_store.notes[delete_note.id].member_id is None
+if delete_memory is not None:
+    assert delete_store.memories[delete_memory.id].member_id is None
+assert delete_store.list_recommendation_events(1) == []
+
 print("backend_store_smoke_ok")
 '@ | Set-Content -LiteralPath $smoke -Encoding UTF8
   Push-Location "$root\backend"
