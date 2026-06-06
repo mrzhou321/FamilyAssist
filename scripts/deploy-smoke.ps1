@@ -1,5 +1,6 @@
 param(
-  [switch]$SkipModelPull
+  [switch]$SkipModelPull,
+  [switch]$SkipIfDockerUnavailable
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,11 +13,25 @@ function Test-DockerDaemon {
   try {
     docker version --format "{{.Server.Version}}" 2>$null | Out-Null
   } catch {
-    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, then rerun scripts\deploy-smoke.ps1."
+    return $false
   }
   if ($LASTEXITCODE -ne 0) {
-    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, then rerun scripts\deploy-smoke.ps1."
+    return $false
   }
+  return $true
+}
+
+function Test-ShouldSkipMissingDocker {
+  if ($SkipIfDockerUnavailable) {
+    return $true
+  }
+  if ($env:DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE -eq "1") {
+    return $true
+  }
+  if ($env:CI -eq "true" -or $env:CI -eq "1") {
+    return $true
+  }
+  return $false
 }
 
 function Compose($arguments) {
@@ -36,7 +51,13 @@ function Compose($arguments) {
 }
 
 try {
-  Test-DockerDaemon
+  if (-not (Test-DockerDaemon)) {
+    if (Test-ShouldSkipMissingDocker) {
+      Write-Host "deploy_smoke_skipped_docker_unavailable"
+      exit 0
+    }
+    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, then rerun scripts\deploy-smoke.ps1. In CI jobs without Docker, set CI=true, DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE=1, or pass -SkipIfDockerUnavailable."
+  }
 
   if ($SkipModelPull) {
     $override = Join-Path ([System.IO.Path]::GetTempPath()) "familyassister-compose-smoke.override.yml"

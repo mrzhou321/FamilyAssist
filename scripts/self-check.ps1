@@ -42,7 +42,7 @@ Step "Deployment and backup docs" {
   if ($readme.IndexOf("ADMIN_PASSWORD") -lt 0 -or $readme.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
     throw "README does not remind operators to rotate default secrets"
   }
-  if ($readme.IndexOf("scripts\deploy-smoke.ps1") -lt 0 -or $readme.IndexOf("-SkipModelPull") -lt 0) {
+  if ($readme.IndexOf("scripts\deploy-smoke.ps1") -lt 0 -or $readme.IndexOf("-SkipModelPull") -lt 0 -or $readme.IndexOf("-SkipIfDockerUnavailable") -lt 0) {
     throw "README does not document optional Docker compose smoke test"
   }
   Write-Host "deployment_backup_docs_ok"
@@ -65,6 +65,13 @@ Step "Deployment smoke script" {
   }
   if ($deploySmoke.IndexOf("Test-DockerDaemon") -lt 0 -or $deploySmoke.IndexOf("Docker daemon is not reachable") -lt 0) {
     throw "Deploy smoke script does not preflight Docker daemon availability"
+  }
+  if ($deploySmoke.IndexOf("SkipIfDockerUnavailable") -lt 0 -or $deploySmoke.IndexOf("DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE") -lt 0 -or $deploySmoke.IndexOf("deploy_smoke_skipped_docker_unavailable") -lt 0) {
+    throw "Deploy smoke script does not expose an explicit Docker-unavailable skip path"
+  }
+  $manualAcceptance = Get-Content "$root\docs\MANUAL_ACCEPTANCE.md" -Raw -Encoding UTF8
+  if ($manualAcceptance.IndexOf("-SkipIfDockerUnavailable") -lt 0 -or $manualAcceptance.IndexOf("DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE") -lt 0) {
+    throw "Manual acceptance docs do not explain optional Docker-unavailable smoke skips"
   }
   Write-Host "deployment_smoke_script_ok"
 }

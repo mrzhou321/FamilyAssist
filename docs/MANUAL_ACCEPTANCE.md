@@ -15,6 +15,7 @@ Use this checklist for PRD items that cannot be fully proven by local automated 
 
 - Start Docker Desktop or the Docker service.
 - Run `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull`.
+- In CI jobs that do not provide a Docker daemon, use `-SkipIfDockerUnavailable` or set `DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE=1` so this optional deployment smoke is reported as skipped instead of failed.
 - For full deployment validation, run `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1` and allow model pulls to finish.
 - Confirm `/mobile/`, `/admin/`, `/health`, and same-origin `/api` are reachable through nginx.
 

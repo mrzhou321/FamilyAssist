@@ -61,3 +61,9 @@ For a faster container-build smoke test that skips model pulls:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull
 ```
+
+CI jobs without a Docker daemon can skip this optional smoke test cleanly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull -SkipIfDockerUnavailable
+```
