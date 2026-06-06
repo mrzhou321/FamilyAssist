@@ -83,8 +83,16 @@ export default function Pairing() {
 
   async function copyLink() {
     if (!pairing) return
-    await navigator.clipboard?.writeText(pairing.pairing_url)
-    setMessage('配对链接已复制')
+    if (!navigator.clipboard?.writeText) {
+      setMessage('当前浏览器不支持自动复制，请手动复制配对链接')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(pairing.pairing_url)
+      setMessage('配对链接已复制')
+    } catch {
+      setMessage('复制失败，请手动复制配对链接')
+    }
   }
 
   async function revokeSession(tokenHash: string) {
