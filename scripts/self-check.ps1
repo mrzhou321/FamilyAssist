@@ -323,6 +323,107 @@ print("backend_llm_extractor_ok")
   }
 }
 
+Step "Backend LLM recommender smoke" {
+  $recommendSmoke = New-TemporaryFile
+  @'
+import asyncio
+
+import httpx
+
+import app.llm_recommender as recommender
+from app.llm_recommender import stream_recommendation_content
+from app.schemas import Recommendation, RecommendationDomain, SystemSettings
+
+
+class MockStreamResponse:
+    def __init__(self, lines):
+        self.lines = lines
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    def raise_for_status(self):
+        return None
+
+    async def aiter_lines(self):
+        for line in self.lines:
+            yield line
+
+
+class MockOllamaClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    def stream(self, method, path, json):
+        assert method == "POST"
+        assert path == "/api/generate"
+        assert json["stream"] is True
+        return MockStreamResponse([
+            "{\"response\":\"LLM \",\"done\":false}",
+            "{\"response\":\"advice\",\"done\":false}",
+            "{\"done\":true}",
+        ])
+
+
+class BadOllamaClient(MockOllamaClient):
+    def stream(self, method, path, json):
+        return MockStreamResponse(["not-json"])
+
+
+async def collect(settings):
+    recommendation = Recommendation(
+        domain=RecommendationDomain.diet,
+        content="\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b",
+        basis=["\u4e0d\u5403\u9999\u83dc"],
+        basis_refs=[],
+    )
+    return "".join([chunk async for chunk in stream_recommendation_content(recommendation, settings)])
+
+
+async def main():
+    original_client = recommender.httpx.AsyncClient
+    recommender.httpx.AsyncClient = MockOllamaClient
+    try:
+        streamed = await collect(SystemSettings(llm_provider="ollama"))
+    finally:
+        recommender.httpx.AsyncClient = original_client
+    assert streamed == "LLM advice"
+
+    recommender.httpx.AsyncClient = BadOllamaClient
+    try:
+        fallback = await collect(SystemSettings(llm_provider="ollama"))
+    finally:
+        recommender.httpx.AsyncClient = original_client
+    assert fallback == "\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b"
+
+    cloud_fallback = await collect(SystemSettings(llm_provider="deepseek", cloud_llm_risk_acknowledged=True))
+    assert cloud_fallback == "\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b"
+
+
+asyncio.run(main())
+print("backend_llm_recommender_ok")
+'@ | Set-Content -LiteralPath $recommendSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $recommendSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend LLM recommender smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $recommendSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend API smoke" {
   $apiSmoke = New-TemporaryFile
   @'

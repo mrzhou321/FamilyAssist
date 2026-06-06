@@ -21,6 +21,7 @@ from .core.config import settings
 from .core.db import engine
 from .data import DataStore, get_data_store, seed_database
 from .embeddings import EMBEDDING_DIMENSION
+from .llm_recommender import stream_recommendation_content
 from .schemas import (
     AdminLogin,
     AuthToken,
@@ -277,16 +278,13 @@ async def stream_recommendation(
     context: RequestContext = Depends(get_request_context),
 ) -> StreamingResponse:
     recommendation = await data.make_recommendation(domain, scoped_member_id(member_id, context))
+    system_settings = await data.get_settings()
 
     async def events() -> AsyncIterator[str]:
-        for chunk in _chunk_text(recommendation.content):
+        async for chunk in stream_recommendation_content(recommendation, system_settings):
             yield f"data: {chunk}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
-
-
-def _chunk_text(text: str, size: int = 4) -> list[str]:
-    return [text[index : index + size] for index in range(0, len(text), size)]
 
 
 @app.get("/api/weather/today", response_model=WeatherContext)
