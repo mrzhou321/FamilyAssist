@@ -71,6 +71,9 @@ Step "Deployment and backup docs" {
   if ($readme.IndexOf("ADMIN_PASSWORD") -lt 0 -or $readme.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
     throw "README does not remind operators to rotate default secrets"
   }
+  if ($readme.IndexOf("Copy-Item .env.example .env") -lt 0 -or $readme.IndexOf("POSTGRES_PASSWORD") -lt 0) {
+    throw "README does not document .env-based deployment secret overrides"
+  }
   if ($readme.IndexOf("scripts\deploy-smoke.ps1") -lt 0 -or $readme.IndexOf("-SkipModelPull") -lt 0 -or $readme.IndexOf("-SkipIfDockerUnavailable") -lt 0) {
     throw "README does not document optional Docker compose smoke test"
   }
@@ -116,6 +119,13 @@ Step "Deployment security defaults" {
   }
   if ($compose.IndexOf("ADMIN_PASSWORD") -lt 0 -or $compose.IndexOf("ADMIN_TOKEN_SECRET") -lt 0) {
     throw "Docker compose must expose admin secret environment variables"
+  }
+  if ($compose.IndexOf('${ADMIN_PASSWORD:-family-admin}') -lt 0 -or $compose.IndexOf('${ADMIN_TOKEN_SECRET:-family-assister-dev-secret}') -lt 0 -or $compose.IndexOf('${POSTGRES_PASSWORD:-family_dev_password}') -lt 0) {
+    throw "Docker compose should allow .env overrides for deployment secrets"
+  }
+  $envExample = Get-Content "$root\.env.example" -Raw -Encoding UTF8
+  if ($envExample.IndexOf("ADMIN_PASSWORD=change-this-admin-password") -lt 0 -or $envExample.IndexOf("ADMIN_TOKEN_SECRET=change-this-long-random-token-secret") -lt 0 -or $envExample.IndexOf("POSTGRES_PASSWORD=change-this-postgres-password") -lt 0) {
+    throw ".env.example does not guide operators to replace deployment secrets"
   }
   if ($nginx.IndexOf("location /api") -lt 0 -or $nginx.IndexOf("proxy_pass http://backend:8000") -lt 0) {
     throw "Nginx does not proxy same-origin API requests to the backend"

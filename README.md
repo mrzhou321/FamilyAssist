@@ -4,7 +4,10 @@ FamilyAssister is a self-hosted family assistant for quick notes, structured fam
 
 ## Run
 
+For local development the compose file has safe-to-start defaults. Before using FamilyAssister for real family data, copy `.env.example` to `.env` and change at least `POSTGRES_PASSWORD`, `ADMIN_PASSWORD`, and `ADMIN_TOKEN_SECRET`.
+
 ```powershell
+Copy-Item .env.example .env
 docker compose up --build
 ```
 
@@ -14,7 +17,7 @@ Open:
 - Admin console: `http://localhost/admin/`
 - Backend health: `http://localhost:8000/health`
 
-Default admin credentials in local compose are `admin` / `family-admin`. Change `ADMIN_PASSWORD` and `ADMIN_TOKEN_SECRET` in `docker-compose.yml` before using the service for real family data.
+Default admin credentials in local compose are `admin` / `family-admin` only when `.env` is not set.
 
 ## Data
 
