@@ -206,8 +206,11 @@ Step "Frontend offline cache wiring" {
   if (Test-Path "$root\frontend\src\mobile\storage\quickNoteQueue.ts") {
     throw "Legacy quick-note queue module should not coexist with the current offline queue"
   }
-  if ($noteQueue.IndexOf("for (const note of queued)") -lt 0 -or $noteQueue.IndexOf("catch {") -lt 0 -or $noteQueue.IndexOf("Keep failed items queued") -lt 0) {
+  if ($noteQueue.IndexOf("for (const note of queued)") -lt 0 -or $noteQueue.IndexOf("catch (error)") -lt 0 -or $noteQueue.IndexOf("continue syncing later notes") -lt 0) {
     throw "Offline note sync does not keep later queued notes moving after a failure"
+  }
+  if ($noteQueue.IndexOf("error instanceof ApiError") -lt 0 -or $noteQueue.IndexOf("[401, 403].includes(error.status)") -lt 0 -or $noteQueue.IndexOf("await removeQueuedNote(note.queue_id)") -lt 0) {
+    throw "Offline note sync should discard notes that can never sync under the current member auth"
   }
   $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
   $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw -Encoding UTF8

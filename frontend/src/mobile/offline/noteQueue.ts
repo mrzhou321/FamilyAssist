@@ -1,4 +1,4 @@
-import { api } from '@shared/api'
+import { ApiError, api } from '@shared/api'
 import type { Note, NoteCreatePayload } from '@shared/types'
 
 export type QueuedNote = NoteCreatePayload & {
@@ -84,8 +84,11 @@ export async function syncQueuedNotes(): Promise<number> {
       })
       await removeQueuedNote(note.queue_id)
       synced += 1
-    } catch {
-      // Keep failed items queued and continue syncing later notes.
+    } catch (error) {
+      if (error instanceof ApiError && [401, 403].includes(error.status)) {
+        await removeQueuedNote(note.queue_id)
+      }
+      // Keep transient failures queued and continue syncing later notes.
     }
   }
   return synced
