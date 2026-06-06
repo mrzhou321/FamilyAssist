@@ -74,6 +74,15 @@ Step "Frontend review workflow wiring" {
   Write-Host "frontend_review_workflow_wiring_ok"
 }
 
+Step "Frontend copy placeholders" {
+  $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
+    ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
+  if (($frontendSource | Select-String -Pattern "\?\?\?" -SimpleMatch).Count -gt 0) {
+    throw "Frontend source contains placeholder question marks"
+  }
+  Write-Host "frontend_copy_placeholders_ok"
+}
+
 Step "Backend compile" {
   & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\app"
   if ($LASTEXITCODE -ne 0) {

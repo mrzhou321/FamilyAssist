@@ -168,7 +168,7 @@ export default function QuickNote() {
           {getCurrentMemberName()}，<span className="text-[var(--color-accent)]">随手记一笔</span>
         </h1>
         {!isPaired ? (
-          <p className="mt-1 text-xs text-[var(--color-muted)]">??????????????????????</p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">先用管理员生成的配对码绑定设备，再开始记录家庭记忆。</p>
         ) : null}
       </div>
 

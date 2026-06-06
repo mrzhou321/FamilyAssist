@@ -49,9 +49,9 @@ export default function MemoryVault() {
   const hasLoadedMemories = Boolean(data && data.length > 0)
   const memories = hasLoadedMemories ? data! : normalizeMockMemories()
   const message = isError
-    ? '???????????????'
+    ? '记忆加载失败，正在显示本地示例'
     : !navigator.onLine && hasLoadedMemories
-      ? '????????????????'
+      ? '当前离线，正在显示上次加载的记忆'
       : ''
 
   const filtered = useMemo(() => {
