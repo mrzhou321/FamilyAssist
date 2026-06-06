@@ -177,13 +177,14 @@ export default function QuickNote() {
   }
 
   function handleSubmit() {
-    if (!text.trim()) return
+    const trimmedText = text.trim()
+    if (!trimmedText) return
     if (!isPaired) {
       setMessage('请先由管理员生成配对码，扫码绑定后再记录家庭记忆')
       return
     }
     createNote(
-      { content: text, member_id: memberId, source },
+      { content: trimmedText, member_id: memberId, source },
       {
         onSuccess: () => {
           setText('')

@@ -172,6 +172,9 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("detectMobileCapabilities") -lt 0 -or $quickNote.IndexOf("CapabilityPill") -lt 0) {
     throw "Quick note does not surface mobile capability status"
   }
+  if ($quickNote.IndexOf("const trimmedText = text.trim()") -lt 0 -or $quickNote.IndexOf("content: trimmedText") -lt 0) {
+    throw "Quick note should trim business text before submission"
+  }
   if (Test-Path "$root\frontend\src\shared\mocks\index.ts") {
     throw "Mobile production pages should not keep shared mock family data"
   }
@@ -276,6 +279,9 @@ Step "Frontend memory metadata wiring" {
   }
   if ($memoryLibrary.IndexOf("expires_at: editing.expires_at") -lt 0) {
     throw "Memory library does not persist expiry edits"
+  }
+  if ($memoryLibrary.IndexOf("const trimmedContent = editing.content.trim()") -lt 0 -or $memoryLibrary.IndexOf("content: trimmedContent") -lt 0) {
+    throw "Memory library should trim and reject blank memory content before saving"
   }
   Write-Host "frontend_memory_metadata_wiring_ok"
 }

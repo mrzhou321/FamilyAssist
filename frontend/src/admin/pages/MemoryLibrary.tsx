@@ -97,12 +97,17 @@ export default function MemoryLibrary() {
 
   async function saveMemory() {
     if (!editing) return
+    const trimmedContent = editing.content.trim()
+    if (!trimmedContent) {
+      setMessage('记忆内容不能为空')
+      return
+    }
     try {
       const saved = await api.patch<Memory>(`/memories/${editing.id}`, {
         member_id: editing.member_id,
         type: editing.type,
         domain: editing.domain,
-        content: editing.content,
+        content: trimmedContent,
         confidence: editing.confidence,
         expires_at: editing.expires_at,
       })
