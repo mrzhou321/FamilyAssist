@@ -453,6 +453,21 @@ print("backend_db_metadata_ok")
   }
 }
 
+Step "Backend pairing token cleanup wiring" {
+  $dataSource = Get-Content "$root\backend\app\data.py" -Raw -Encoding UTF8
+  $storeSource = Get-Content "$root\backend\app\store.py" -Raw -Encoding UTF8
+  if ($dataSource.IndexOf("async def cleanup_pairing_tokens") -lt 0 -or $dataSource.IndexOf("delete(models.PairingToken)") -lt 0 -or $dataSource.IndexOf("models.PairingToken.used.is_(True)") -lt 0) {
+    throw "Database store does not clean expired or used pairing tokens"
+  }
+  if ($storeSource.IndexOf("def cleanup_pairing_tokens") -lt 0 -or $storeSource.IndexOf("if record.used or record.expires_at <= now()") -lt 0) {
+    throw "In-memory store does not clean expired or used pairing tokens"
+  }
+  if ($dataSource.IndexOf("await self.cleanup_pairing_tokens()") -lt 0 -or $storeSource.IndexOf("self.cleanup_pairing_tokens()") -lt 0) {
+    throw "Pairing token creation does not opportunistically clean stale tokens"
+  }
+  Write-Host "backend_pairing_token_cleanup_wiring_ok"
+}
+
 Step "Backend extraction failure review handoff" {
   $handoffSmoke = New-TemporaryFile
   @'
@@ -1383,6 +1398,14 @@ session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairi
 assert session is not None
 assert session.member_id == 1
 assert store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token)) is None
+assert len(store.pairing_tokens) == 1
+assert store.create_pairing_token(1, "http://localhost:5173") is not None
+assert len(store.pairing_tokens) == 1
+for token_hash, record in list(store.pairing_tokens.items()):
+    if record.expires_at > now() and not record.used:
+        store.pairing_tokens[token_hash] = record.model_copy(update={"expires_at": now() - timedelta(minutes=1)})
+        break
+assert store.cleanup_pairing_tokens() == 1
 assert session.access_token.count(".") == 2
 payload = decode_member_token(session.access_token)
 assert payload["member_id"] == 1

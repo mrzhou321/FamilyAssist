@@ -75,6 +75,7 @@ class DataStore(Protocol):
     async def record_feedback(self, payload: RecommendationFeedback) -> Memory: ...
     async def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None: ...
     async def exchange_pairing_token(self, payload: PairingExchange) -> MemberSession | None: ...
+    async def cleanup_pairing_tokens(self) -> int: ...
     async def validate_member_token(self, access_token: str) -> MemberSession | None: ...
     async def list_member_sessions(self, member_id: int | None = None) -> list[MemberDeviceSession]: ...
     async def revoke_member_session(self, token_hash: str) -> bool: ...
@@ -152,6 +153,9 @@ class InMemoryDataStore:
 
     async def exchange_pairing_token(self, payload: PairingExchange) -> MemberSession | None:
         return self.inner.exchange_pairing_token(payload)
+
+    async def cleanup_pairing_tokens(self) -> int:
+        return self.inner.cleanup_pairing_tokens()
 
     async def validate_member_token(self, access_token: str) -> MemberSession | None:
         return self.inner.validate_member_token(access_token)
@@ -516,6 +520,7 @@ class DatabaseDataStore:
         return self._to_memory(memory)
 
     async def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None:
+        await self.cleanup_pairing_tokens()
         member = await self.session.get(models.Member, member_id)
         if member is None:
             return None
@@ -553,6 +558,15 @@ class DatabaseDataStore:
         )
         await self.session.commit()
         return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
+
+    async def cleanup_pairing_tokens(self) -> int:
+        result = await self.session.execute(
+            delete(models.PairingToken).where(
+                (models.PairingToken.used.is_(True)) | (models.PairingToken.expires_at <= now())
+            )
+        )
+        await self.session.commit()
+        return int(result.rowcount or 0)
 
     async def validate_member_token(self, access_token: str) -> MemberSession | None:
         payload = decode_member_token(access_token)

@@ -331,6 +331,7 @@ class InMemoryStore:
         return memory
 
     def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None:
+        self.cleanup_pairing_tokens()
         if member_id not in self.members:
             return None
         raw_token = token_urlsafe(24)
@@ -373,6 +374,16 @@ class InMemoryStore:
             created_at=now(),
         )
         return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
+
+    def cleanup_pairing_tokens(self) -> int:
+        expired_or_used = [
+            token_hash
+            for token_hash, record in self.pairing_tokens.items()
+            if record.used or record.expires_at <= now()
+        ]
+        for token_hash in expired_or_used:
+            del self.pairing_tokens[token_hash]
+        return len(expired_or_used)
 
     def validate_member_token(self, access_token: str) -> MemberSession | None:
         payload = decode_member_token(access_token)
