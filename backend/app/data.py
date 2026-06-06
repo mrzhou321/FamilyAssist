@@ -12,7 +12,7 @@ from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
-from .recommendation_engine import build_recommendation
+from .recommendation_engine import build_feedback_memory_content, build_recommendation
 from .schemas import (
     Member,
     MemberCreate,
@@ -394,12 +394,11 @@ class DatabaseDataStore:
             RecommendationDomain.diet: models.MemoryDomain.diet,
             RecommendationDomain.exercise: models.MemoryDomain.exercise,
         }
-        verdict = "采纳" if payload.accepted else "不合适"
         memory = models.Memory(
             member_id=payload.member_id,
             type=models.MemoryType.episode,
             domain=domain_map[payload.domain],
-            content=f"用户反馈「{verdict}」：{payload.content}",
+            content=build_feedback_memory_content(payload.content, payload.accepted, await self.get_weather()),
             confidence=0.84,
             expires_at=default_expires_at(MemoryType.episode),
         )

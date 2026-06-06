@@ -53,6 +53,14 @@ def build_recommendation(
     return Recommendation(domain=domain, content=content, basis=basis, basis_refs=basis_refs)
 
 
+def build_feedback_memory_content(feedback_content: str, accepted: bool, weather: WeatherContext) -> str:
+    verdict = "\u91c7\u7eb3" if accepted else "\u4e0d\u5408\u9002"
+    return (
+        f"\u7528\u6237\u53cd\u9988\u300c{verdict}\u300d\uff1a{feedback_content}"
+        f"\uff08\u5f53\u65e5{weather.city}{weather.temperature_c}\u00b0C\u3001{weather.condition}\uff09"
+    )
+
+
 def _dressing_content(name: str, thermal_sensitivity: int, weather: WeatherContext) -> str:
     if weather.temperature_c <= 18 or thermal_sensitivity < 0:
         layer = "\u957f\u8896\u52a0\u8f7b\u4fbf\u5916\u5957"

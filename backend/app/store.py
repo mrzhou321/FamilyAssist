@@ -3,7 +3,7 @@ from hashlib import sha256
 from secrets import token_urlsafe
 
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
-from .recommendation_engine import build_recommendation
+from .recommendation_engine import build_feedback_memory_content, build_recommendation
 from .schemas import (
     Member,
     MemberCreate,
@@ -250,15 +250,13 @@ class InMemoryStore:
             RecommendationDomain.diet: MemoryDomain.diet,
             RecommendationDomain.exercise: MemoryDomain.exercise,
         }
-        verdict = "采纳" if payload.accepted else "不合适"
-        content = f"用户反馈「{verdict}」：{payload.content}"
         self._memory_id += 1
         memory = Memory(
             id=self._memory_id,
             member_id=payload.member_id,
             type=MemoryType.episode,
             domain=domain_map[payload.domain],
-            content=content,
+            content=build_feedback_memory_content(payload.content, payload.accepted, self.get_weather()),
             confidence=0.84,
             expires_at=default_expires_at(MemoryType.episode),
             created_at=now(),

@@ -7,7 +7,6 @@ function Step($name, $script) {
 }
 
 $root = (Resolve-Path "$PSScriptRoot\..").Path
-
 Step "Frontend build" {
   Push-Location "$root\frontend"
   try {
@@ -103,11 +102,9 @@ Step "Backend API smoke" {
 from fastapi.testclient import TestClient
 
 from app.main import app
-
 client = TestClient(app)
 
 assert client.get("/health").status_code == 200
-
 assert client.get("/api/members").status_code == 401
 assert client.get("/api/weather/today").status_code == 401
 admin_login = client.post("/api/admin/login", json={"username": "admin", "password": "family-admin"})
@@ -144,7 +141,6 @@ contents = {item["domain"]: item["content"] for item in batch.json()["recommenda
 assert "\u00b0C" in contents["dressing"]
 assert "\u5c11\u7cd6" in contents["diet"]
 assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
-assert "\u5c11\u7cd6" in contents["diet"]
 assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
 assert "\u819d\u76d6" in contents["exercise"]
 
@@ -155,6 +151,14 @@ assert source_note.json()["content"] == "member 1 knee note"
 with client.stream("GET", "/api/recommendations/diet/stream?member_id=1") as stream:
     assert stream.status_code == 200
     assert "data:" in "".join(stream.iter_text())
+
+feedback = client.post(
+    "/api/recommendations/feedback",
+    json={"domain": "dressing", "member_id": 1, "content": contents["dressing"], "accepted": True},
+)
+assert feedback.status_code == 201
+assert "\u91c7\u7eb3" in feedback.json()["content"]
+assert "\u00b0C" in feedback.json()["content"]
 
 assert client.post("/api/pairing/members/1").status_code == 401
 pairing = client.post("/api/pairing/members/1", headers=admin_headers)
@@ -227,13 +231,13 @@ from app.schemas import (
     NoteCreate,
     PairingExchange,
     RecommendationDomain,
+    RecommendationFeedback,
     SystemSettings,
 )
 from app.memory_dedupe import is_duplicate_memory
 from app.store import InMemoryStore, now
 
 store = InMemoryStore()
-
 token = store.create_pairing_token(1, "http://localhost:5173")
 assert token is not None
 session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token, device_name="store-smoke-phone"))
@@ -260,9 +264,19 @@ contents = {item.domain: item.content for item in batch.recommendations}
 assert "\u00b0C" in contents[RecommendationDomain.dressing]
 assert "\u5c11\u7cd6" in contents[RecommendationDomain.diet]
 assert "\u7cd6\u5c3f\u75c5" in contents[RecommendationDomain.diet]
-assert "\u5c11\u7cd6" in contents[RecommendationDomain.diet]
 assert "\u7cd6\u5c3f\u75c5" in contents[RecommendationDomain.diet]
 assert "\u819d\u76d6" in contents[RecommendationDomain.exercise]
+
+feedback_memory = store.record_feedback(
+    RecommendationFeedback(
+        domain=RecommendationDomain.dressing,
+        member_id=1,
+        content=contents[RecommendationDomain.dressing],
+        accepted=True,
+    )
+)
+assert "\u91c7\u7eb3" in feedback_memory.content
+assert "\u00b0C" in feedback_memory.content
 
 settings = store.update_settings(SystemSettings(default_city="Shanghai", extraction_retries=2))
 assert settings.default_city == "Shanghai"
