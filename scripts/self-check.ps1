@@ -105,6 +105,13 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("setPhotoCapture(null)") -lt 0 -or $quickNote.IndexOf("photoInputRef.current.value = ''") -lt 0) {
     throw "Quick note does not clear photo capture state after submit or recapture"
   }
+  $capabilities = Get-Content "$root\frontend\src\mobile\capabilities.ts" -Raw -Encoding UTF8
+  if ($capabilities.IndexOf("detectMobileCapabilities") -lt 0 -or $capabilities.IndexOf("SpeechRecognition") -lt 0 -or $capabilities.IndexOf("getUserMedia") -lt 0 -or $capabilities.IndexOf("indexedDB") -lt 0) {
+    throw "Mobile capability detection module is incomplete"
+  }
+  if ($quickNote.IndexOf("detectMobileCapabilities") -lt 0 -or $quickNote.IndexOf("CapabilityPill") -lt 0) {
+    throw "Quick note does not surface mobile capability status"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"
@@ -216,6 +223,9 @@ Step "Frontend mobile pairing scanner wiring" {
   $pairDevice = Get-Content "$root\frontend\src\mobile\pages\PairDevice.tsx" -Raw -Encoding UTF8
   if ($pairDevice.IndexOf("BarcodeDetector") -lt 0 -or $pairDevice.IndexOf("getUserMedia") -lt 0 -or $pairDevice.IndexOf("qr_code") -lt 0) {
     throw "Mobile pairing page does not wire QR scanning"
+  }
+  if ($pairDevice.IndexOf("detectMobileCapabilities") -lt 0 -or $pairDevice.IndexOf("CapabilityBadge") -lt 0) {
+    throw "Mobile pairing page does not surface camera and barcode capability status"
   }
   if ($pairDevice.IndexOf("extractPairingToken") -lt 0 -or $pairDevice.IndexOf("searchParams.get('token')") -lt 0) {
     throw "Mobile pairing page does not extract token from scanned pairing URLs"

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../shared/api'
 import { LEGACY_MEMBER_TOKEN_KEY, MEMBER_ID_KEY, MEMBER_NAME_KEY, MEMBER_TOKEN_KEY } from '../../shared/constants'
+import { detectMobileCapabilities } from '../capabilities'
 
 interface MemberSession {
   member_id: number
@@ -44,6 +45,7 @@ function PairDeviceForm() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const frameRef = useRef<number | null>(null)
+  const [capabilities] = useState(() => detectMobileCapabilities())
 
   useEffect(() => () => stopScanner(), [])
 
@@ -143,6 +145,11 @@ function PairDeviceForm() {
       </div>
 
       <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          <CapabilityBadge label="相机" ready={capabilities.camera} />
+          <CapabilityBadge label="扫码" ready={capabilities.barcode} />
+          <CapabilityBadge label="离线壳" ready={capabilities.serviceWorker || capabilities.standalone} />
+        </div>
         <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
           配对 token
           <input
@@ -188,6 +195,20 @@ function PairDeviceForm() {
       <Link to="/" className="text-center text-sm text-[var(--color-muted)]">
         返回速记页
       </Link>
+    </div>
+  )
+}
+
+function CapabilityBadge({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <div
+      className={`rounded-[var(--radius-sm)] border px-2 py-1.5 text-center text-[11px] ${
+        ready
+          ? 'border-[var(--color-sage)]/30 bg-[var(--color-sage)]/10 text-[var(--color-sage)]'
+          : 'border-[var(--color-border)] bg-[var(--color-surface-warm)] text-[var(--color-muted)]'
+      }`}
+    >
+      {label} · {ready ? '可用' : '手动'}
     </div>
   )
 }

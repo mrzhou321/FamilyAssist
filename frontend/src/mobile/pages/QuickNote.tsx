@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCreateNote, useMemberNotes, useMembers, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
+import { detectMobileCapabilities } from '../capabilities'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
 type NoteSource = 'text' | 'voice' | 'photo'
@@ -73,6 +74,7 @@ export default function QuickNote() {
   const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId, isPaired)
   const { data: apiMembers = [] } = useMembers(isPaired)
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
+  const [capabilities] = useState(() => detectMobileCapabilities())
   const memberChoices = apiMembers.length > 0
     ? apiMembers.map((member) => ({ id: member.id, label: member.relation || member.name }))
     : isPaired
@@ -238,6 +240,13 @@ export default function QuickNote() {
         </div>
       ) : null}
 
+      <div className="grid grid-cols-4 gap-2">
+        <CapabilityPill label="语音" ready={capabilities.speech} />
+        <CapabilityPill label="拍照" ready={capabilities.camera} />
+        <CapabilityPill label="离线" ready={capabilities.indexedDb} />
+        <CapabilityPill label="PWA" ready={capabilities.serviceWorker || capabilities.standalone} />
+      </div>
+
       {isPaired ? (
         <>
           <div className="relative noise tilt-1 bg-gradient-to-br from-[#FFF8E8] to-[#FDEFD3]
@@ -341,6 +350,20 @@ export default function QuickNote() {
           </div>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function CapabilityPill({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <div
+      className={`rounded-[var(--radius-sm)] border px-2 py-1.5 text-center text-[11px] ${
+        ready
+          ? 'border-[var(--color-sage)]/30 bg-[var(--color-sage)]/10 text-[var(--color-sage)]'
+          : 'border-[var(--color-border)] bg-white text-[var(--color-muted)]'
+      }`}
+    >
+      {label} · {ready ? '可用' : '受限'}
     </div>
   )
 }
