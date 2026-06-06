@@ -31,6 +31,35 @@ Step "Frontend lint" {
   }
 }
 
+Step "Source text encoding sanity" {
+  $scanRoots = @(
+    "$root\README.md",
+    "$root\docker-compose.yml",
+    "$root\docs",
+    "$root\scripts",
+    "$root\backend\app",
+    "$root\frontend\src",
+    "$root\frontend\public"
+  )
+  $files = foreach ($scanRoot in $scanRoots) {
+    if (Test-Path $scanRoot -PathType Leaf) {
+      Get-Item $scanRoot
+    } elseif (Test-Path $scanRoot -PathType Container) {
+      Get-ChildItem $scanRoot -Recurse -File -Include *.md,*.ps1,*.py,*.ts,*.tsx,*.css,*.html,*.json,*.yml,*.yaml,*.svg,*.webmanifest
+    }
+  }
+  foreach ($file in $files) {
+    $text = Get-Content $file.FullName -Raw -Encoding UTF8
+    if ($text.IndexOf([char]0xfffd) -ge 0) {
+      throw "Source text contains a Unicode replacement character: $($file.FullName)"
+    }
+    if ($text -match "[\uE000-\uF8FF]") {
+      throw "Source text contains private-use characters, which often indicates mojibake: $($file.FullName)"
+    }
+  }
+  Write-Host "source_text_encoding_sanity_ok"
+}
+
 Step "Deployment and backup docs" {
   $readme = Get-Content "$root\README.md" -Raw -Encoding UTF8
   if ($readme.IndexOf("docker compose up --build") -lt 0 -or $readme.IndexOf("http://localhost/admin/") -lt 0 -or $readme.IndexOf("http://localhost/mobile/") -lt 0) {
