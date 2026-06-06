@@ -57,6 +57,23 @@ Step "Frontend offline cache wiring" {
   Write-Host "frontend_offline_cache_wiring_ok"
 }
 
+Step "Frontend review workflow wiring" {
+  $reviewPage = Get-Content "$root\frontend\src\admin\pages\Review.tsx" -Raw -Encoding UTF8
+  if ($reviewPage -match "\?\?\?") {
+    throw "Review page contains placeholder question marks"
+  }
+  if ($reviewPage -notmatch "StatusFilter" -or $reviewPage -notmatch "FILTER_LABEL" -or $reviewPage -notmatch "setStatusFilter") {
+    throw "Review page status filters are missing"
+  }
+  if ($reviewPage -notmatch "understanding" -or $reviewPage -notmatch "reviewed" -or $reviewPage -notmatch "rejected") {
+    throw "Review page does not expose all review statuses"
+  }
+  if ($reviewPage -notmatch "/review/notes/\$\{activeSelectedId\}/approve" -or $reviewPage -notmatch "/review/notes/\$\{activeSelectedId\}/reject") {
+    throw "Review page approve/reject actions are not wired"
+  }
+  Write-Host "frontend_review_workflow_wiring_ok"
+}
+
 Step "Backend compile" {
   & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\app"
   if ($LASTEXITCODE -ne 0) {
