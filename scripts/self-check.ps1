@@ -336,11 +336,14 @@ Step "Frontend PWA install wiring" {
   if ($serviceWorker.IndexOf("/mobile/index.html") -ge 0) {
     throw "Service worker should not precache a mobile index path that nginx does not serve directly"
   }
-  if ($serviceWorker.IndexOf("family-assister-shell-v2") -lt 0) {
+  if ($serviceWorker.IndexOf("family-assister-shell-v3") -lt 0) {
     throw "Service worker cache version should be bumped after shell precache changes"
   }
   if ($serviceWorker.IndexOf("cacheEntryAssets") -lt 0 -or $serviceWorker.IndexOf("/assets/") -lt 0 -or $serviceWorker.IndexOf("/admin/") -lt 0) {
     throw "Service worker does not warm current hashed entry assets for offline shell startup"
+  }
+  if ($serviceWorker.IndexOf("const shellUrl = url.pathname.startsWith('/admin') ? '/admin/' : '/mobile/'") -lt 0 -or $serviceWorker.IndexOf("caches.match(shellUrl)") -lt 0) {
+    throw "Service worker does not use route-specific offline navigation fallback"
   }
   $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
   if ($mobileMain.IndexOf("beforeinstallprompt") -lt 0 -or $mobileMain.IndexOf("useInstallPrompt") -lt 0 -or $mobileMain.IndexOf("navigator.serviceWorker.register") -lt 0) {

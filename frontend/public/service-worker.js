@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-assister-shell-v2'
+const CACHE_NAME = 'family-assister-shell-v3'
 const SHELL_URLS = [
   '/mobile/',
   '/favicon.svg',
@@ -38,14 +38,15 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return
 
   if (request.mode === 'navigate') {
+    const shellUrl = url.pathname.startsWith('/admin') ? '/admin/' : '/mobile/'
     event.respondWith(
       fetch(request)
         .then((response) => {
           const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put('/mobile/', copy))
+          caches.open(CACHE_NAME).then((cache) => cache.put(shellUrl, copy))
           return response
         })
-        .catch(() => caches.match('/mobile/')),
+        .catch(() => caches.match(shellUrl)),
     )
     return
   }
