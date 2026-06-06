@@ -143,6 +143,10 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice.IndexOf("hasPairedMember") -lt 0 -or $todayAdvice.IndexOf("if (!isPaired) return") -lt 0 -or $todayAdvice.IndexOf('to="/pair"') -lt 0) {
     throw "Today advice does not gate recommendations behind pairing"
   }
+  $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
+  if ($mobileMain.IndexOf("QueryClientProvider") -lt 0 -or $mobileMain.IndexOf("const queryClient = new QueryClient()") -lt 0) {
+    throw "Mobile shell does not provide React Query context for data hooks"
+  }
   $memoryVault = Get-Content "$root\frontend\src\mobile\pages\MemoryVault.tsx" -Raw -Encoding UTF8
   $memoryVaultHasPairingCheck = $memoryVault.IndexOf("hasPairedMember") -ge 0
   $memoryVaultUsesEnabledQuery = $memoryVault.IndexOf("useMemberMemories(memberId, isPaired)") -ge 0

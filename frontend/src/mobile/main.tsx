@@ -1,4 +1,5 @@
 import '../globals.css'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
@@ -19,11 +20,15 @@ const NAV = [
   { to: '/memory', icon: '♥', label: '记忆' },
 ]
 
+const queryClient = new QueryClient()
+
 export function MobileApp() {
   return (
-    <BrowserRouter basename="/mobile">
-      <MobileShell />
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter basename="/mobile">
+        <MobileShell />
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }
 
