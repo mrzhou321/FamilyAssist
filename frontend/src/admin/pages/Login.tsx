@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '@shared/api'
+import { ADMIN_TOKEN_KEY } from '@shared/constants'
 
 interface AuthToken {
   access_token: string
@@ -18,7 +19,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     setMessage('')
     try {
       const token = await api.post<AuthToken>('/admin/login', { username, password })
-      localStorage.setItem('admin_token', token.access_token)
+      localStorage.setItem(ADMIN_TOKEN_KEY, token.access_token)
       onLogin()
     } catch {
       setMessage('账号或密码不正确')

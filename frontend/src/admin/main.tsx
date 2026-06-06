@@ -2,6 +2,7 @@ import '../globals.css'
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { ADMIN_TOKEN_KEY } from '../shared/constants'
 import MemoryLibrary from './pages/MemoryLibrary'
 import Login from './pages/Login'
 import Members from './pages/Members'
@@ -18,14 +19,14 @@ const NAV = [
 ]
 
 export function AdminApp() {
-  const [isAuthed, setIsAuthed] = useState(() => Boolean(localStorage.getItem('admin_token')))
+  const [isAuthed, setIsAuthed] = useState(() => Boolean(localStorage.getItem(ADMIN_TOKEN_KEY)))
 
   if (!isAuthed) {
     return <Login onLogin={() => setIsAuthed(true)} />
   }
 
   function logout() {
-    localStorage.removeItem('admin_token')
+    localStorage.removeItem(ADMIN_TOKEN_KEY)
     setIsAuthed(false)
   }
 

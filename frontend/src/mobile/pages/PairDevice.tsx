@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../../shared/api'
+import { LEGACY_MEMBER_TOKEN_KEY, MEMBER_ID_KEY, MEMBER_NAME_KEY, MEMBER_TOKEN_KEY } from '../../shared/constants'
 
 interface MemberSession {
   member_id: number
@@ -27,9 +28,10 @@ export default function PairDevice() {
         pairing_token: token,
         device_name: navigator.userAgent.slice(0, 80),
       })
-      localStorage.setItem('token', session.access_token)
-      localStorage.setItem('member_id', String(session.member_id))
-      localStorage.setItem('member_name', session.member_name)
+      localStorage.setItem(MEMBER_TOKEN_KEY, session.access_token)
+      localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)
+      localStorage.setItem(MEMBER_ID_KEY, String(session.member_id))
+      localStorage.setItem(MEMBER_NAME_KEY, session.member_name)
       setMessage(`已绑定 ${session.member_name}`)
       window.setTimeout(() => navigate('/'), 700)
     } catch {

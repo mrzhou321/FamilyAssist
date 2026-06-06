@@ -1,10 +1,12 @@
 // Thin fetch wrapper — base URL from env, auth header injected automatically
+import { ADMIN_TOKEN_KEY, LEGACY_MEMBER_TOKEN_KEY, MEMBER_TOKEN_KEY } from '../constants'
+
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
 function getToken() {
   return window.location.pathname.startsWith('/admin')
-    ? localStorage.getItem('admin_token')
-    : localStorage.getItem('token')
+    ? localStorage.getItem(ADMIN_TOKEN_KEY)
+    : localStorage.getItem(MEMBER_TOKEN_KEY) ?? localStorage.getItem(LEGACY_MEMBER_TOKEN_KEY)
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

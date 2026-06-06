@@ -137,6 +137,19 @@ Step "Frontend PWA install wiring" {
   Write-Host "frontend_pwa_install_wiring_ok"
 }
 
+Step "Frontend auth token constants" {
+  $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
+    ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
+  if (($frontendSource | Select-String -Pattern "localStorage\.(getItem|setItem|removeItem)\('([^']+)'" ).Count -gt 0) {
+    throw "Frontend still uses raw localStorage auth keys"
+  }
+  $constants = Get-Content "$root\frontend\src\shared\constants\index.ts" -Raw -Encoding UTF8
+  if ($constants.IndexOf("ADMIN_TOKEN_KEY") -lt 0 -or $constants.IndexOf("MEMBER_TOKEN_KEY") -lt 0 -or $constants.IndexOf("LEGACY_MEMBER_TOKEN_KEY") -lt 0) {
+    throw "Frontend auth token constants are incomplete"
+  }
+  Write-Host "frontend_auth_token_constants_ok"
+}
+
 Step "Frontend copy placeholders" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }

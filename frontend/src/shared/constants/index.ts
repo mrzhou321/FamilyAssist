@@ -1,6 +1,10 @@
 // 集中管理所有常量，避免魔法字符串散落各组件
 
-export const AUTH_TOKEN_KEY = 'hearth_token'
+export const ADMIN_TOKEN_KEY = 'admin_token'
+export const MEMBER_TOKEN_KEY = 'token'
+export const LEGACY_MEMBER_TOKEN_KEY = 'hearth_token'
+export const MEMBER_ID_KEY = 'member_id'
+export const MEMBER_NAME_KEY = 'member_name'
 
 export const DOMAINS = ['dressing', 'diet', 'exercise'] as const
 export type Domain = (typeof DOMAINS)[number]
