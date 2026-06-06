@@ -136,6 +136,9 @@ Step "Frontend offline cache wiring" {
   if ($hooks.IndexOf("enabled: enabled && memberId !== null") -lt 0 -or $hooks.IndexOf("memberId === null ? '/memories'") -ge 0 -or $hooks.IndexOf("memberId === null ? '/notes'") -ge 0) {
     throw "Mobile member hooks should require a paired member id before requesting member data"
   }
+  if ($hooks.IndexOf("queryKey: ['notes', memberId]") -lt 0 -or $hooks.IndexOf("queryKey: ['notes', vars.member_id]") -lt 0 -or $hooks.IndexOf("queryKey: ['notes']") -lt 0) {
+    throw "Mobile quick-note mutations do not refresh recent notes"
+  }
   $todayAdvice = Get-Content "$root\frontend\src\mobile\pages\TodayAdvice.tsx" -Raw
   if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
     throw "Today advice does not use offline recommendation and weather cache"

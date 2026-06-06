@@ -43,6 +43,7 @@ export const useCreateNote = () => {
     },
     onSettled: (_, __, vars) => {
       if (vars.member_id) qc.invalidateQueries({ queryKey: ['memories', vars.member_id] })
+      if (vars.member_id) qc.invalidateQueries({ queryKey: ['notes', vars.member_id] })
       qc.invalidateQueries({ queryKey: ['queued-notes'] })
     },
   })
@@ -61,6 +62,7 @@ export const useSyncQueuedNotes = () => {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['queued-notes'] })
       qc.invalidateQueries({ queryKey: ['memories'] })
+      qc.invalidateQueries({ queryKey: ['notes'] })
     },
   })
 }
