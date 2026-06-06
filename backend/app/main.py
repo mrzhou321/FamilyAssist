@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from collections.abc import AsyncIterator
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -19,6 +20,7 @@ from .auth import (
 from .core.config import settings
 from .core.db import engine
 from .data import DataStore, get_data_store, seed_database
+from .embeddings import EMBEDDING_DIMENSION
 from .schemas import (
     AdminLogin,
     AuthToken,
@@ -35,6 +37,8 @@ from .schemas import (
     NoteCreate,
     PairingToken,
     PairingExchange,
+    ProviderCheck,
+    ProviderStatus,
     Recommendation,
     RecommendationBatch,
     RecommendationDomain,
@@ -359,6 +363,83 @@ async def update_settings(
     if payload.llm_provider != "ollama" and not payload.cloud_llm_risk_acknowledged:
         raise HTTPException(status_code=400, detail="Cloud LLM risk acknowledgement is required")
     return await data.update_settings(payload)
+
+
+@app.get("/api/settings/provider-status", response_model=ProviderStatus)
+async def get_provider_status(
+    data: DataStore = Depends(get_data_store),
+    _: None = Depends(require_admin),
+) -> ProviderStatus:
+    current_settings = await data.get_settings()
+    weather = await data.get_weather()
+    return ProviderStatus(
+        database=await _database_check(),
+        llm=await _llm_check(current_settings),
+        weather=_weather_check(current_settings, weather),
+        embedding=ProviderCheck(
+            status="ready",
+            label=current_settings.embedding_model,
+            detail=f"当前向量维度 {EMBEDDING_DIMENSION}，记忆入库会生成可检索 embedding",
+        ),
+        privacy=_privacy_check(current_settings),
+    )
+
+
+async def _database_check() -> ProviderCheck:
+    if not settings.require_database:
+        return ProviderCheck(status="ready", label="内存数据源", detail="开发模式使用内存存储，API 自测可用")
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        return ProviderCheck(status="error", label="PostgreSQL", detail=f"数据库不可达：{exc.__class__.__name__}")
+    return ProviderCheck(status="ready", label="PostgreSQL + pgvector", detail="数据库连接正常")
+
+
+async def _llm_check(current_settings: SystemSettings) -> ProviderCheck:
+    if current_settings.llm_provider != "ollama":
+        return ProviderCheck(
+            status="degraded" if current_settings.cloud_llm_risk_acknowledged else "error",
+            label=current_settings.llm_provider,
+            detail="云端 LLM 会发送速记和上下文；已确认风险" if current_settings.cloud_llm_risk_acknowledged else "云端 LLM 风险尚未确认",
+        )
+    try:
+        async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=2.0) as client:
+            response = await client.get("/api/tags")
+            response.raise_for_status()
+            model_names = [item.get("name", "") for item in response.json().get("models", [])]
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+        return ProviderCheck(
+            status="degraded",
+            label=f"Ollama / {current_settings.generation_model}",
+            detail=f"Ollama 暂不可达，抽取会回退到本地规则：{exc.__class__.__name__}",
+        )
+
+    has_model = any(name == current_settings.generation_model for name in model_names)
+    if has_model:
+        return ProviderCheck(status="ready", label="Ollama", detail=f"已检测到 {current_settings.generation_model}")
+    return ProviderCheck(
+        status="degraded",
+        label="Ollama",
+        detail=f"Ollama 可达，但未列出 {current_settings.generation_model}；需要先拉取模型",
+    )
+
+
+def _weather_check(current_settings: SystemSettings, weather: WeatherContext) -> ProviderCheck:
+    if weather.source == "qweather":
+        return ProviderCheck(status="ready", label="和风天气", detail=f"{weather.city} 实时天气已接入")
+    detail = f"{weather.city} 使用本地估算"
+    if current_settings.weather_api_key:
+        detail += "，和风天气请求失败时已自动降级"
+    return ProviderCheck(status="degraded", label="本地天气估算", detail=detail)
+
+
+def _privacy_check(current_settings: SystemSettings) -> ProviderCheck:
+    if current_settings.llm_provider == "ollama":
+        return ProviderCheck(status="ready", label="本地优先", detail="速记与生成上下文默认不发送给云端 LLM")
+    if current_settings.cloud_llm_risk_acknowledged:
+        return ProviderCheck(status="degraded", label="云端 LLM 已启用", detail="管理员已确认第三方 API 数据出境风险")
+    return ProviderCheck(status="error", label="云端 LLM 风险", detail="需要确认风险后才能保存云端 Provider")
 
 
 @app.post("/api/settings/cleanup-expired-memories", response_model=ExpiredMemoryCleanup)

@@ -98,6 +98,22 @@ Step "Frontend review workflow wiring" {
   Write-Host "frontend_review_workflow_wiring_ok"
 }
 
+Step "Frontend provider status wiring" {
+  $settingsPage = Get-Content "$root\frontend\src\admin\pages\Settings.tsx" -Raw -Encoding UTF8
+  if ($settingsPage -notmatch "ProviderStatus" -or $settingsPage -notmatch "/settings/provider-status") {
+    throw "Settings page does not fetch provider status"
+  }
+  if ($settingsPage.IndexOf("StatusRow") -lt 0 -or $settingsPage.IndexOf("statusLabel") -lt 0 -or $settingsPage.IndexOf("providerStatus.llm") -lt 0) {
+    throw "Settings page does not render provider status rows"
+  }
+  $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
+  $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
+  if (-not $usesParallelLoad -or -not $hasRefreshButton) {
+    throw "Settings page provider status refresh wiring is incomplete"
+  }
+  Write-Host "frontend_provider_status_wiring_ok"
+}
+
 Step "Frontend copy placeholders" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
@@ -295,6 +311,7 @@ client = TestClient(app)
 assert client.get("/health").status_code == 200
 assert client.get("/api/members").status_code == 401
 assert client.get("/api/weather/today").status_code == 401
+assert client.get("/api/settings/provider-status").status_code == 401
 admin_login = client.post("/api/admin/login", json={"username": "admin", "password": "family-admin"})
 assert admin_login.status_code == 200
 admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
@@ -305,12 +322,24 @@ assert len(members.json()) >= 1
 
 settings = client.get("/api/settings", headers=admin_headers)
 assert settings.status_code == 200
+provider_status = client.get("/api/settings/provider-status", headers=admin_headers)
+assert provider_status.status_code == 200
+provider_json = provider_status.json()
+assert provider_json["database"]["status"] in {"ready", "degraded", "error"}
+assert provider_json["llm"]["status"] in {"ready", "degraded", "error"}
+assert provider_json["weather"]["status"] in {"ready", "degraded", "error"}
+assert provider_json["embedding"]["label"] == settings.json()["embedding_model"]
+assert "512" in provider_json["embedding"]["detail"]
+assert provider_json["privacy"]["status"] == "ready"
 cloud_settings = {**settings.json(), "llm_provider": "deepseek", "cloud_llm_risk_acknowledged": False}
 assert client.patch("/api/settings", json=cloud_settings, headers=admin_headers).status_code == 400
 cloud_settings["cloud_llm_risk_acknowledged"] = True
 updated_settings = client.patch("/api/settings", json=cloud_settings, headers=admin_headers)
 assert updated_settings.status_code == 200
 assert updated_settings.json()["llm_provider"] == "deepseek"
+cloud_provider_status = client.get("/api/settings/provider-status", headers=admin_headers)
+assert cloud_provider_status.status_code == 200
+assert cloud_provider_status.json()["privacy"]["status"] == "degraded"
 assert client.patch("/api/settings", json={**updated_settings.json(), "llm_provider": "ollama"}, headers=admin_headers).status_code == 200
 
 assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous note", "source": "text"}).status_code == 401

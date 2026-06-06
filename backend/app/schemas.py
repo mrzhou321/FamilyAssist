@@ -215,3 +215,17 @@ class SystemSettings(BaseModel):
 
 class ExpiredMemoryCleanup(BaseModel):
     removed: int
+
+
+class ProviderCheck(BaseModel):
+    status: str
+    label: str
+    detail: str
+
+
+class ProviderStatus(BaseModel):
+    database: ProviderCheck
+    llm: ProviderCheck
+    weather: ProviderCheck
+    embedding: ProviderCheck
+    privacy: ProviderCheck
