@@ -534,6 +534,42 @@ print("backend_llm_extractor_ok")
   }
 }
 
+Step "Backend extraction golden cases" {
+  $goldenSmoke = New-TemporaryFile
+@'
+from app.memory_dedupe import build_review_candidate_from_text
+from app.schemas import MemoryDomain, MemoryType
+
+cases = [
+    ("\u5988\u5988\u4e0d\u5403\u9999\u83dc", MemoryDomain.diet, MemoryType.fact),
+    ("\u6735\u6735\u5bf9\u8292\u679c\u8fc7\u654f", MemoryDomain.diet, MemoryType.fact),
+    ("\u7238\u7238\u6015\u51b7\uff0c\u65e9\u665a\u8981\u7a7f\u5916\u5957", MemoryDomain.dressing, MemoryType.fact),
+    ("\u7238\u7238\u4e0a\u5468\u819d\u76d6\u75bc\uff0c\u907f\u514d\u5267\u70c8\u8dd1\u8df3", MemoryDomain.exercise, MemoryType.episode),
+    ("\u4eca\u5929\u5168\u5bb6\u665a\u996d\u540e\u6563\u6b65\u4e09\u5341\u5206\u949f", MemoryDomain.exercise, MemoryType.episode),
+]
+
+for index, (content, domain, memory_type) in enumerate(cases, start=1):
+    candidate = build_review_candidate_from_text(index, 1, content)
+    assert candidate.candidates, content
+    draft = candidate.candidates[0]
+    assert draft.domain == domain, (content, draft.domain, domain)
+    assert draft.type == memory_type, (content, draft.type, memory_type)
+    assert draft.confidence >= 0.7
+
+print("backend_extraction_golden_cases_ok")
+'@ | Set-Content -LiteralPath $goldenSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $goldenSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend extraction golden cases failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $goldenSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend LLM recommender smoke" {
   $recommendSmoke = New-TemporaryFile
   @'
