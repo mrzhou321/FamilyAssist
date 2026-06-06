@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCreateNote, useMemberNotes, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
-import { MOCK_RECENT_NOTES } from '@shared/mocks'
 import { detectMobileCapabilities } from '../capabilities'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
@@ -73,7 +72,7 @@ export default function QuickNote() {
   const { data: queuedNotes = [] } = useQueuedNotes()
   const isPaired = hasPairedMember()
   const currentMemberName = getCurrentMemberName()
-  const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId, isPaired)
+  const { data: recentNotes = [] } = useMemberNotes(memberId, isPaired)
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
   const [capabilities] = useState(() => detectMobileCapabilities())
   const memberChoices = isPaired && memberId !== null ? [{ id: memberId, label: currentMemberName }] : []

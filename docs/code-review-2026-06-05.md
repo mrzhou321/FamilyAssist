@@ -10,7 +10,7 @@ This file keeps the original frontend review as a status ledger. The early MVP f
 | Original finding | Current evidence |
 | --- | --- |
 | Mobile pages used hard-coded `member_id=1` | Mobile pages read the paired member from `frontend/src/mobile/session/index.ts`; self-check covers member scoping and forbidden cross-member access. |
-| Mock data was embedded directly in pages | Shared mocks live in `frontend/src/shared/mocks/index.ts`; mobile pages gate fallback data behind pairing/offline states. |
+| Mock data was embedded directly in pages | Mobile production pages now render only API data or IndexedDB cache; self-check fails if shared mock family data returns. |
 | SSE errors were swallowed | `frontend/src/shared/api/index.ts` exposes stream errors through `onError` and checks missing response bodies. |
 | Auth keys were raw localStorage strings | Auth storage keys are centralized in `frontend/src/shared/constants/index.ts`; self-check rejects raw auth key literals. |
 | Repeated domain strings and labels | Domain constants, labels, and icons are centralized in `frontend/src/shared/constants/index.ts`. |

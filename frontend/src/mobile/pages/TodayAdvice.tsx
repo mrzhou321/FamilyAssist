@@ -19,36 +19,6 @@ import {
 } from '../offline/cachedData'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
-const FALLBACK: Record<Domain, Recommendation> = {
-  dressing: {
-    domain: 'dressing',
-    content: '早晚偏凉，建议长袖加薄外套，膝盖容易不舒服时多一层保暖。',
-    basis: ['家人怕冷', '膝盖受凉会不舒服'],
-    basis_refs: [],
-  },
-  diet: {
-    domain: 'diet',
-    content: '饮食以清淡少油为主，避开已知忌口和过敏源。',
-    basis: ['控糖', '不吃香菜'],
-    basis_refs: [],
-  },
-  exercise: {
-    domain: 'exercise',
-    content: '适合低到中等强度活动，优先散步和拉伸。',
-    basis: ['饭后喜欢散步 30 分钟'],
-    basis_refs: [],
-  },
-}
-
-const FALLBACK_WEATHER: WeatherContext = {
-  city: '广州',
-  temperature_c: 26,
-  condition: 'cloudy',
-  wind: 'light breeze',
-  precipitation_chance: 35,
-  source: 'local-fallback',
-}
-
 function formatCondition(condition: string) {
   const map: Record<string, string> = {
     clear: '晴',
@@ -60,8 +30,8 @@ function formatCondition(condition: string) {
 }
 
 export default function TodayAdvice() {
-  const [recommendations, setRecommendations] = useState<Record<Domain, Recommendation>>(FALLBACK)
-  const [weather, setWeather] = useState<WeatherContext>(FALLBACK_WEATHER)
+  const [recommendations, setRecommendations] = useState<Partial<Record<Domain, Recommendation>>>({})
+  const [weather, setWeather] = useState<WeatherContext | null>(null)
   const [message, setMessage] = useState('')
   const [pendingKey, setPendingKey] = useState('')
   const [sourceNote, setSourceNote] = useState<Note | null>(null)
@@ -80,7 +50,7 @@ export default function TodayAdvice() {
       })
       .catch(async () => {
         const cached = await getCachedWeather()
-        if (active) setWeather(cached ?? FALLBACK_WEATHER)
+        if (active) setWeather(cached)
       })
     return () => {
       active = false
@@ -102,7 +72,7 @@ export default function TodayAdvice() {
         if (!active) return
         void cacheRecommendations(memberId, recommendations)
         const items = recommendations.map((recommendation) => [recommendation.domain, recommendation] as const)
-        setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
+        setRecommendations(Object.fromEntries(items) as Partial<Record<Domain, Recommendation>>)
         setMessage('正在生成今日建议...')
 
         DOMAINS.forEach((domain) => {
@@ -135,10 +105,11 @@ export default function TodayAdvice() {
         if (!active) return
         if (cached.length > 0) {
           const items = cached.map((recommendation) => [recommendation.domain, recommendation] as const)
-          setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
+          setRecommendations(Object.fromEntries(items) as Partial<Record<Domain, Recommendation>>)
           setMessage('当前离线，正在显示上次加载的建议')
         } else {
-          setMessage('后端暂不可用，正在显示本地建议')
+          setRecommendations({})
+          setMessage('后端暂不可用，暂无可用的本地建议缓存')
         }
       })
 
@@ -195,16 +166,20 @@ export default function TodayAdvice() {
                    p-4 text-white shadow-[var(--shadow-card)] animate-[fadeUp_0.4s_ease_both]"
       >
         <p className="font-[var(--font-num)] text-sm opacity-90">
-          {weather.city} · 今日 · {memberName}
+          {weather ? `${weather.city} · 今日 · ${memberName}` : `今日 · ${memberName}`}
         </p>
-        <div className="mt-1 flex items-baseline gap-3">
-          <span className="font-[var(--font-num)] text-5xl font-black leading-none">
-            {weather.temperature_c}°
-          </span>
-          <span className="font-[var(--font-body)] text-sm opacity-90">
-            {formatCondition(weather.condition)} · {weather.wind} · 降水 {weather.precipitation_chance}%
-          </span>
-        </div>
+        {weather ? (
+          <div className="mt-1 flex items-baseline gap-3">
+            <span className="font-[var(--font-num)] text-5xl font-black leading-none">
+              {weather.temperature_c}°
+            </span>
+            <span className="font-[var(--font-body)] text-sm opacity-90">
+              {formatCondition(weather.condition)} · {weather.wind} · 降水 {weather.precipitation_chance}%
+            </span>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm opacity-90">天气加载中，离线时会使用上次缓存</p>
+        )}
       </div>
 
       {message ? (
@@ -242,6 +217,21 @@ export default function TodayAdvice() {
       {isPaired ? DOMAINS.map((domain, index) => {
         const advice = recommendations[domain]
         const colors = DOMAIN_CARD_COLORS[domain]
+        if (!advice) {
+          return (
+            <article
+              key={domain}
+              className="flex flex-col gap-3 rounded-[var(--radius-lg)] border p-4 shadow-[var(--shadow-card)]
+                         animate-[fadeUp_0.5s_ease_both]"
+              style={{ background: colors.bg, borderColor: colors.border, animationDelay: `${0.1 + index * 0.1}s` }}
+            >
+              <p className="font-[var(--font-display)] text-lg font-semibold text-[var(--color-fg)]">
+                {DOMAIN_ICONS[domain]} {DOMAIN_LABELS[domain]}
+              </p>
+              <p className="text-sm text-[var(--color-muted)]">暂无可用建议，联网后会自动加载真实建议。</p>
+            </article>
+          )
+        }
         const basisRefs = advice.basis_refs.length > 0
           ? advice.basis_refs
           : advice.basis.map((item, basisIndex) => ({

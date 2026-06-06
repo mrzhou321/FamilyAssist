@@ -132,21 +132,22 @@ Step "Frontend offline cache wiring" {
   $memoryVaultHasPairingCheck = $memoryVault.IndexOf("hasPairedMember") -ge 0
   $memoryVaultUsesEnabledQuery = $memoryVault.IndexOf("useMemberMemories(memberId, isPaired)") -ge 0
   $memoryVaultHasPairRoute = $memoryVault.IndexOf('to="/pair"') -ge 0
-  $memoryVaultGatesMockData = $memoryVault.IndexOf("isPaired && isError ? normalizeMockMemories() : []") -ge 0
+  $memoryVaultAvoidsMockData = ($memoryVault.IndexOf("MOCK_") -lt 0) -and ($memoryVault.IndexOf("normalizeMockMemories") -lt 0) -and ($memoryVault.IndexOf("@shared/mocks") -lt 0)
   if (-not $memoryVaultHasPairingCheck) {
     throw "Memory vault does not check pairing"
   }
   if (-not $memoryVaultUsesEnabledQuery) {
     throw "Memory vault does not disable memory queries before pairing"
   }
-  if (-not $memoryVaultHasPairRoute -or -not $memoryVaultGatesMockData) {
-    throw "Memory vault does not gate member data behind pairing"
+  if (-not $memoryVaultHasPairRoute -or -not $memoryVaultAvoidsMockData) {
+    throw "Memory vault should show only real API data or offline cache"
   }
   $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
   $quickNoteShowsPairingCopy = $quickNote.IndexOf('to="/pair"') -ge 0
   $quickNoteGatesMockMembers = ($quickNote.IndexOf("currentMemberName") -ge 0) -and ($quickNote.IndexOf("MOCK_MEMBERS.map") -lt 0) -and ($quickNote.IndexOf("useMembers") -lt 0)
   $quickNoteDisablesNotesBeforePairing = $quickNote.IndexOf("useMemberNotes(memberId, isPaired)") -ge 0
-  if (-not $quickNoteShowsPairingCopy -or -not $quickNoteGatesMockMembers -or -not $quickNoteDisablesNotesBeforePairing) {
+  $quickNoteAvoidsMockData = ($quickNote.IndexOf("@shared/mocks") -lt 0) -and ($quickNote.IndexOf("MOCK_") -lt 0)
+  if (-not $quickNoteShowsPairingCopy -or -not $quickNoteGatesMockMembers -or -not $quickNoteDisablesNotesBeforePairing -or -not $quickNoteAvoidsMockData) {
     throw "Quick note does not gate member choices behind pairing"
   }
   if ($quickNote.IndexOf("PhotoCapture") -lt 0 -or $quickNote.IndexOf("buildPhotoNoteText") -lt 0 -or $quickNote.IndexOf("formatPhotoSize") -lt 0) {
@@ -167,6 +168,12 @@ Step "Frontend offline cache wiring" {
   }
   if ($quickNote.IndexOf("detectMobileCapabilities") -lt 0 -or $quickNote.IndexOf("CapabilityPill") -lt 0) {
     throw "Quick note does not surface mobile capability status"
+  }
+  if (Test-Path "$root\frontend\src\shared\mocks\index.ts") {
+    throw "Mobile production pages should not keep shared mock family data"
+  }
+  if ($todayAdvice.IndexOf("const FALLBACK") -ge 0 -or $todayAdvice.IndexOf("FALLBACK_WEATHER") -ge 0 -or $todayAdvice.IndexOf("local-fallback") -ge 0) {
+    throw "Today advice should not render fake fallback recommendations or weather"
   }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {

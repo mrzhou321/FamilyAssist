@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MEMORY_TAG_COLORS } from '@shared/constants/colors'
-import { MOCK_MEMORIES } from '@shared/mocks'
-import type { Memory } from '@shared/types'
 import { useMemberMemories } from '@shared/hooks'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
@@ -23,18 +21,6 @@ const TYPE_LABEL: Record<MemoryType, string> = {
   episode: '情景',
 }
 
-function normalizeMockMemories(): Memory[] {
-  return MOCK_MEMORIES.map((memory) => ({
-    id: memory.id,
-    member_id: memory.member_id,
-    type: memory.type,
-    domain: memory.domain,
-    content: memory.content,
-    confidence: memory.confidence,
-    created_at: memory.created_at,
-  }))
-}
-
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -50,12 +36,9 @@ export default function MemoryVault() {
   const memberId = getCurrentMemberId()
   const { data, isError } = useMemberMemories(memberId, isPaired)
   const hasLoadedMemories = Boolean(data && data.length > 0)
-  const memories = useMemo(
-    () => (hasLoadedMemories ? data! : isPaired && isError ? normalizeMockMemories() : []),
-    [data, hasLoadedMemories, isError, isPaired],
-  )
+  const memories = useMemo(() => (hasLoadedMemories ? data! : []), [data, hasLoadedMemories])
   const message = isError
-    ? isPaired ? '记忆加载失败，正在显示本地示例' : ''
+    ? isPaired ? '记忆加载失败，暂无可用的本地缓存' : ''
     : !navigator.onLine && hasLoadedMemories
       ? '当前离线，正在显示上次加载的记忆'
       : ''
