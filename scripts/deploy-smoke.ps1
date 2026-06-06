@@ -6,6 +6,18 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 $project = "familyassister-smoke"
 $override = $null
+$composeStarted = $false
+
+function Test-DockerDaemon {
+  try {
+    docker version --format "{{.Server.Version}}" 2>$null | Out-Null
+  } catch {
+    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, then rerun scripts\deploy-smoke.ps1."
+  }
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, then rerun scripts\deploy-smoke.ps1."
+  }
+}
 
 function Compose($arguments) {
   Push-Location $root
@@ -24,6 +36,8 @@ function Compose($arguments) {
 }
 
 try {
+  Test-DockerDaemon
+
   if ($SkipModelPull) {
     $override = Join-Path ([System.IO.Path]::GetTempPath()) "familyassister-compose-smoke.override.yml"
     @"
@@ -36,6 +50,7 @@ services:
 
   Compose @("config")
   Compose @("up", "--build", "-d")
+  $composeStarted = $true
 
   $deadline = (Get-Date).AddMinutes(3)
   do {
@@ -53,14 +68,18 @@ services:
   } while ((Get-Date) -lt $deadline)
 
   throw "Timed out waiting for backend healthy and nginx running"
+} catch {
+  Write-Host $_.Exception.Message
+  exit 1
 } finally {
-  try {
-    Compose @("down", "-v")
-  } catch {
-    Write-Warning $_
+  if ($composeStarted) {
+    try {
+      Compose @("down", "-v")
+    } catch {
+      Write-Warning $_
+    }
   }
   if ($override) {
     Remove-Item -LiteralPath $override -Force -ErrorAction SilentlyContinue
   }
 }
-

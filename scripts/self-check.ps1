@@ -63,6 +63,9 @@ Step "Deployment smoke script" {
   if ($deploySmoke.IndexOf("SkipModelPull") -lt 0 -or $deploySmoke.IndexOf("skip model pull") -lt 0) {
     throw "Deploy smoke script does not expose a fast no-model-pull mode"
   }
+  if ($deploySmoke.IndexOf("Test-DockerDaemon") -lt 0 -or $deploySmoke.IndexOf("Docker daemon is not reachable") -lt 0) {
+    throw "Deploy smoke script does not preflight Docker daemon availability"
+  }
   Write-Host "deployment_smoke_script_ok"
 }
 
