@@ -257,6 +257,82 @@ print("backend_db_metadata_ok")
   }
 }
 
+Step "Backend extraction failure review handoff" {
+  $handoffSmoke = New-TemporaryFile
+  @'
+import asyncio
+from types import SimpleNamespace
+
+import app.data as data_module
+from app.data import DatabaseDataStore
+from app.schemas import NoteSource, SystemSettings
+
+
+class FakeSession:
+    def __init__(self):
+        self.note = SimpleNamespace(
+            id=7,
+            member_id=1,
+            content="unparsed quick note",
+            source=NoteSource.text,
+            status="understanding",
+            created_at=None,
+        )
+        self.commits = 0
+
+    async def get(self, model, item_id):
+        return self.note if item_id == self.note.id else None
+
+    async def commit(self):
+        self.commits += 1
+
+
+async def main():
+    fake_session = FakeSession()
+    store = DatabaseDataStore(fake_session)
+
+    async def fake_get_settings():
+        return SystemSettings(extraction_retries=1)
+
+    async def failed_candidate(note_id, member_id, content, settings):
+        return None
+
+    original_builder = data_module.build_extracted_candidate
+    data_module.build_extracted_candidate = failed_candidate
+    store.get_settings = fake_get_settings
+    try:
+        result = await store.extract_memory_from_note(fake_session.note.id)
+    finally:
+        data_module.build_extracted_candidate = original_builder
+
+    assert result is None
+    assert fake_session.note.status == "understanding"
+    assert fake_session.commits == 0
+    review_candidate = build_review_candidate_from_text(
+        fake_session.note.id,
+        fake_session.note.member_id,
+        fake_session.note.content,
+    )
+    assert review_candidate.candidates[0].content == "unparsed quick note"
+
+
+from app.memory_dedupe import build_review_candidate_from_text
+
+asyncio.run(main())
+print("backend_extraction_failure_review_handoff_ok")
+'@ | Set-Content -LiteralPath $handoffSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $handoffSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend extraction failure handoff smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $handoffSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend weather provider smoke" {
   $weatherSmoke = New-TemporaryFile
   @'
@@ -324,7 +400,7 @@ import json
 import httpx
 
 import app.llm_extractor as extractor
-from app.llm_extractor import build_review_candidate
+from app.llm_extractor import build_extracted_candidate, build_review_candidate
 from app.schemas import MemoryDomain, MemoryType, SystemSettings
 
 
@@ -368,9 +444,11 @@ async def main():
 
     extractor.httpx.AsyncClient = BadOllamaClient
     try:
+        failed_extract = await build_extracted_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", SystemSettings(extraction_retries=1))
         fallback = await build_review_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", SystemSettings(extraction_retries=1))
     finally:
         extractor.httpx.AsyncClient = original_client
+    assert failed_extract is None
     assert fallback.candidates[0].content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
     assert fallback.candidates[0].domain == MemoryDomain.diet
 

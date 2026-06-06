@@ -36,18 +36,30 @@ async def build_review_candidate(
     content: str,
     system_settings: SystemSettings,
 ) -> ReviewCandidate:
+    candidate = await build_extracted_candidate(note_id, member_id, content, system_settings)
+    if candidate is not None:
+        return candidate
+    return build_review_candidate_from_text(note_id, member_id, content)
+
+
+async def build_extracted_candidate(
+    note_id: int,
+    member_id: int | None,
+    content: str,
+    system_settings: SystemSettings,
+) -> ReviewCandidate | None:
     if system_settings.llm_provider == "ollama":
         for _ in range(max(1, system_settings.extraction_retries)):
             candidate = await _try_ollama_candidate(note_id, member_id, content, system_settings.generation_model)
             if candidate is not None:
                 return candidate
-        return build_review_candidate_from_text(note_id, member_id, content)
+        return None
 
     for _ in range(max(1, system_settings.extraction_retries)):
         candidate = await _try_cloud_candidate(note_id, member_id, content, system_settings)
         if candidate is not None:
             return candidate
-    return build_review_candidate_from_text(note_id, member_id, content)
+    return None
 
 
 async def _try_ollama_candidate(

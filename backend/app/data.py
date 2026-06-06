@@ -12,7 +12,7 @@ from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
 from .embeddings import build_text_embedding, build_text_embedding_async, cosine_similarity
-from .llm_extractor import build_review_candidate as build_llm_review_candidate
+from .llm_extractor import build_extracted_candidate, build_review_candidate as build_llm_review_candidate
 from .memory_dedupe import build_review_candidate_from_text, is_semantic_duplicate_memory
 from .recommendation_engine import (
     build_feedback_memory_content,
@@ -350,11 +350,11 @@ class DatabaseDataStore:
         return self._to_note(note)
 
     async def extract_memory_from_note(self, note_id: int) -> Memory | None:
-        candidate = await self.build_review_candidate(note_id)
-        if candidate is None or not candidate.candidates:
-            return None
         note = await self.session.get(models.Note, note_id)
         if note is None:
+            return None
+        candidate = await build_extracted_candidate(note.id, note.member_id, note.content, await self.get_settings())
+        if candidate is None or not candidate.candidates:
             return None
         draft = candidate.candidates[0]
         system_settings = await self.get_settings()
