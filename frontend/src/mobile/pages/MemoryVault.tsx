@@ -69,7 +69,7 @@ export default function MemoryVault() {
       {!isPaired ? (
         <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
           <p className="text-sm leading-6 text-[var(--color-fg)]">
-            绑定设备后，这里只会显示当前成员自己的记忆；离线时也会保留最近加载过的内容。
+            绑定设备后，这里会显示当前成员自己的记忆和全家共享记忆；离线时也会保留最近加载过的内容。
           </p>
           <Link
             to="/pair"

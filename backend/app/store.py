@@ -280,7 +280,7 @@ class InMemoryStore:
         memories = list(self.memories.values())
         memories = [memory for memory in memories if memory.expires_at is None or memory.expires_at > now()]
         if member_id is not None:
-            memories = [memory for memory in memories if memory.member_id == member_id]
+            memories = [memory for memory in memories if memory.member_id in {member_id, None}]
         return memories
 
     def update_memory(self, memory_id: int, payload: MemoryUpdate) -> Memory | None:

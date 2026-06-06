@@ -240,7 +240,7 @@ async def get_note(
     note = await data.get_note(note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
-    if context.is_member and note.member_id != context.member_id:
+    if context.is_member and note.member_id not in {context.member_id, None}:
         raise HTTPException(status_code=403, detail="Member token cannot access another member note")
     return note
 

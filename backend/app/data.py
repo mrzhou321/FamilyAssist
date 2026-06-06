@@ -435,7 +435,7 @@ class DatabaseDataStore:
         statement = select(models.Memory)
         statement = statement.where((models.Memory.expires_at.is_(None)) | (models.Memory.expires_at > now()))
         if member_id is not None:
-            statement = statement.where(models.Memory.member_id == member_id)
+            statement = statement.where((models.Memory.member_id == member_id) | (models.Memory.member_id.is_(None)))
         result = await self.session.scalars(statement.order_by(models.Memory.created_at.desc()))
         return [self._to_memory(memory) for memory in result.all()]
 
@@ -519,7 +519,7 @@ class DatabaseDataStore:
             )
         )
         if member_id is not None:
-            statement = statement.where(models.Memory.member_id == member_id)
+            statement = statement.where((models.Memory.member_id == member_id) | (models.Memory.member_id.is_(None)))
 
         distance = models.Memory.embedding.cosine_distance(query_embedding)
         result = await self.session.scalars(statement.order_by(distance).limit(40))

@@ -139,6 +139,9 @@ Step "PRD implementation audit docs" {
   if ($audit.IndexOf("Text quick notes") -lt 0 -or $audit.IndexOf("Pairing QR login") -lt 0 -or $audit.IndexOf("Performance smoke") -lt 0) {
     throw "PRD implementation audit does not cover core product areas"
   }
+  if ($audit.IndexOf("family-shared memory visibility") -lt 0 -or $audit.IndexOf("member_id=None") -lt 0) {
+    throw "PRD implementation audit does not document family-shared member visibility"
+  }
   if ($audit.IndexOf("Residual Risks") -lt 0 -or $audit.IndexOf("GBNF") -lt 0 -or $audit.IndexOf("manual mobile testing") -lt 0) {
     throw "PRD implementation audit does not preserve known residual risks"
   }
@@ -221,6 +224,9 @@ Step "Frontend offline cache wiring" {
   }
   if (-not $memoryVaultHasPairRoute -or -not $memoryVaultAvoidsMockData) {
     throw "Memory vault should show only real API data or offline cache"
+  }
+  if ($memoryVault.IndexOf("全家共享记忆") -lt 0) {
+    throw "Memory vault should explain that family-shared memories are visible to paired members"
   }
   $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
   $quickNoteShowsPairingCopy = $quickNote.IndexOf('to="/pair"') -ge 0
@@ -1670,7 +1676,7 @@ family_note = client.post(
     "/api/notes",
     json={
         "member_id": None,
-        "content": "admin family-only note",
+        "content": "\u5168\u5bb6\u6015\u51b7\uff0c\u51fa\u95e8\u8981\u7a7f\u5916\u5957",
         "source": "text",
     },
     headers=admin_headers,
@@ -1678,13 +1684,19 @@ family_note = client.post(
 assert family_note.status_code == 202
 family_note_id = family_note.json()["id"]
 assert client.get(f"/api/notes/{family_note_id}", headers=admin_headers).status_code == 200
-assert client.get(f"/api/notes/{family_note_id}", headers=headers).status_code == 403
+family_source_note = client.get(f"/api/notes/{family_note_id}", headers=headers)
+assert family_source_note.status_code == 200
+assert family_source_note.json()["member_id"] is None
+member_visible_memories = client.get("/api/memories?member_id=1", headers=headers)
+assert member_visible_memories.status_code == 200
+assert any(item["member_id"] is None and item["source_note_id"] == family_note_id for item in member_visible_memories.json())
 
 batch = client.get("/api/recommendations?domains=dressing&domains=diet&domains=exercise&member_id=1", headers=headers)
 assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
 assert any("member 1 knee note" in basis for item in batch.json()["recommendations"] for basis in item["basis"])
 assert any(ref["source_note_id"] == note_id for item in batch.json()["recommendations"] for ref in item["basis_refs"])
+assert any(ref["source_note_id"] == family_note_id for item in batch.json()["recommendations"] for ref in item["basis_refs"])
 contents = {item["domain"]: item["content"] for item in batch.json()["recommendations"]}
 assert "\u00b0C" in contents["dressing"]
 assert "\u5c11\u7cd6" in contents["diet"]
@@ -1947,6 +1959,13 @@ assert all(len(memory.embedding) == EMBEDDING_DIMENSION for memory in store.list
 
 trimmed_note = store.create_note(NoteCreate(member_id=1, content="  trimmed family note  "))
 assert trimmed_note.content == "trimmed family note"
+shared_note = store.create_note(NoteCreate(member_id=None, content="\u5168\u5bb6\u6015\u51b7\uff0c\u51fa\u95e8\u8981\u7a7f\u5916\u5957"))
+shared_memory = store.extract_memory_from_note(shared_note.id)
+assert shared_memory is not None
+assert shared_memory.member_id is None
+assert any(memory.id == shared_memory.id for memory in store.list_memories(1))
+shared_dressing = store.make_recommendation(RecommendationDomain.dressing, 1, record_event=False)
+assert any(ref.source_note_id == shared_note.id for ref in shared_dressing.basis_refs)
 
 store.memories[99] = Memory(
     id=99,
