@@ -49,7 +49,14 @@ Step "Deployment and backup docs" {
 }
 
 Step "Deployment smoke script" {
-  $deploySmoke = Get-Content "$root\scripts\deploy-smoke.ps1" -Raw -Encoding UTF8
+  $deploySmokePath = "$root\scripts\deploy-smoke.ps1"
+  $parseErrors = $null
+  $parseTokens = $null
+  [System.Management.Automation.Language.Parser]::ParseFile($deploySmokePath, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    throw "Deploy smoke script has PowerShell syntax errors"
+  }
+  $deploySmoke = Get-Content $deploySmokePath -Raw -Encoding UTF8
   if ($deploySmoke.IndexOf("docker compose") -lt 0 -or $deploySmoke.IndexOf("--build") -lt 0 -or $deploySmoke.IndexOf("backend") -lt 0 -or $deploySmoke.IndexOf("nginx") -lt 0) {
     throw "Deploy smoke script does not exercise compose build and health checks"
   }
