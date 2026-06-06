@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCreateNote, useMemberNotes, useMembers, useQueuedNotes, useSyncQueuedNotes } from '@shared/hooks'
 import { MOCK_RECENT_NOTES, MOCK_MEMBERS } from '@shared/mocks'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
@@ -61,12 +62,14 @@ export default function QuickNote() {
   const { mutate: createNote, isPending } = useCreateNote()
   const { data: queuedNotes = [] } = useQueuedNotes()
   const isPaired = hasPairedMember()
-  const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId)
+  const { data: recentNotes = MOCK_RECENT_NOTES } = useMemberNotes(memberId, isPaired)
   const { data: apiMembers = [] } = useMembers(isPaired)
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
   const memberChoices = apiMembers.length > 0
     ? apiMembers.map((member) => ({ id: member.id, label: member.relation || member.name }))
-    : MOCK_MEMBERS.map((member) => ({ id: member.id, label: member.role }))
+    : isPaired
+      ? MOCK_MEMBERS.map((member) => ({ id: member.id, label: member.role }))
+      : []
   const memberLabel = new Map(memberChoices.map((member) => [member.id, member.label]))
 
   useEffect(() => {
@@ -172,6 +175,20 @@ export default function QuickNote() {
         ) : null}
       </div>
 
+      {!isPaired ? (
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="text-sm leading-6 text-[var(--color-fg)]">
+            这台设备还没有绑定家庭成员。请让管理员在后台生成配对二维码，用手机扫码后会自动带入 token。
+          </p>
+          <Link
+            to="/pair"
+            className="mt-4 block rounded-[var(--radius-sm)] bg-[var(--color-accent)] py-3 text-center text-sm text-white"
+          >
+            输入配对 token
+          </Link>
+        </section>
+      ) : null}
+
       {message || queuedNotes.length > 0 ? (
         <div className="rounded-[var(--radius-sm)] border border-[var(--color-accent)]/20 bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
           <div>{message || '离线速记队列等待同步'}</div>
@@ -188,99 +205,102 @@ export default function QuickNote() {
         </div>
       ) : null}
 
-      {/* 便签纸输入区 */}
-      <div className="relative noise tilt-1 bg-gradient-to-br from-[#FFF8E8] to-[#FDEFD3]
-                      rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-card)] border border-[var(--color-border)]">
-        <textarea
-          value={text}
-          onChange={e => {
-            setText(e.target.value)
-            setSource('text')
-          }}
-          placeholder="记录家人的习惯、身体状况、饮食偏好……"
-          rows={4}
-          className="w-full bg-transparent resize-none outline-none font-[var(--font-body)] text-base
-                     text-[var(--color-fg)] placeholder:text-[var(--color-muted)]"
-        />
-        <div className="flex items-center gap-3 pt-3 border-t border-dashed border-[var(--color-border)]">
-          <button
-            type="button"
-            aria-label={isListening ? '停止语音输入' : '开始语音输入'}
-            title={isListening ? '停止语音输入' : '开始语音输入'}
-            onClick={handleVoiceInput}
-            className={`grid h-9 w-9 place-items-center rounded-full text-xl leading-none transition-colors
-              ${isListening
-                ? 'bg-[var(--color-accent)] text-white'
-                : 'text-[var(--color-muted)] hover:bg-white/70 hover:text-[var(--color-accent)]'}`}
-          >
-            🎤
-          </button>
-          <button
-            type="button"
-            aria-label="拍照速记"
-            title="拍照速记"
-            onClick={() => photoInputRef.current?.click()}
-            className="grid h-9 w-9 place-items-center rounded-full text-xl leading-none text-[var(--color-muted)]
-                       transition-colors hover:bg-white/70 hover:text-[var(--color-accent)]"
-          >
-            📷
-          </button>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(event) => handlePhotoCapture(event.target.files?.[0])}
-          />
-          <div className="ml-auto flex gap-1.5">
-            {/* 全家 = null，其他成员用 id */}
-            {[{ id: null, label: '全家' }, ...memberChoices].map(m => (
-              <button key={String(m.id)} onClick={() => setMemberId(m.id)}
-                className={`text-xs px-3 py-1 rounded-full transition-colors font-[var(--font-body)]
-                  ${memberId === m.id
+      {isPaired ? (
+        <>
+          <div className="relative noise tilt-1 bg-gradient-to-br from-[#FFF8E8] to-[#FDEFD3]
+                          rounded-[var(--radius-lg)] p-4 shadow-[var(--shadow-card)] border border-[var(--color-border)]">
+            <textarea
+              value={text}
+              onChange={e => {
+                setText(e.target.value)
+                setSource('text')
+              }}
+              placeholder="记录家人的习惯、身体状况、饮食偏好……"
+              rows={4}
+              className="w-full bg-transparent resize-none outline-none font-[var(--font-body)] text-base
+                         text-[var(--color-fg)] placeholder:text-[var(--color-muted)]"
+            />
+            <div className="flex items-center gap-3 pt-3 border-t border-dashed border-[var(--color-border)]">
+              <button
+                type="button"
+                aria-label={isListening ? '停止语音输入' : '开始语音输入'}
+                title={isListening ? '停止语音输入' : '开始语音输入'}
+                onClick={handleVoiceInput}
+                className={`grid h-9 w-9 place-items-center rounded-full text-xl leading-none transition-colors
+                  ${isListening
                     ? 'bg-[var(--color-accent)] text-white'
-                    : 'bg-white/70 text-[var(--color-muted)] border border-[var(--color-border)]'}`}>
-                {m.label}
+                    : 'text-[var(--color-muted)] hover:bg-white/70 hover:text-[var(--color-accent)]'}`}
+              >
+                🎤
               </button>
-            ))}
+              <button
+                type="button"
+                aria-label="拍照速记"
+                title="拍照速记"
+                onClick={() => photoInputRef.current?.click()}
+                className="grid h-9 w-9 place-items-center rounded-full text-xl leading-none text-[var(--color-muted)]
+                           transition-colors hover:bg-white/70 hover:text-[var(--color-accent)]"
+              >
+                📷
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(event) => handlePhotoCapture(event.target.files?.[0])}
+              />
+              <div className="ml-auto flex gap-1.5">
+                {[{ id: null, label: '全家' }, ...memberChoices].map(m => (
+                  <button key={String(m.id)} onClick={() => setMemberId(m.id)}
+                    className={`text-xs px-3 py-1 rounded-full transition-colors font-[var(--font-body)]
+                      ${memberId === m.id
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'bg-white/70 text-[var(--color-muted)] border border-[var(--color-border)]'}`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button
+            disabled={!text.trim() || isPending}
+            onClick={handleSubmit}
+            className="w-full py-3 rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-white
+                       font-[var(--font-body)] text-base disabled:opacity-40 transition-opacity active:scale-[0.98]"
+          >
+            {isPending ? '记录中…' : '记下来'}
+          </button>
+        </>
+      ) : null}
+
+      {isPaired ? (
+        <div>
+          <p className="font-[var(--font-num)] italic text-[var(--color-muted)] text-sm mb-3">最近记下的</p>
+          <div className="flex flex-col gap-2">
+            {[...queuedNotes, ...recentNotes].slice(0, 6).map((note, i) => {
+              const tag = NOTE_TAGS[i + 1] ?? { label: '记录', color: 'var(--color-muted)' }
+              return (
+                <div key={'queue_id' in note ? note.queue_id : note.id}
+                  className="flex items-center gap-3 bg-[var(--color-surface-warm)] rounded-[var(--radius-sm)]
+                             px-3 py-2.5 border border-[var(--color-border)] shadow-[var(--shadow-card)]
+                             animate-[fadeUp_0.4s_ease_both]"
+                  style={{ animationDelay: `${i * 0.08}s` }}
+                >
+                  <span className="text-xs px-2.5 py-0.5 rounded-full text-white whitespace-nowrap"
+                    style={{ background: tag.color }}>{tag.label}</span>
+                  <span className="text-sm text-[var(--color-fg)] flex-1 truncate">{note.content}</span>
+                  <span className="text-xs text-[var(--color-muted)] shrink-0">
+                    {'queue_id' in note ? '待同步' : note.member_id ? memberLabel.get(note.member_id) ?? '成员' : '全家'}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
-      </div>
-
-      {/* 提交按钮 */}
-      <button
-        disabled={!text.trim() || isPending || !isPaired}
-        onClick={handleSubmit}
-        className="w-full py-3 rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-white
-                   font-[var(--font-body)] text-base disabled:opacity-40 transition-opacity active:scale-[0.98]"
-      >
-        {isPending ? '记录中…' : '记下来'}
-      </button>
-
-      <div>
-        <p className="font-[var(--font-num)] italic text-[var(--color-muted)] text-sm mb-3">最近记下的</p>
-        <div className="flex flex-col gap-2">
-          {[...queuedNotes, ...recentNotes].slice(0, 6).map((note, i) => {
-            const tag = NOTE_TAGS[i + 1] ?? { label: '记录', color: 'var(--color-muted)' }
-            return (
-              <div key={'queue_id' in note ? note.queue_id : note.id}
-                className="flex items-center gap-3 bg-[var(--color-surface-warm)] rounded-[var(--radius-sm)]
-                           px-3 py-2.5 border border-[var(--color-border)] shadow-[var(--shadow-card)]
-                           animate-[fadeUp_0.4s_ease_both]"
-                style={{ animationDelay: `${i * 0.08}s` }}
-              >
-                <span className="text-xs px-2.5 py-0.5 rounded-full text-white whitespace-nowrap"
-                  style={{ background: tag.color }}>{tag.label}</span>
-                <span className="text-sm text-[var(--color-fg)] flex-1 truncate">{note.content}</span>
-                <span className="text-xs text-[var(--color-muted)] shrink-0">
-                  {'queue_id' in note ? '待同步' : note.member_id ? memberLabel.get(note.member_id) ?? '成员' : '全家'}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      ) : null}
     </div>
   )
 }

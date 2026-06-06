@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { MEMORY_TAG_COLORS } from '@shared/constants/colors'
 import { MOCK_MEMORIES } from '@shared/mocks'
 import type { Memory } from '@shared/types'
 import { useMemberMemories } from '@shared/hooks'
-import { getCurrentMemberId, getCurrentMemberName } from '../session'
+import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
 type MemoryDomain = 'dressing' | 'diet' | 'exercise' | 'general'
 type MemoryType = 'fact' | 'episode'
@@ -45,11 +46,16 @@ function formatDate(value: string) {
 
 export default function MemoryVault() {
   const [activeTag, setActiveTag] = useState('全部')
-  const { data, isError } = useMemberMemories(getCurrentMemberId())
+  const isPaired = hasPairedMember()
+  const memberId = getCurrentMemberId()
+  const { data, isError } = useMemberMemories(memberId, isPaired)
   const hasLoadedMemories = Boolean(data && data.length > 0)
-  const memories = hasLoadedMemories ? data! : normalizeMockMemories()
+  const memories = useMemo(
+    () => (hasLoadedMemories ? data! : isPaired && isError ? normalizeMockMemories() : []),
+    [data, hasLoadedMemories, isError, isPaired],
+  )
   const message = isError
-    ? '记忆加载失败，正在显示本地示例'
+    ? isPaired ? '记忆加载失败，正在显示本地示例' : ''
     : !navigator.onLine && hasLoadedMemories
       ? '当前离线，正在显示上次加载的记忆'
       : ''
@@ -77,59 +83,77 @@ export default function MemoryVault() {
         </div>
       ) : null}
 
-      <div className="flex gap-2 overflow-x-auto pb-1 animate-[fadeUp_0.4s_0.05s_ease_both]">
-        {TAGS.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            onClick={() => setActiveTag(tag)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-[var(--font-body)] transition-colors ${
-              activeTag === tag
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
-                : 'border-[var(--color-border)] bg-white text-[var(--color-muted)]'
-            }`}
+      {!isPaired ? (
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="text-sm leading-6 text-[var(--color-fg)]">
+            绑定设备后，这里只会显示当前成员自己的记忆；离线时也会保留最近加载过的内容。
+          </p>
+          <Link
+            to="/pair"
+            className="mt-4 block rounded-[var(--radius-sm)] bg-[var(--color-accent)] py-3 text-center text-sm text-white"
           >
-            {tag}
-          </button>
-        ))}
-      </div>
+            去配对
+          </Link>
+        </section>
+      ) : null}
 
-      <div className="flex flex-col gap-2.5">
-        {filtered.length === 0 ? (
-          <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white px-4 py-8 text-center text-sm text-[var(--color-muted)] shadow-[var(--shadow-card)]">
-            还没有这一类记忆
-          </div>
-        ) : null}
-        {filtered.map((memory, index) => {
-          const tag = DOMAIN_LABEL[memory.domain]
-          return (
-            <article
-              key={memory.id}
-              className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)]
-                         px-4 py-3 shadow-[var(--shadow-card)] animate-[fadeUp_0.4s_ease_both]"
-              style={{ animationDelay: `${0.1 + index * 0.06}s` }}
+      {isPaired ? (
+        <div className="flex gap-2 overflow-x-auto pb-1 animate-[fadeUp_0.4s_0.05s_ease_both]">
+          {TAGS.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setActiveTag(tag)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-[var(--font-body)] transition-colors ${
+                activeTag === tag
+                  ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                  : 'border-[var(--color-border)] bg-white text-[var(--color-muted)]'
+              }`}
             >
-              <div className="mb-2 flex items-center gap-2">
-                <span
-                  className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs text-white"
-                  style={{ background: MEMORY_TAG_COLORS[tag] ?? 'var(--color-muted)' }}
-                >
-                  {tag}
-                </span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-[var(--color-muted)]">
-                  {TYPE_LABEL[memory.type]}
-                </span>
-                <span className="ml-auto text-[10px] text-[var(--color-muted)]">{formatDate(memory.created_at)}</span>
-              </div>
-              <p className="text-sm text-[var(--color-fg)]">{memory.content}</p>
-              <p className="mt-2 text-[10px] text-[var(--color-muted)]">
-                置信度 {(memory.confidence * 100).toFixed(0)}%
-                {memory.source_note_id ? ` · 来源 note #${memory.source_note_id}` : ''}
-              </p>
-            </article>
-          )
-        })}
-      </div>
+              {tag}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {isPaired ? (
+        <div className="flex flex-col gap-2.5">
+          {filtered.length === 0 ? (
+            <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white px-4 py-8 text-center text-sm text-[var(--color-muted)] shadow-[var(--shadow-card)]">
+              还没有这一类记忆
+            </div>
+          ) : null}
+          {filtered.map((memory, index) => {
+            const tag = DOMAIN_LABEL[memory.domain]
+            return (
+              <article
+                key={memory.id}
+                className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)]
+                           px-4 py-3 shadow-[var(--shadow-card)] animate-[fadeUp_0.4s_ease_both]"
+                style={{ animationDelay: `${0.1 + index * 0.06}s` }}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs text-white"
+                    style={{ background: MEMORY_TAG_COLORS[tag] ?? 'var(--color-muted)' }}
+                  >
+                    {tag}
+                  </span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-[var(--color-muted)]">
+                    {TYPE_LABEL[memory.type]}
+                  </span>
+                  <span className="ml-auto text-[10px] text-[var(--color-muted)]">{formatDate(memory.created_at)}</span>
+                </div>
+                <p className="text-sm text-[var(--color-fg)]">{memory.content}</p>
+                <p className="mt-2 text-[10px] text-[var(--color-muted)]">
+                  置信度 {(memory.confidence * 100).toFixed(0)}%
+                  {memory.source_note_id ? ` · 来源 note #${memory.source_note_id}` : ''}
+                </p>
+              </article>
+            )
+          })}
+        </div>
+      ) : null}
     </div>
   )
 }

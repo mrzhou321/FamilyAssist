@@ -50,6 +50,27 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
     throw "Today advice does not use offline recommendation and weather cache"
   }
+  $memoryVault = Get-Content "$root\frontend\src\mobile\pages\MemoryVault.tsx" -Raw -Encoding UTF8
+  $memoryVaultHasPairingCheck = $memoryVault.IndexOf("hasPairedMember") -ge 0
+  $memoryVaultUsesEnabledQuery = $memoryVault.IndexOf("useMemberMemories(memberId, isPaired)") -ge 0
+  $memoryVaultHasPairRoute = $memoryVault.IndexOf('to="/pair"') -ge 0
+  $memoryVaultGatesMockData = $memoryVault.IndexOf("isPaired && isError ? normalizeMockMemories() : []") -ge 0
+  if (-not $memoryVaultHasPairingCheck) {
+    throw "Memory vault does not check pairing"
+  }
+  if (-not $memoryVaultUsesEnabledQuery) {
+    throw "Memory vault does not disable memory queries before pairing"
+  }
+  if (-not $memoryVaultHasPairRoute -or -not $memoryVaultGatesMockData) {
+    throw "Memory vault does not gate member data behind pairing"
+  }
+  $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
+  $quickNoteShowsPairingCopy = $quickNote.IndexOf('to="/pair"') -ge 0
+  $quickNoteGatesMockMembers = ($quickNote.IndexOf(": isPaired") -ge 0) -and ($quickNote.IndexOf("MOCK_MEMBERS.map") -ge 0) -and ($quickNote.IndexOf(": []") -ge 0)
+  $quickNoteDisablesNotesBeforePairing = $quickNote.IndexOf("useMemberNotes(memberId, isPaired)") -ge 0
+  if (-not $quickNoteShowsPairingCopy -or -not $quickNoteGatesMockMembers -or -not $quickNoteDisablesNotesBeforePairing) {
+    throw "Quick note does not gate member choices behind pairing"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"

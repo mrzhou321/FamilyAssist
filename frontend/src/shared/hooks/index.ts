@@ -7,7 +7,7 @@ import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offl
 export const useMembers = (enabled = true) =>
   useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/members'), enabled })
 
-export const useMemberMemories = (memberId: number | null) =>
+export const useMemberMemories = (memberId: number | null, enabled = true) =>
   useQuery({
     queryKey: ['memories', memberId],
     queryFn: async () => {
@@ -20,12 +20,14 @@ export const useMemberMemories = (memberId: number | null) =>
         throw error
       }
     },
+    enabled,
   })
 
-export const useMemberNotes = (memberId: number | null) =>
+export const useMemberNotes = (memberId: number | null, enabled = true) =>
   useQuery({
     queryKey: ['notes', memberId],
     queryFn: () => api.get<Note[]>(memberId === null ? '/notes' : `/notes?member_id=${memberId}`),
+    enabled,
   })
 
 export const useCreateNote = () => {
