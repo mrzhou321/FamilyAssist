@@ -86,11 +86,20 @@ Step "Deployment security defaults" {
 
 Step "PRD implementation audit docs" {
   $audit = Get-Content "$root\docs\PRD_IMPLEMENTATION_AUDIT.md" -Raw -Encoding UTF8
+  $manualAcceptance = Get-Content "$root\docs\MANUAL_ACCEPTANCE.md" -Raw -Encoding UTF8
   if ($audit.IndexOf("Text quick notes") -lt 0 -or $audit.IndexOf("Pairing QR login") -lt 0 -or $audit.IndexOf("Performance smoke") -lt 0) {
     throw "PRD implementation audit does not cover core product areas"
   }
   if ($audit.IndexOf("Residual Risks") -lt 0 -or $audit.IndexOf("GBNF") -lt 0 -or $audit.IndexOf("manual mobile testing") -lt 0) {
     throw "PRD implementation audit does not preserve known residual risks"
+  }
+  if ($audit.IndexOf("MANUAL_ACCEPTANCE.md") -lt 0) {
+    throw "PRD implementation audit does not point to the manual acceptance checklist"
+  }
+  foreach ($manualItem in @("Mobile Device Checks", "Deployment Smoke", "LLM Quality Sampling", "Recommendation Sampling", "80%")) {
+    if ($manualAcceptance.IndexOf($manualItem) -lt 0) {
+      throw "Manual acceptance checklist is missing $manualItem"
+    }
   }
   Write-Host "prd_implementation_audit_docs_ok"
 }
