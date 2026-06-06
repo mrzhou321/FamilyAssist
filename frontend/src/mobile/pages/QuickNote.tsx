@@ -12,6 +12,7 @@ interface PhotoCapture {
   type: string
   size: number
   capturedAt: string
+  previewUrl: string
 }
 
 interface SpeechRecognitionAlternativeLike {
@@ -96,6 +97,12 @@ export default function QuickNote() {
 
   useEffect(() => () => recognitionRef.current?.stop(), [])
 
+  useEffect(() => {
+    return () => {
+      if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
+    }
+  }, [photoCapture])
+
   function appendCapturedText(nextText: string, nextSource: NoteSource) {
     setText((current) => [current.trim(), nextText].filter(Boolean).join('\n'))
     setSource(nextSource)
@@ -161,11 +168,13 @@ export default function QuickNote() {
 
   function handlePhotoCapture(file: File | undefined) {
     if (!file) return
+    if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
     setPhotoCapture({
       name: file.name,
       type: file.type || 'image/*',
       size: file.size,
       capturedAt: new Date(file.lastModified || Date.now()).toISOString(),
+      previewUrl: URL.createObjectURL(file),
     })
     appendCapturedText(buildPhotoNoteText(file), 'photo')
     if (photoInputRef.current) photoInputRef.current.value = ''
@@ -184,12 +193,14 @@ export default function QuickNote() {
         onSuccess: () => {
           setText('')
           setSource('text')
+          if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
           setPhotoCapture(null)
           setMessage(navigator.onLine ? '已记下，正在理解中' : '已离线暂存，联网后自动同步')
         },
         onError: () => {
           setText('')
           setSource('text')
+          if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
           setPhotoCapture(null)
           setMessage('后端暂不可用，已暂存本地队列')
         },
@@ -256,6 +267,7 @@ export default function QuickNote() {
               onChange={e => {
                 setText(e.target.value)
                 setSource('text')
+                if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
                 setPhotoCapture(null)
               }}
               placeholder="记录家人的习惯、身体状况、饮食偏好……"
@@ -264,9 +276,18 @@ export default function QuickNote() {
                          text-[var(--color-fg)] placeholder:text-[var(--color-muted)]"
             />
             {photoCapture ? (
-              <div className="mb-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white/70 px-3 py-2 text-xs text-[var(--color-muted)]">
-                <span className="text-[var(--color-fg)]">照片：</span>
-                {photoCapture.name} · {formatPhotoSize(photoCapture.size)} · {photoCapture.type}
+              <div className="mb-3 flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white/70 px-3 py-2 text-xs text-[var(--color-muted)]">
+                <img
+                  src={photoCapture.previewUrl}
+                  alt="拍照速记预览"
+                  className="h-14 w-14 rounded-[var(--radius-sm)] object-cover"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-[var(--color-fg)]">照片：{photoCapture.name}</p>
+                  <p className="mt-1 truncate">
+                    {formatPhotoSize(photoCapture.size)} · {photoCapture.type}
+                  </p>
+                </div>
               </div>
             ) : null}
             <div className="flex items-center gap-3 pt-3 border-t border-dashed border-[var(--color-border)]">

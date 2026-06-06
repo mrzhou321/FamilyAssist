@@ -116,6 +116,12 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("PhotoCapture") -lt 0 -or $quickNote.IndexOf("buildPhotoNoteText") -lt 0 -or $quickNote.IndexOf("formatPhotoSize") -lt 0) {
     throw "Quick note photo capture metadata is incomplete"
   }
+  if ($quickNote.IndexOf("previewUrl") -lt 0 -or $quickNote.IndexOf("URL.createObjectURL") -lt 0 -or $quickNote.IndexOf("URL.revokeObjectURL") -lt 0) {
+    throw "Quick note photo capture does not manage local preview URLs"
+  }
+  if ($quickNote.IndexOf("src={photoCapture.previewUrl}") -lt 0 -or $quickNote.IndexOf("object-cover") -lt 0) {
+    throw "Quick note photo capture preview image is missing"
+  }
   if ($quickNote.IndexOf("setPhotoCapture(null)") -lt 0 -or $quickNote.IndexOf("photoInputRef.current.value = ''") -lt 0) {
     throw "Quick note does not clear photo capture state after submit or recapture"
   }
