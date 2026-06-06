@@ -301,6 +301,19 @@ class DatabaseDataStore:
         member = await self.session.get(models.Member, member_id)
         if member is None:
             return False
+        await self.session.execute(delete(models.PairingToken).where(models.PairingToken.member_id == member_id))
+        await self.session.execute(delete(models.MemberSession).where(models.MemberSession.member_id == member_id))
+        notes = await self.session.scalars(select(models.Note).where(models.Note.member_id == member_id))
+        for note in notes.all():
+            note.member_id = None
+        memories = await self.session.scalars(select(models.Memory).where(models.Memory.member_id == member_id))
+        for memory in memories.all():
+            memory.member_id = None
+        events = await self.session.scalars(
+            select(models.RecommendationEvent).where(models.RecommendationEvent.member_id == member_id)
+        )
+        for event in events.all():
+            event.member_id = None
         await self.session.delete(member)
         await self.session.commit()
         return True

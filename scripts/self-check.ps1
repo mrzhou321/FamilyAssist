@@ -1596,6 +1596,35 @@ assert client.get("/api/notes?member_id=1", headers=headers).status_code == 401
 member_after_revoke = next(item for item in client.get("/api/members", headers=admin_headers).json() if item["id"] == 1)
 assert member_after_revoke["bound"] is False
 
+delete_member = client.post(
+    "/api/members",
+    json={"name": "delete smoke", "birthday": None, "relation": "test", "profile": {}},
+    headers=admin_headers,
+)
+assert delete_member.status_code == 201
+delete_member_id = delete_member.json()["id"]
+delete_pairing = client.post(f"/api/pairing/members/{delete_member_id}", headers=admin_headers)
+assert delete_pairing.status_code == 201
+delete_session = client.post(
+    "/api/pairing/exchange",
+    json={"pairing_token": delete_pairing.json()["pairing_token"], "device_name": "delete-smoke"},
+)
+assert delete_session.status_code == 200
+delete_headers = {"Authorization": f"Bearer {delete_session.json()['access_token']}"}
+delete_note = client.post(
+    "/api/notes",
+    json={"member_id": delete_member_id, "content": "delete member api note", "source": "text"},
+    headers=delete_headers,
+)
+assert delete_note.status_code == 202
+delete_note_id = delete_note.json()["id"]
+assert client.get(f"/api/notes/{delete_note_id}", headers=delete_headers).status_code == 200
+assert client.delete(f"/api/members/{delete_member_id}", headers=admin_headers).status_code == 204
+assert client.get(f"/api/notes/{delete_note_id}", headers=admin_headers).status_code == 200
+assert client.get(f"/api/notes/{delete_note_id}", headers=admin_headers).json()["member_id"] is None
+assert client.get(f"/api/notes/{delete_note_id}", headers=delete_headers).status_code == 401
+assert all(item["id"] != delete_member_id for item in client.get("/api/members", headers=admin_headers).json())
+
 print("backend_api_smoke_ok")
 '@ | Set-Content -LiteralPath $apiSmoke -Encoding UTF8
   Push-Location "$root\backend"
