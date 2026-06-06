@@ -2,6 +2,8 @@
 
 Use this checklist for PRD items that cannot be fully proven by local automated self-checks.
 
+After completing each section, open `/admin/settings`, tick the matching acceptance item, and use the export button to save the JSON evidence. The export includes completion counts, provider diagnostics, and the checked acceptance items.
+
 ## Mobile Device Checks
 
 - Open `http://<host>/mobile/` on a target Android browser and an iOS browser.

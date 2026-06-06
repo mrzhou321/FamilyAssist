@@ -103,7 +103,7 @@ Step "PRD implementation audit docs" {
   if ($audit.IndexOf("MANUAL_ACCEPTANCE.md") -lt 0) {
     throw "PRD implementation audit does not point to the manual acceptance checklist"
   }
-  foreach ($manualItem in @("Mobile Device Checks", "Deployment Smoke", "LLM Quality Sampling", "Recommendation Sampling", "80%")) {
+  foreach ($manualItem in @("Mobile Device Checks", "Deployment Smoke", "LLM Quality Sampling", "Recommendation Sampling", "JSON evidence", "provider diagnostics", "80%")) {
     if ($manualAcceptance.IndexOf($manualItem) -lt 0) {
       throw "Manual acceptance checklist is missing $manualItem"
     }
