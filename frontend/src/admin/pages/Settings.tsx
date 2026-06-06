@@ -56,6 +56,13 @@ const DEFAULT_PROVIDER_STATUS: ProviderStatus = {
   privacy: { status: 'degraded', label: '等待检查', detail: '正在读取隐私策略' },
 }
 
+const ACCEPTANCE_CHECKS = [
+  { label: '移动端语音 / 拍照 / 扫码', detail: 'Android 与 iOS 真机浏览器', status: '人工' },
+  { label: 'Docker Compose 烟测', detail: 'deploy-smoke.ps1，可跳过模型拉取', status: '外部' },
+  { label: 'LLM 抽取质量抽样', detail: '20 条代表性速记，目标 >=80%', status: '抽样' },
+  { label: '三域推荐抽样', detail: '穿衣、饮食、运动与依据追踪', status: '抽样' },
+]
+
 export default function Settings() {
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>(DEFAULT_PROVIDER_STATUS)
@@ -300,6 +307,31 @@ export default function Settings() {
               >
                 重建记忆向量
               </button>
+            </div>
+          </section>
+
+          <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-lg text-[var(--color-fg)]">验收清单</h3>
+              <span className="rounded-full bg-[var(--color-surface-warm)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">
+                人工项
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {ACCEPTANCE_CHECKS.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-[var(--color-fg)]">{item.label}</span>
+                    <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] text-[var(--color-muted)]">
+                      {item.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">{item.detail}</p>
+                </div>
+              ))}
             </div>
           </section>
 

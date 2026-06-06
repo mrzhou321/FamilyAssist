@@ -276,6 +276,9 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("rebuild-memory-embeddings") -lt 0 -or $settingsPage.IndexOf("rebuildEmbeddings") -lt 0) {
     throw "Settings page does not expose memory embedding rebuild action"
   }
+  if ($settingsPage.IndexOf("ACCEPTANCE_CHECKS") -lt 0 -or $settingsPage.IndexOf("验收清单") -lt 0 -or $settingsPage.IndexOf("Docker Compose 烟测") -lt 0 -or $settingsPage.IndexOf("LLM 抽取质量抽样") -lt 0) {
+    throw "Settings page does not surface residual manual acceptance checks"
+  }
   $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
   $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
   if (-not $usesParallelLoad -or -not $hasRefreshButton) {
