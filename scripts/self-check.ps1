@@ -213,6 +213,77 @@ print("backend_weather_provider_ok")
   }
 }
 
+Step "Backend LLM extractor smoke" {
+  $llmSmoke = New-TemporaryFile
+  @'
+import asyncio
+
+import httpx
+
+import app.llm_extractor as extractor
+from app.llm_extractor import build_review_candidate
+from app.schemas import MemoryDomain, MemoryType, SystemSettings
+
+
+class MockOllamaClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        transport = httpx.MockTransport(self._handler)
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://ollama.test"))
+
+    @staticmethod
+    def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "response": (
+                    "{\"candidates\":[{\"type\":\"fact\",\"domain\":\"diet\","
+                    "\"content\":\"妈妈不吃香菜\",\"confidence\":0.91}]}"
+                )
+            },
+        )
+
+
+class BadOllamaClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"response": "not-json"}))
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://ollama.test"))
+
+
+async def main():
+    original_client = extractor.httpx.AsyncClient
+    extractor.httpx.AsyncClient = MockOllamaClient
+    try:
+        candidate = await build_review_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", SystemSettings(extraction_retries=1))
+    finally:
+        extractor.httpx.AsyncClient = original_client
+    assert candidate.candidates[0].type == MemoryType.fact
+    assert candidate.candidates[0].domain == MemoryDomain.diet
+    assert candidate.candidates[0].confidence == 0.91
+
+    extractor.httpx.AsyncClient = BadOllamaClient
+    try:
+        fallback = await build_review_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", SystemSettings(extraction_retries=1))
+    finally:
+        extractor.httpx.AsyncClient = original_client
+    assert fallback.candidates[0].content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
+    assert fallback.candidates[0].domain == MemoryDomain.diet
+
+
+asyncio.run(main())
+print("backend_llm_extractor_ok")
+'@ | Set-Content -LiteralPath $llmSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $llmSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend LLM extractor smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $llmSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend API smoke" {
   $apiSmoke = New-TemporaryFile
   @'
