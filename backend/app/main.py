@@ -55,6 +55,8 @@ from .schemas import (
     WeatherContext,
 )
 
+SUPPORTED_LLM_PROVIDERS = {"ollama", "deepseek", "qwen"}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,6 +95,34 @@ def validate_cloud_llm_base_url(system_settings: SystemSettings) -> None:
     parsed = urlparse(base_url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(status_code=400, detail="cloud_llm_base_url must be an absolute http(s) URL")
+
+
+def validate_system_settings(system_settings: SystemSettings) -> None:
+    if system_settings.llm_provider not in SUPPORTED_LLM_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Unsupported llm_provider")
+    if not system_settings.generation_model.strip():
+        raise HTTPException(status_code=400, detail="generation_model must not be blank")
+    if not system_settings.embedding_model.strip():
+        raise HTTPException(status_code=400, detail="embedding_model must not be blank")
+    if not system_settings.default_city.strip():
+        raise HTTPException(status_code=400, detail="default_city must not be blank")
+    if system_settings.llm_provider != "ollama":
+        if not system_settings.cloud_llm_risk_acknowledged:
+            raise HTTPException(status_code=400, detail="Cloud LLM risk acknowledgement is required")
+    validate_cloud_llm_base_url(system_settings)
+
+
+def normalize_system_settings(system_settings: SystemSettings) -> SystemSettings:
+    return system_settings.model_copy(
+        update={
+            "llm_provider": system_settings.llm_provider.strip(),
+            "generation_model": system_settings.generation_model.strip(),
+            "embedding_model": system_settings.embedding_model.strip(),
+            "cloud_generation_model": system_settings.cloud_generation_model.strip(),
+            "cloud_llm_base_url": system_settings.cloud_llm_base_url.strip().rstrip("/"),
+            "default_city": system_settings.default_city.strip(),
+        }
+    )
 
 
 @app.get("/health", response_model=HealthStatus)
@@ -406,10 +436,8 @@ async def update_settings(
     _: None = Depends(require_admin),
 ) -> PublicSystemSettings:
     current_settings = await data.get_settings()
-    merged_settings = _merge_secret_settings(current_settings, payload)
-    if merged_settings.llm_provider != "ollama" and not merged_settings.cloud_llm_risk_acknowledged:
-        raise HTTPException(status_code=400, detail="Cloud LLM risk acknowledgement is required")
-    validate_cloud_llm_base_url(merged_settings)
+    merged_settings = normalize_system_settings(_merge_secret_settings(current_settings, payload))
+    validate_system_settings(merged_settings)
     return _public_settings(await data.update_settings(merged_settings))
 
 

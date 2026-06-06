@@ -1350,10 +1350,14 @@ assert "self-check-weather-secret" not in non_secret_update.text
 cloud_settings = {**non_secret_update.json(), "llm_provider": "deepseek", "cloud_llm_risk_acknowledged": False}
 assert client.patch("/api/settings", json=cloud_settings, headers=admin_headers).status_code == 400
 cloud_settings["cloud_llm_risk_acknowledged"] = True
+assert client.patch("/api/settings", json={**cloud_settings, "llm_provider": "unknown"}, headers=admin_headers).status_code == 400
+assert client.patch("/api/settings", json={**cloud_settings, "generation_model": "   "}, headers=admin_headers).status_code == 400
+assert client.patch("/api/settings", json={**cloud_settings, "embedding_model": ""}, headers=admin_headers).status_code == 400
+assert client.patch("/api/settings", json={**cloud_settings, "default_city": "   "}, headers=admin_headers).status_code == 400
 bad_cloud_url = {**cloud_settings, "cloud_llm_base_url": "file:///tmp/family-assister"}
 assert client.patch("/api/settings", json=bad_cloud_url, headers=admin_headers).status_code == 400
-cloud_settings["cloud_generation_model"] = "deepseek-v4-flash"
-cloud_settings["cloud_llm_base_url"] = "https://api.deepseek.com"
+cloud_settings["cloud_generation_model"] = "  deepseek-v4-flash  "
+cloud_settings["cloud_llm_base_url"] = "https://api.deepseek.com/"
 cloud_settings["cloud_llm_api_key"] = ""
 cloud_settings["weather_api_key"] = ""
 updated_settings = client.patch("/api/settings", json=cloud_settings, headers=admin_headers)
