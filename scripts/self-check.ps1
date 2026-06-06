@@ -410,6 +410,7 @@ Step "Frontend member auth expiry wiring" {
   $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
   $session = Get-Content "$root\frontend\src\mobile\session\index.ts" -Raw -Encoding UTF8
   $pairDevice = Get-Content "$root\frontend\src\mobile\pages\PairDevice.tsx" -Raw -Encoding UTF8
+  $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw -Encoding UTF8
   if ($constants.IndexOf("MEMBER_AUTH_EXPIRED_EVENT") -lt 0) {
     throw "Frontend does not define a member auth expiry event"
   }
@@ -424,6 +425,11 @@ Step "Frontend member auth expiry wiring" {
   }
   if ($pairDevice.IndexOf("clearMemberSession()") -lt 0 -or $pairDevice.IndexOf("localStorage.removeItem(LEGACY_MEMBER_TOKEN_KEY)") -ge 0) {
     throw "Pairing flow does not clear stale member session through the shared helper"
+  }
+  foreach ($staleHook in @("useMembers", "useDeleteMemory", "useFeedback", "useRecommendation")) {
+    if ($hooks.IndexOf("export const $staleHook") -ge 0) {
+      throw "Shared hooks still expose stale or unused API path $staleHook"
+    }
   }
   $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
   if ($quickNote.IndexOf("useMembers") -ge 0 -or $quickNote.IndexOf("MOCK_MEMBERS.map") -ge 0) {

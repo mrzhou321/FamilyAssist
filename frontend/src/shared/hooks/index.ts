@@ -1,11 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@shared/api'
-import type { Member, Memory, Note, NoteCreatePayload, Recommendation, Feedback, Domain } from '@shared/types'
+import type { Memory, Note, NoteCreatePayload } from '@shared/types'
 import { cacheMemories, getCachedMemories } from '../../mobile/offline/cachedData'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
-
-export const useMembers = (enabled = true) =>
-  useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/members'), enabled })
 
 export const useMemberMemories = (memberId: number | null, enabled = true) =>
   useQuery({
@@ -66,23 +63,3 @@ export const useSyncQueuedNotes = () => {
     },
   })
 }
-
-export const useDeleteMemory = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number) => api.delete<void>(`/memories/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['memories'] }),
-  })
-}
-
-export const useFeedback = () =>
-  useMutation({
-    mutationFn: (fb: Feedback) => api.post<void>('/recommendations/feedback', fb),
-  })
-
-export const useRecommendation = (memberId: number, domain: Domain) =>
-  useQuery({
-    queryKey: ['recommendation', memberId, domain],
-    queryFn: () => api.get<Recommendation>(`/recommendations/${domain}?member_id=${memberId}`),
-    enabled: !!memberId && !!domain,
-  })
