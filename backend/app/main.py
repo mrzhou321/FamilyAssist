@@ -272,6 +272,11 @@ async def reject_review_candidate(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
 ) -> Note:
+    current_note = await data.get_note(note_id)
+    if current_note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    if current_note.status == "reviewed":
+        raise HTTPException(status_code=409, detail="Reviewed note cannot be rejected")
     note = await data.reject_review_candidate(note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")

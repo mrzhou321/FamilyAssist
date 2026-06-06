@@ -196,6 +196,10 @@ export default function Review() {
 
   async function reject() {
     if (!activeSelectedId) return
+    if (selectedNote?.status === 'reviewed') {
+      setMessage('已入库速记请在记忆库编辑或删除对应记忆')
+      return
+    }
     try {
       await api.post<Note>(`/review/notes/${activeSelectedId}/reject`, {})
       updateSelectedStatus('rejected')
@@ -377,7 +381,9 @@ export default function Review() {
                   <button
                     type="button"
                     onClick={reject}
-                    className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-5 py-2 text-sm text-[var(--color-muted)] transition-colors hover:bg-[var(--color-surface-warm)]"
+                    disabled={selectedNote.status === 'reviewed'}
+                    title={selectedNote.status === 'reviewed' ? '已入库速记请在记忆库编辑或删除' : undefined}
+                    className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-5 py-2 text-sm text-[var(--color-muted)] transition-colors hover:bg-[var(--color-surface-warm)] disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     忽略候选
                   </button>

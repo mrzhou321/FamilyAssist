@@ -307,6 +307,9 @@ Step "Frontend review workflow wiring" {
   if ($reviewPage -notmatch "/review/notes/\$\{activeSelectedId\}/approve" -or $reviewPage -notmatch "/review/notes/\$\{activeSelectedId\}/reject") {
     throw "Review page approve/reject actions are not wired"
   }
+  if ($reviewPage.IndexOf("selectedNote?.status === 'reviewed'") -lt 0 -or $reviewPage.IndexOf("disabled={selectedNote.status === 'reviewed'}") -lt 0) {
+    throw "Review page should not allow rejecting notes that already have reviewed memories"
+  }
   if ($reviewPage.IndexOf("const content = draft.content.trim()") -lt 0 -or $reviewPage.IndexOf("记忆内容不能为空") -lt 0) {
     throw "Review page should trim and reject blank candidate content before approving"
   }
@@ -1430,6 +1433,7 @@ from time import perf_counter
 from fastapi.testclient import TestClient
 
 from app.main import _sse_data, app
+from app.store import store as in_memory_store
 from app.tokens import decode_member_token
 client = TestClient(app)
 
@@ -1614,6 +1618,9 @@ assert any(item["source_note_id"] == note_id for item in memories.json())
 auto_memory = next(item for item in memories.json() if item["source_note_id"] == note_id)
 assert auto_memory["type"] == "episode"
 assert auto_memory["expires_at"] is not None
+reject_reviewed_note = client.post(f"/api/review/notes/{note_id}/reject", headers=admin_headers)
+assert reject_reviewed_note.status_code == 409
+assert client.get(f"/api/notes/{note_id}", headers=headers).json()["status"] == "reviewed"
 bad_memory_update = client.patch(
     f"/api/memories/{auto_memory['id']}",
     json={"confidence": 1.5},
@@ -1711,6 +1718,14 @@ reject_note = client.post(
 )
 assert reject_note.status_code == 202
 reject_note_id = reject_note.json()["id"]
+in_memory_store.memories = {
+    memory_id: memory
+    for memory_id, memory in in_memory_store.memories.items()
+    if memory.source_note_id != reject_note_id
+}
+in_memory_store.notes[reject_note_id] = in_memory_store.notes[reject_note_id].model_copy(
+    update={"status": "understanding"}
+)
 before_reject_memories = client.get("/api/memories?member_id=1", headers=headers).json()
 rejected = client.post(f"/api/review/notes/{reject_note_id}/reject", headers=admin_headers)
 assert rejected.status_code == 200
