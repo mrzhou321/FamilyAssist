@@ -36,6 +36,7 @@ from .schemas import (
     SystemSettings,
     WeatherContext,
 )
+from .tokens import create_member_token, decode_member_token
 from .weather import estimate_weather
 
 
@@ -353,7 +354,7 @@ class InMemoryStore:
 
         self.pairing_tokens[token_hash] = record.model_copy(update={"used": True})
         self.members[member.id] = member.model_copy(update={"bound": True, "updated_at": now()})
-        access_token = token_urlsafe(32)
+        access_token = create_member_token(member.id, payload.device_name)
         token_hash = sha256(access_token.encode("utf-8")).hexdigest()
         self.member_sessions[token_hash] = MemberDeviceSession(
             member_id=member.id,
@@ -365,9 +366,14 @@ class InMemoryStore:
         return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
 
     def validate_member_token(self, access_token: str) -> MemberSession | None:
+        payload = decode_member_token(access_token)
+        if payload is None:
+            return None
         token_hash = sha256(access_token.encode("utf-8")).hexdigest()
         session = self.member_sessions.get(token_hash)
         if session is None or session.revoked:
+            return None
+        if session.member_id != payload["member_id"] or session.device_name != payload["device"]:
             return None
         return MemberSession(member_id=session.member_id, member_name=session.member_name, access_token=access_token)
 

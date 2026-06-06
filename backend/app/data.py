@@ -46,6 +46,7 @@ from .schemas import (
     WeatherContext,
 )
 from .store import InMemoryStore, default_expires_at, now, store
+from .tokens import create_member_token, decode_member_token
 from .weather import get_weather_context
 
 
@@ -527,7 +528,7 @@ class DatabaseDataStore:
             return None
         record.used = True
         member.bound = True
-        access_token = token_urlsafe(32)
+        access_token = create_member_token(member.id, payload.device_name)
         self.session.add(
             models.MemberSession(
                 token_hash=sha256(access_token.encode("utf-8")).hexdigest(),
@@ -539,9 +540,14 @@ class DatabaseDataStore:
         return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
 
     async def validate_member_token(self, access_token: str) -> MemberSession | None:
+        payload = decode_member_token(access_token)
+        if payload is None:
+            return None
         token_hash = sha256(access_token.encode("utf-8")).hexdigest()
         session = await self.session.get(models.MemberSession, token_hash)
         if session is None or session.revoked:
+            return None
+        if session.member_id != payload["member_id"] or session.device_name != payload["device"]:
             return None
         member = await self.session.get(models.Member, session.member_id)
         if member is None:

@@ -437,6 +437,7 @@ Step "Backend API smoke" {
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.tokens import decode_member_token
 client = TestClient(app)
 
 assert client.get("/health").status_code == 200
@@ -484,7 +485,12 @@ session = client.post(
     json={"pairing_token": pairing.json()["pairing_token"], "device_name": "self-check-phone"},
 )
 assert session.status_code == 200
-headers = {"Authorization": f"Bearer {session.json()['access_token']}"}
+member_token = session.json()["access_token"]
+assert member_token.count(".") == 2
+token_payload = decode_member_token(member_token)
+assert token_payload["member_id"] == 1
+assert token_payload["device"] == "self-check-phone"
+headers = {"Authorization": f"Bearer {member_token}"}
 
 note = client.post(
     "/api/notes",
@@ -621,6 +627,7 @@ from app.schemas import (
 from app.embeddings import EMBEDDING_DIMENSION, build_text_embedding
 from app.memory_dedupe import is_duplicate_memory
 from app.store import InMemoryStore, now
+from app.tokens import decode_member_token
 
 store = InMemoryStore()
 assert len(build_text_embedding("stable vector smoke")) == EMBEDDING_DIMENSION
@@ -631,6 +638,11 @@ session = store.exchange_pairing_token(PairingExchange(pairing_token=token.pairi
 assert session is not None
 assert session.member_id == 1
 assert store.exchange_pairing_token(PairingExchange(pairing_token=token.pairing_token)) is None
+assert session.access_token.count(".") == 2
+payload = decode_member_token(session.access_token)
+assert payload["member_id"] == 1
+assert payload["device"] == "store-smoke-phone"
+assert store.validate_member_token(session.access_token + "tampered") is None
 sessions = store.list_member_sessions(1)
 assert len(sessions) == 1
 assert sessions[0].device_name == "store-smoke-phone"
