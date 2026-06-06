@@ -177,6 +177,9 @@ Step "PRD implementation audit docs" {
   if ($audit.IndexOf("llm-quality-sample.ps1") -lt 0 -or $manualAcceptance.IndexOf("llm-quality-sample.ps1") -lt 0) {
     throw "LLM quality sampling docs do not point to the repeatable sample script"
   }
+  if ($audit.IndexOf("mobile-viewport-smoke.ps1") -lt 0 -or $manualAcceptance.IndexOf("mobile-viewport-smoke.ps1") -lt 0) {
+    throw "Mobile acceptance docs do not point to the automated viewport smoke script"
+  }
   foreach ($manualItem in @("Mobile Device Checks", "Deployment Smoke", "LLM Quality Sampling", "Recommendation Sampling", "JSON evidence", "provider diagnostics", "80%")) {
     if ($manualAcceptance.IndexOf($manualItem) -lt 0) {
       throw "Manual acceptance checklist is missing $manualItem"
@@ -513,6 +516,27 @@ Step "Frontend mobile pairing scanner wiring" {
     throw "Mobile pairing page does not expose scan and manual token controls"
   }
   Write-Host "frontend_mobile_pairing_scanner_wiring_ok"
+}
+
+Step "Frontend mobile viewport smoke script" {
+  $mobileSmokePath = "$root\scripts\mobile-viewport-smoke.ps1"
+  if (-not (Test-Path $mobileSmokePath)) {
+    throw "Mobile viewport smoke script is missing"
+  }
+  $parseErrors = $null
+  $parseTokens = $null
+  [System.Management.Automation.Language.Parser]::ParseFile($mobileSmokePath, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    throw "Mobile viewport smoke script has PowerShell syntax errors"
+  }
+  $mobileSmoke = Get-Content $mobileSmokePath -Raw -Encoding UTF8
+  if ($mobileSmoke.IndexOf("--headless=new") -lt 0 -or $mobileSmoke.IndexOf("--window-size=390,844") -lt 0 -or $mobileSmoke.IndexOf("/mobile/pair") -lt 0 -or $mobileSmoke.IndexOf("manifest.webmanifest") -lt 0) {
+    throw "Mobile viewport smoke script should use a real mobile-sized browser and cover PWA routes"
+  }
+  if ($mobileSmoke.IndexOf("SkipIfBrowserUnavailable") -lt 0 -or $mobileSmoke.IndexOf("mobile_viewport_smoke_skipped_browser_unavailable") -lt 0) {
+    throw "Mobile viewport smoke script needs an explicit browser-unavailable skip path"
+  }
+  Write-Host "frontend_mobile_viewport_smoke_script_ok"
 }
 
 Step "Frontend auth token constants" {

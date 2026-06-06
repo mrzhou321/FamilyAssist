@@ -6,6 +6,7 @@ After completing each section, open `/admin/settings`, tick the matching accepta
 
 ## Mobile Device Checks
 
+- Run the automated mobile viewport smoke first: `powershell -ExecutionPolicy Bypass -File scripts\mobile-viewport-smoke.ps1`. This verifies the built PWA shell in a real mobile-sized browser, but it does not replace Android/iOS hardware checks for camera, speech, and QR permissions.
 - Open `http://<host>/mobile/` on a target Android browser and an iOS browser.
 - Pair the device from `/admin/pairing`; confirm QR scanning fills the token and manual token entry also works.
 - Add a text quick note and confirm it appears in recent notes.
