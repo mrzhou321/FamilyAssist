@@ -83,6 +83,7 @@ client = TestClient(app)
 assert client.get("/health").status_code == 200
 
 assert client.get("/api/members").status_code == 401
+assert client.get("/api/weather/today").status_code == 401
 admin_login = client.post("/api/admin/login", json={"username": "admin", "password": "family-admin"})
 assert admin_login.status_code == 200
 admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
@@ -113,6 +114,13 @@ assert batch.status_code == 200
 assert len(batch.json()["recommendations"]) == 3
 assert any("member 1 knee note" in basis for item in batch.json()["recommendations"] for basis in item["basis"])
 assert any(ref["source_note_id"] == note_id for item in batch.json()["recommendations"] for ref in item["basis_refs"])
+contents = {item["domain"]: item["content"] for item in batch.json()["recommendations"]}
+assert "\u00b0C" in contents["dressing"]
+assert "\u5c11\u7cd6" in contents["diet"]
+assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
+assert "\u5c11\u7cd6" in contents["diet"]
+assert "\u7cd6\u5c3f\u75c5" in contents["diet"]
+assert "\u819d\u76d6" in contents["exercise"]
 
 source_note = client.get(f"/api/notes/{note_id}")
 assert source_note.status_code == 200
@@ -139,6 +147,10 @@ assert device_session["revoked"] is False
 
 own_notes = client.get("/api/notes?member_id=1", headers=headers)
 assert own_notes.status_code == 200
+weather = client.get("/api/weather/today", headers=headers)
+assert weather.status_code == 200
+assert weather.json()["city"]
+assert isinstance(weather.json()["temperature_c"], int)
 
 other_notes = client.get("/api/notes?member_id=2", headers=headers)
 assert other_notes.status_code == 403
@@ -218,10 +230,20 @@ assert [item.domain for item in batch.recommendations] == [
     RecommendationDomain.diet,
     RecommendationDomain.exercise,
 ]
+contents = {item.domain: item.content for item in batch.recommendations}
+assert "\u00b0C" in contents[RecommendationDomain.dressing]
+assert "\u5c11\u7cd6" in contents[RecommendationDomain.diet]
+assert "\u7cd6\u5c3f\u75c5" in contents[RecommendationDomain.diet]
+assert "\u5c11\u7cd6" in contents[RecommendationDomain.diet]
+assert "\u7cd6\u5c3f\u75c5" in contents[RecommendationDomain.diet]
+assert "\u819d\u76d6" in contents[RecommendationDomain.exercise]
 
 settings = store.update_settings(SystemSettings(default_city="Shanghai", extraction_retries=2))
 assert settings.default_city == "Shanghai"
 assert settings.extraction_retries == 2
+weather = store.get_weather()
+assert weather.city == "Shanghai"
+assert weather.temperature_c == 22
 
 store.memories[99] = Memory(
     id=99,

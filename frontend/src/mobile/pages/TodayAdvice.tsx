@@ -3,37 +3,78 @@ import { DOMAINS, DOMAIN_ICONS, DOMAIN_LABELS } from '@shared/constants'
 import type { Domain } from '@shared/constants'
 import { DOMAIN_CARD_COLORS } from '@shared/constants/colors'
 import { api } from '@shared/api'
-import type { Note, Recommendation, RecommendationBasisRef, RecommendationBatch } from '@shared/types'
+import type {
+  Note,
+  Recommendation,
+  RecommendationBasisRef,
+  RecommendationBatch,
+  WeatherContext,
+} from '@shared/types'
 import { getCurrentMemberId, getCurrentMemberName } from '../session'
 
 const FALLBACK: Record<Domain, Recommendation> = {
   dressing: {
     domain: 'dressing',
     content: '早晚偏凉，建议长袖加薄外套，膝盖容易不舒服时多一层保暖。',
-    basis: ['妈妈怕冷', '爸爸膝盖受凉会不舒服'],
+    basis: ['家人怕冷', '膝盖受凉会不舒服'],
     basis_refs: [],
   },
   diet: {
     domain: 'diet',
     content: '饮食以清淡少油为主，避开已知忌口和过敏源。',
-    basis: ['爸爸控糖', '妈妈不吃香菜'],
+    basis: ['控糖', '不吃香菜'],
     basis_refs: [],
   },
   exercise: {
     domain: 'exercise',
     content: '适合低到中等强度活动，优先散步和拉伸。',
-    basis: ['爸爸饭后喜欢散步 30 分钟'],
+    basis: ['饭后喜欢散步 30 分钟'],
     basis_refs: [],
   },
 }
 
+const FALLBACK_WEATHER: WeatherContext = {
+  city: '广州',
+  temperature_c: 26,
+  condition: 'cloudy',
+  wind: 'light breeze',
+  precipitation_chance: 35,
+  source: 'local-fallback',
+}
+
+function formatCondition(condition: string) {
+  const map: Record<string, string> = {
+    clear: '晴',
+    cloudy: '多云',
+    overcast: '阴',
+    'light rain': '小雨',
+  }
+  return map[condition] ?? condition
+}
+
 export default function TodayAdvice() {
   const [recommendations, setRecommendations] = useState<Record<Domain, Recommendation>>(FALLBACK)
+  const [weather, setWeather] = useState<WeatherContext>(FALLBACK_WEATHER)
   const [message, setMessage] = useState('')
   const [pendingKey, setPendingKey] = useState('')
   const [sourceNote, setSourceNote] = useState<Note | null>(null)
   const memberId = getCurrentMemberId()
   const memberName = getCurrentMemberName()
+
+  useEffect(() => {
+    let active = true
+    api
+      .get<WeatherContext>('/weather/today')
+      .then((item) => {
+        if (active) setWeather(item)
+      })
+      .catch(() => {
+        if (active) setWeather(FALLBACK_WEATHER)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -49,7 +90,7 @@ export default function TodayAdvice() {
         if (!active) return
         const items = recommendations.map((recommendation) => [recommendation.domain, recommendation] as const)
         setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
-        setMessage('正在生成今日建议…')
+        setMessage('正在生成今日建议...')
 
         DOMAINS.forEach((domain) => {
           const streamParams = new URLSearchParams()
@@ -124,10 +165,16 @@ export default function TodayAdvice() {
         className="rounded-[var(--radius-lg)] bg-gradient-to-br from-[var(--color-sage)] to-[var(--color-accent)]
                    p-4 text-white shadow-[var(--shadow-card)] animate-[fadeUp_0.4s_ease_both]"
       >
-        <p className="font-[var(--font-num)] text-sm opacity-90">广州 · 今日 · {memberName}</p>
+        <p className="font-[var(--font-num)] text-sm opacity-90">
+          {weather.city} · 今日 · {memberName}
+        </p>
         <div className="mt-1 flex items-baseline gap-3">
-          <span className="font-[var(--font-num)] text-5xl font-black leading-none">19°</span>
-          <span className="font-[var(--font-body)] text-sm opacity-90">转晴 微风</span>
+          <span className="font-[var(--font-num)] text-5xl font-black leading-none">
+            {weather.temperature_c}°
+          </span>
+          <span className="font-[var(--font-body)] text-sm opacity-90">
+            {formatCondition(weather.condition)} · {weather.wind} · 降水 {weather.precipitation_chance}%
+          </span>
         </div>
       </div>
 

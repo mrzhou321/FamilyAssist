@@ -149,6 +149,15 @@ class RecommendationBatch(BaseModel):
     recommendations: list[Recommendation]
 
 
+class WeatherContext(BaseModel):
+    city: str
+    temperature_c: int
+    condition: str
+    wind: str
+    precipitation_chance: int = Field(ge=0, le=100)
+    source: str = "local-estimate"
+
+
 class RecommendationFeedback(BaseModel):
     domain: RecommendationDomain
     member_id: int | None = None

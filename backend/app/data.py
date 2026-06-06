@@ -12,6 +12,7 @@ from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
+from .recommendation_engine import build_recommendation
 from .schemas import (
     Member,
     MemberCreate,
@@ -29,14 +30,15 @@ from .schemas import (
     PairingExchange,
     PairingToken,
     Recommendation,
-    RecommendationBasisRef,
     RecommendationBatch,
     RecommendationDomain,
     RecommendationFeedback,
     ReviewCandidate,
     SystemSettings,
+    WeatherContext,
 )
 from .store import InMemoryStore, default_expires_at, now, store
+from .weather import estimate_weather
 
 
 class DataStore(Protocol):
@@ -67,6 +69,7 @@ class DataStore(Protocol):
     async def revoke_member_session(self, token_hash: str) -> bool: ...
     async def get_settings(self) -> SystemSettings: ...
     async def update_settings(self, payload: SystemSettings) -> SystemSettings: ...
+    async def get_weather(self) -> WeatherContext: ...
     async def cleanup_expired_memories(self) -> int: ...
 
 
@@ -146,6 +149,9 @@ class InMemoryDataStore:
 
     async def update_settings(self, payload: SystemSettings) -> SystemSettings:
         return self.inner.update_settings(payload)
+
+    async def get_weather(self) -> WeatherContext:
+        return self.inner.get_weather()
 
     async def cleanup_expired_memories(self) -> int:
         return self.inner.cleanup_expired_memories()
@@ -369,23 +375,9 @@ class DatabaseDataStore:
             for memory in memories
             if memory.domain == domain.value or memory.domain == MemoryDomain.general.value
         ][:3]
-        related = [memory.content for memory in related_memories]
-        basis_refs = [
-            RecommendationBasisRef(
-                memory_id=memory.id,
-                source_note_id=memory.source_note_id,
-                content=memory.content,
-            )
-            for memory in related_memories
-        ]
-        member = await self.session.get(models.Member, member_id) if member_id is not None else None
-        name = member.name if member else "全家"
-        templates = {
-            RecommendationDomain.dressing: f"{name} 今日建议穿长袖加薄外套，早晚注意保暖。",
-            RecommendationDomain.diet: f"{name} 今日饮食以清淡少油为主，避开已知忌口和过敏源。",
-            RecommendationDomain.exercise: f"{name} 今日适合低到中等强度活动，优先散步和拉伸。",
-        }
-        return Recommendation(domain=domain, content=templates[domain], basis=related, basis_refs=basis_refs)
+        member_model = await self.session.get(models.Member, member_id) if member_id is not None else None
+        member = self._to_member(member_model) if member_model is not None else None
+        return build_recommendation(domain, member, related_memories, await self.get_weather())
 
     async def make_recommendations(
         self,
@@ -495,6 +487,10 @@ class DatabaseDataStore:
             row.value = payload.model_dump()
         await self.session.commit()
         return payload
+
+    async def get_weather(self) -> WeatherContext:
+        settings = await self.get_settings()
+        return estimate_weather(settings.default_city)
 
     async def cleanup_expired_memories(self) -> int:
         result = await self.session.execute(

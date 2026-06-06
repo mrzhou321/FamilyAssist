@@ -42,6 +42,7 @@ from .schemas import (
     ReviewCandidate,
     SystemSettings,
     ExpiredMemoryCleanup,
+    WeatherContext,
 )
 
 
@@ -270,6 +271,16 @@ async def stream_recommendation(
 
 def _chunk_text(text: str, size: int = 4) -> list[str]:
     return [text[index : index + size] for index in range(0, len(text), size)]
+
+
+@app.get("/api/weather/today", response_model=WeatherContext)
+async def get_today_weather(
+    data: DataStore = Depends(get_data_store),
+    context: RequestContext = Depends(get_request_context),
+) -> WeatherContext:
+    if not context.is_admin and not context.is_member:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await data.get_weather()
 
 
 @app.post("/api/pairing/members/{member_id}", response_model=PairingToken, status_code=201)

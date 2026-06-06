@@ -3,6 +3,7 @@ from hashlib import sha256
 from secrets import token_urlsafe
 
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
+from .recommendation_engine import build_recommendation
 from .schemas import (
     Member,
     MemberCreate,
@@ -21,13 +22,14 @@ from .schemas import (
     PairingToken,
     PairingTokenRecord,
     Recommendation,
-    RecommendationBasisRef,
     RecommendationBatch,
     RecommendationDomain,
     RecommendationFeedback,
     ReviewCandidate,
     SystemSettings,
+    WeatherContext,
 )
+from .weather import estimate_weather
 
 
 def now() -> datetime:
@@ -230,24 +232,8 @@ class InMemoryStore:
             for memory in self.list_memories(member_id)
             if memory.domain == domain or memory.domain == MemoryDomain.general
         ][:3]
-        related = [memory.content for memory in related_memories]
-        basis_refs = [
-            RecommendationBasisRef(
-                memory_id=memory.id,
-                source_note_id=memory.source_note_id,
-                content=memory.content,
-            )
-            for memory in related_memories
-        ]
         member = self.members.get(member_id) if member_id is not None else None
-        name = member.name if member else "全家"
-
-        templates = {
-            RecommendationDomain.dressing: f"{name} 今日建议穿长袖加薄外套，早晚注意保暖。",
-            RecommendationDomain.diet: f"{name} 今日饮食以清淡少油为主，避开已知忌口和过敏源。",
-            RecommendationDomain.exercise: f"{name} 今日适合低到中等强度活动，优先散步和拉伸。",
-        }
-        return Recommendation(domain=domain, content=templates[domain], basis=related, basis_refs=basis_refs)
+        return build_recommendation(domain, member, related_memories, self.get_weather())
 
     def make_recommendations(
         self,
@@ -350,6 +336,9 @@ class InMemoryStore:
     def update_settings(self, payload: SystemSettings) -> SystemSettings:
         self.settings = payload
         return self.settings
+
+    def get_weather(self) -> WeatherContext:
+        return estimate_weather(self.settings.default_city)
 
     def cleanup_expired_memories(self) -> int:
         expired_ids = [

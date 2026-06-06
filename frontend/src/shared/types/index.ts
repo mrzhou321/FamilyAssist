@@ -66,6 +66,15 @@ export interface RecommendationBatch {
   recommendations: Recommendation[]
 }
 
+export interface WeatherContext {
+  city: string
+  temperature_c: number
+  condition: string
+  wind: string
+  precipitation_chance: number
+  source: string
+}
+
 export interface Feedback {
   domain: Domain
   member_id: number | null
