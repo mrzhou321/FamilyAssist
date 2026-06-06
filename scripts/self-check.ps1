@@ -65,6 +65,9 @@ Step "Deployment and backup docs" {
   if ($readme.IndexOf("docker compose up --build") -lt 0 -or $readme.IndexOf("http://localhost/admin/") -lt 0 -or $readme.IndexOf("http://localhost/mobile/") -lt 0) {
     throw "README does not document local compose startup and app entrypoints"
   }
+  if ($readme.IndexOf("https://github.com/mrzhou321/FamilyAssist") -lt 0 -or $readme.IndexOf("## 这是什么") -lt 0 -or $readme.IndexOf("## 怎么跑") -lt 0 -or $readme.IndexOf("## 用了什么") -lt 0) {
+    throw "README does not follow the submission-oriented project template"
+  }
   if ($readme.IndexOf("pg_dump") -lt 0 -or $readme.IndexOf("pg_restore") -lt 0 -or $readme.IndexOf("postgres_data") -lt 0) {
     throw "README does not document self-hosted database backup and restore"
   }
