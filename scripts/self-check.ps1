@@ -115,6 +115,12 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("cloud_llm_api_key") -lt 0 -or $settingsPage.IndexOf("cloud_llm_base_url") -lt 0 -or $settingsPage.IndexOf("cloud_generation_model") -lt 0) {
     throw "Settings page does not expose cloud LLM provider configuration"
   }
+  if ($settingsPage.IndexOf("cloud_llm_api_key_configured") -lt 0 -or $settingsPage.IndexOf("weather_api_key_configured") -lt 0) {
+    throw "Settings page does not show masked secret configuration state"
+  }
+  if ($settingsPage.IndexOf("type=`"password`"") -lt 0 -or $settingsPage.IndexOf("cloud_llm_api_key_configured ?") -lt 0) {
+    throw "Settings page does not explain secret masking behavior"
+  }
   if ($settingsPage.IndexOf("rebuild-memory-embeddings") -lt 0 -or $settingsPage.IndexOf("rebuildEmbeddings") -lt 0) {
     throw "Settings page does not expose memory embedding rebuild action"
   }
@@ -729,6 +735,10 @@ assert len(members.json()) >= 1
 
 settings = client.get("/api/settings", headers=admin_headers)
 assert settings.status_code == 200
+assert settings.json()["cloud_llm_api_key"] == ""
+assert settings.json()["weather_api_key"] == ""
+assert settings.json()["cloud_llm_api_key_configured"] is False
+assert settings.json()["weather_api_key_configured"] is False
 provider_status = client.get("/api/settings/provider-status", headers=admin_headers)
 assert provider_status.status_code == 200
 provider_json = provider_status.json()
@@ -738,20 +748,48 @@ assert provider_json["weather"]["status"] in {"ready", "degraded", "error"}
 assert provider_json["embedding"]["label"] == settings.json()["embedding_model"]
 assert "512" in provider_json["embedding"]["detail"]
 assert provider_json["privacy"]["status"] == "ready"
-cloud_settings = {**settings.json(), "llm_provider": "deepseek", "cloud_llm_risk_acknowledged": False}
+secret_settings = {
+    **settings.json(),
+    "cloud_llm_api_key": "self-check-cloud-secret",
+    "weather_api_key": "self-check-weather-secret",
+}
+secret_update = client.patch("/api/settings", json=secret_settings, headers=admin_headers)
+assert secret_update.status_code == 200
+assert secret_update.json()["cloud_llm_api_key"] == ""
+assert secret_update.json()["weather_api_key"] == ""
+assert secret_update.json()["cloud_llm_api_key_configured"] is True
+assert secret_update.json()["weather_api_key_configured"] is True
+secret_read = client.get("/api/settings", headers=admin_headers)
+assert "self-check-cloud-secret" not in secret_read.text
+assert "self-check-weather-secret" not in secret_read.text
+non_secret_update = client.patch(
+    "/api/settings",
+    json={**secret_read.json(), "default_city": "Shanghai"},
+    headers=admin_headers,
+)
+assert non_secret_update.status_code == 200
+assert non_secret_update.json()["cloud_llm_api_key_configured"] is True
+assert non_secret_update.json()["weather_api_key_configured"] is True
+assert "self-check-cloud-secret" not in non_secret_update.text
+assert "self-check-weather-secret" not in non_secret_update.text
+cloud_settings = {**non_secret_update.json(), "llm_provider": "deepseek", "cloud_llm_risk_acknowledged": False}
 assert client.patch("/api/settings", json=cloud_settings, headers=admin_headers).status_code == 400
 cloud_settings["cloud_llm_risk_acknowledged"] = True
 cloud_settings["cloud_generation_model"] = "deepseek-v4-flash"
 cloud_settings["cloud_llm_base_url"] = "https://api.deepseek.com"
+cloud_settings["cloud_llm_api_key"] = ""
+cloud_settings["weather_api_key"] = ""
 updated_settings = client.patch("/api/settings", json=cloud_settings, headers=admin_headers)
 assert updated_settings.status_code == 200
 assert updated_settings.json()["llm_provider"] == "deepseek"
 assert updated_settings.json()["cloud_generation_model"] == "deepseek-v4-flash"
 assert updated_settings.json()["cloud_llm_base_url"] == "https://api.deepseek.com"
+assert updated_settings.json()["cloud_llm_api_key"] == ""
+assert updated_settings.json()["cloud_llm_api_key_configured"] is True
 cloud_provider_status = client.get("/api/settings/provider-status", headers=admin_headers)
 assert cloud_provider_status.status_code == 200
 assert cloud_provider_status.json()["privacy"]["status"] == "degraded"
-assert cloud_provider_status.json()["llm"]["status"] == "degraded"
+assert cloud_provider_status.json()["llm"]["status"] in {"ready", "degraded"}
 assert client.patch("/api/settings", json={**updated_settings.json(), "llm_provider": "ollama"}, headers=admin_headers).status_code == 200
 
 assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous note", "source": "text"}).status_code == 401

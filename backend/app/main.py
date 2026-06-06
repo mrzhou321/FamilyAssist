@@ -41,6 +41,7 @@ from .schemas import (
     PairingExchange,
     ProviderCheck,
     ProviderStatus,
+    PublicSystemSettings,
     Recommendation,
     RecommendationBatch,
     RecommendationDomain,
@@ -365,23 +366,25 @@ async def revoke_member_session(
     return session
 
 
-@app.get("/api/settings", response_model=SystemSettings)
+@app.get("/api/settings", response_model=PublicSystemSettings)
 async def get_settings(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
-) -> SystemSettings:
-    return await data.get_settings()
+) -> PublicSystemSettings:
+    return _public_settings(await data.get_settings())
 
 
-@app.patch("/api/settings", response_model=SystemSettings)
+@app.patch("/api/settings", response_model=PublicSystemSettings)
 async def update_settings(
     payload: SystemSettings,
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
-) -> SystemSettings:
-    if payload.llm_provider != "ollama" and not payload.cloud_llm_risk_acknowledged:
+) -> PublicSystemSettings:
+    current_settings = await data.get_settings()
+    merged_settings = _merge_secret_settings(current_settings, payload)
+    if merged_settings.llm_provider != "ollama" and not merged_settings.cloud_llm_risk_acknowledged:
         raise HTTPException(status_code=400, detail="Cloud LLM risk acknowledgement is required")
-    return await data.update_settings(payload)
+    return _public_settings(await data.update_settings(merged_settings))
 
 
 @app.get("/api/settings/provider-status", response_model=ProviderStatus)
@@ -501,6 +504,23 @@ def _privacy_check(current_settings: SystemSettings) -> ProviderCheck:
     if current_settings.cloud_llm_risk_acknowledged:
         return ProviderCheck(status="degraded", label="云端 LLM 已启用", detail="管理员已确认第三方 API 数据出境风险")
     return ProviderCheck(status="error", label="云端 LLM 风险", detail="需要确认风险后才能保存云端 Provider")
+
+
+def _public_settings(current_settings: SystemSettings) -> PublicSystemSettings:
+    return PublicSystemSettings(
+        **current_settings.model_dump(exclude={"cloud_llm_api_key", "weather_api_key"}),
+        cloud_llm_api_key_configured=bool(current_settings.cloud_llm_api_key.strip()),
+        weather_api_key_configured=bool(current_settings.weather_api_key.strip()),
+    )
+
+
+def _merge_secret_settings(current_settings: SystemSettings, payload: SystemSettings) -> SystemSettings:
+    update = payload.model_dump()
+    if not payload.cloud_llm_api_key.strip():
+        update["cloud_llm_api_key"] = current_settings.cloud_llm_api_key
+    if not payload.weather_api_key.strip():
+        update["weather_api_key"] = current_settings.weather_api_key
+    return SystemSettings.model_validate(update)
 
 
 @app.post("/api/settings/cleanup-expired-memories", response_model=ExpiredMemoryCleanup)

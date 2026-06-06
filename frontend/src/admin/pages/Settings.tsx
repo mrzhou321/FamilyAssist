@@ -10,6 +10,8 @@ interface SystemSettings {
   cloud_llm_base_url: string
   cloud_llm_api_key: string
   weather_api_key: string
+  cloud_llm_api_key_configured: boolean
+  weather_api_key_configured: boolean
   default_city: string
   extraction_retries: number
   dedupe_threshold: number
@@ -38,6 +40,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   cloud_llm_base_url: '',
   cloud_llm_api_key: '',
   weather_api_key: '',
+  cloud_llm_api_key_configured: false,
+  weather_api_key_configured: false,
   default_city: '广州',
   extraction_retries: 3,
   dedupe_threshold: 0.86,
@@ -212,8 +216,13 @@ export default function Settings() {
                   value={settings.cloud_llm_api_key}
                   onChange={(event) => update('cloud_llm_api_key', event.target.value)}
                   className="input bg-white"
-                  placeholder="仅保存在自托管后端数据库"
+                  placeholder={
+                    settings.cloud_llm_api_key_configured ? '已配置，输入新 Key 可覆盖' : '仅保存在自托管后端数据库'
+                  }
                 />
+                {settings.cloud_llm_api_key_configured ? (
+                  <p className="text-xs text-[var(--color-muted)]">后端已有密钥，页面不会回显明文。</p>
+                ) : null}
               </Field>
               <label className="flex items-center gap-3 text-sm text-[var(--color-fg)]">
                 <input
@@ -261,11 +270,15 @@ export default function Settings() {
               </Field>
               <Field label="和风天气 API Key">
                 <input
+                  type="password"
                   value={settings.weather_api_key}
                   onChange={(event) => update('weather_api_key', event.target.value)}
                   className="input"
-                  placeholder="可留空"
+                  placeholder={settings.weather_api_key_configured ? '已配置，输入新 Key 可覆盖' : '可留空'}
                 />
+                {settings.weather_api_key_configured ? (
+                  <p className="text-xs text-[var(--color-muted)]">后端已有天气密钥，页面不会回显明文。</p>
+                ) : null}
               </Field>
             </div>
           </section>

@@ -226,6 +226,13 @@ class SystemSettings(BaseModel):
     cloud_llm_risk_acknowledged: bool = False
 
 
+class PublicSystemSettings(SystemSettings):
+    cloud_llm_api_key: str = ""
+    weather_api_key: str = ""
+    cloud_llm_api_key_configured: bool = False
+    weather_api_key_configured: bool = False
+
+
 class ExpiredMemoryCleanup(BaseModel):
     removed: int
 
