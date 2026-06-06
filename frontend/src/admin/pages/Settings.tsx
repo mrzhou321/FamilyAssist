@@ -134,10 +134,53 @@ export default function Settings() {
     URL.revokeObjectURL(url)
   }
 
+  function buildValidatedSettings() {
+    const next = {
+      ...settings,
+      llm_provider: settings.llm_provider.trim(),
+      generation_model: settings.generation_model.trim(),
+      embedding_model: settings.embedding_model.trim(),
+      cloud_generation_model: settings.cloud_generation_model.trim(),
+      cloud_llm_base_url: settings.cloud_llm_base_url.trim().replace(/\/+$/, ''),
+      default_city: settings.default_city.trim(),
+    }
+    if (!next.generation_model) {
+      setMessage('生成模型不能为空')
+      return null
+    }
+    if (!next.embedding_model) {
+      setMessage('向量模型不能为空')
+      return null
+    }
+    if (!next.default_city) {
+      setMessage('默认城市不能为空')
+      return null
+    }
+    if (next.llm_provider !== 'ollama' && !next.cloud_llm_risk_acknowledged) {
+      setMessage('启用云端 LLM 前需要确认第三方 API 数据出境风险')
+      return null
+    }
+    if (next.cloud_llm_base_url) {
+      try {
+        const url = new URL(next.cloud_llm_base_url)
+        if (!['http:', 'https:'].includes(url.protocol) || !url.host) {
+          setMessage('云端 Base URL 必须是 http(s) 地址')
+          return null
+        }
+      } catch {
+        setMessage('云端 Base URL 必须是 http(s) 地址')
+        return null
+      }
+    }
+    return next
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const payload = buildValidatedSettings()
+    if (!payload) return
     try {
-      const saved = await api.patch<SystemSettings>('/settings', settings)
+      const saved = await api.patch<SystemSettings>('/settings', payload)
       setSettings(saved)
       setMessage('设置已保存')
       const status = await api.get<ProviderStatus>('/settings/provider-status')
