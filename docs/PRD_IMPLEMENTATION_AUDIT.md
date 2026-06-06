@@ -33,12 +33,12 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 | Weather context | QWeather adapter with local estimate fallback; provider status shows weather source. | Covered |
 | SSE streaming | `/api/recommendations/{domain}/stream` streams chunks; mobile updates content as chunks arrive. Self-check covers first token under 5s. | Covered |
 | Traceable recommendation basis | Recommendations include `basis_refs` with `memory_id` and `source_note_id`; mobile can open the original note. | Covered |
-| Feedback learning | Feedback endpoint creates episode memory with accepted/rejected text and weather context; self-check covers write-back. | Covered |
+| Feedback learning | Feedback endpoint creates episode memory with accepted/rejected text and weather context; mobile refreshes learned memories after feedback; self-check covers write-back and UI cache refresh wiring. | Covered |
 | Member management | Admin members page creates, edits, deletes members and all PRD health profile fields. | Covered |
 | Pairing QR login | Admin creates 5-minute one-time hashed token and QR; mobile scans with `BarcodeDetector` or manual token; JWT is member/device-bound and revocable. | Covered |
-| Member data isolation | Backend scopes member routes by JWT payload; self-check covers forbidden cross-member access and revoked sessions. | Covered |
+| Member data isolation | Backend scopes member routes by JWT payload; member deletion clears sessions and pairing tokens while preserving historical notes/memories as family history; self-check covers forbidden cross-member access, revoked sessions, and deletion cleanup. | Covered |
 | Settings | Admin settings configure LLM provider, generation/embedding models, weather key/city, extraction retries, dedupe threshold, cleanup, embedding rebuild, and provider diagnostics. Secrets are masked on API reads. | Covered |
-| PWA install/offline shell | Manifest, service worker shell cache, install prompt, and update refresh are wired. | Covered |
+| PWA install/offline shell | Manifest, service worker shell cache, route-specific admin/mobile fallbacks, install prompt, and update refresh are wired. | Covered |
 | Deployment | `docker-compose.yml` defines postgres, ollama, model bootstrap, backend, nginx. README documents startup and database backup/restore. | Covered |
 | Performance smoke | Self-check covers quick-note submit `<300ms`, memory retrieval `<500ms`, and recommendation first token `<5s` under local smoke conditions. | Covered as smoke test, not a production benchmark |
 
