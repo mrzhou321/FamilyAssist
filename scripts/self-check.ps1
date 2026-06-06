@@ -1706,6 +1706,16 @@ feedback = client.post(
 assert feedback.status_code == 201
 assert "\u91c7\u7eb3" in feedback.json()["content"]
 assert "\u00b0C" in feedback.json()["content"]
+feedback_batch = client.get(
+    "/api/recommendations?domains=dressing&member_id=1&record_events=false",
+    headers=headers,
+)
+assert feedback_batch.status_code == 200
+assert any(
+    ref["memory_id"] == feedback.json()["id"]
+    for item in feedback_batch.json()["recommendations"]
+    for ref in item["basis_refs"]
+)
 
 retrieval_latencies = []
 for _ in range(5):
@@ -1907,6 +1917,8 @@ feedback_memory = store.record_feedback(
 assert "\u91c7\u7eb3" in feedback_memory.content
 assert "\u00b0C" in feedback_memory.content
 assert len(feedback_memory.embedding) == EMBEDDING_DIMENSION
+dressing_recommendation = store.make_recommendation(RecommendationDomain.dressing, 1, record_event=False)
+assert any(ref.memory_id == feedback_memory.id for ref in dressing_recommendation.basis_refs)
 
 settings = store.update_settings(SystemSettings(default_city="Shanghai", extraction_retries=2))
 assert settings.default_city == "Shanghai"
