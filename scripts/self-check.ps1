@@ -276,6 +276,25 @@ Step "Frontend auth token constants" {
   Write-Host "frontend_auth_token_constants_ok"
 }
 
+Step "Frontend admin auth expiry wiring" {
+  $constants = Get-Content "$root\frontend\src\shared\constants\index.ts" -Raw -Encoding UTF8
+  $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
+  $adminMain = Get-Content "$root\frontend\src\admin\main.tsx" -Raw -Encoding UTF8
+  if ($constants.IndexOf("ADMIN_AUTH_EXPIRED_EVENT") -lt 0) {
+    throw "Frontend does not define an admin auth expiry event"
+  }
+  if ($api.IndexOf("expireAdminAuth") -lt 0 -or $api.IndexOf("res.status === 401") -lt 0 -or $api.IndexOf("localStorage.removeItem(ADMIN_TOKEN_KEY)") -lt 0) {
+    throw "API wrapper does not clear expired admin tokens on 401"
+  }
+  if ($api.IndexOf("window.dispatchEvent(new Event(ADMIN_AUTH_EXPIRED_EVENT))") -lt 0) {
+    throw "API wrapper does not notify admin shell when auth expires"
+  }
+  if ($adminMain.IndexOf("ADMIN_AUTH_EXPIRED_EVENT") -lt 0 -or $adminMain.IndexOf("window.addEventListener") -lt 0 -or $adminMain.IndexOf("setIsAuthed(false)") -lt 0) {
+    throw "Admin shell does not return to login when admin auth expires"
+  }
+  Write-Host "frontend_admin_auth_expiry_wiring_ok"
+}
+
 Step "Frontend copy placeholders" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }

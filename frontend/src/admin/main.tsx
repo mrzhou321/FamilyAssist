@@ -1,8 +1,8 @@
 import '../globals.css'
-import { StrictMode, useState } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
-import { ADMIN_TOKEN_KEY } from '../shared/constants'
+import { ADMIN_AUTH_EXPIRED_EVENT, ADMIN_TOKEN_KEY } from '../shared/constants'
 import MemoryLibrary from './pages/MemoryLibrary'
 import Login from './pages/Login'
 import Members from './pages/Members'
@@ -22,6 +22,12 @@ const NAV = [
 
 export function AdminApp() {
   const [isAuthed, setIsAuthed] = useState(() => Boolean(localStorage.getItem(ADMIN_TOKEN_KEY)))
+
+  useEffect(() => {
+    const handleExpiredAuth = () => setIsAuthed(false)
+    window.addEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleExpiredAuth)
+    return () => window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleExpiredAuth)
+  }, [])
 
   if (!isAuthed) {
     return <Login onLogin={() => setIsAuthed(true)} />

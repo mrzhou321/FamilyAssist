@@ -1,5 +1,5 @@
 // Thin fetch wrapper — base URL from env, auth header injected automatically
-import { ADMIN_TOKEN_KEY, LEGACY_MEMBER_TOKEN_KEY, MEMBER_TOKEN_KEY } from '../constants'
+import { ADMIN_AUTH_EXPIRED_EVENT, ADMIN_TOKEN_KEY, LEGACY_MEMBER_TOKEN_KEY, MEMBER_TOKEN_KEY } from '../constants'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -7,6 +7,12 @@ function getToken() {
   return window.location.pathname.startsWith('/admin')
     ? localStorage.getItem(ADMIN_TOKEN_KEY)
     : localStorage.getItem(MEMBER_TOKEN_KEY) ?? localStorage.getItem(LEGACY_MEMBER_TOKEN_KEY)
+}
+
+function expireAdminAuth(path: string) {
+  if (!window.location.pathname.startsWith('/admin') || path === '/admin/login') return
+  localStorage.removeItem(ADMIN_TOKEN_KEY)
+  window.dispatchEvent(new Event(ADMIN_AUTH_EXPIRED_EVENT))
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -19,7 +25,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init.headers,
     },
   })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    if (res.status === 401) expireAdminAuth(path)
+    throw new Error(`${res.status} ${res.statusText}`)
+  }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
@@ -38,7 +47,10 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       signal: ctrl.signal,
     }).then(async res => {
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      if (!res.ok) {
+        if (res.status === 401) expireAdminAuth(path)
+        throw new Error(`${res.status} ${res.statusText}`)
+      }
       if (!res.body) throw new Error('Response body is null')
       const reader = res.body.getReader()
       const dec = new TextDecoder()
