@@ -76,13 +76,17 @@ export async function syncQueuedNotes(): Promise<number> {
   const queued = await listQueuedNotes()
   let synced = 0
   for (const note of queued) {
-    await api.post<Note>('/notes', {
-      member_id: note.member_id,
-      content: note.content,
-      source: note.source,
-    })
-    await removeQueuedNote(note.queue_id)
-    synced += 1
+    try {
+      await api.post<Note>('/notes', {
+        member_id: note.member_id,
+        content: note.content,
+        source: note.source,
+      })
+      await removeQueuedNote(note.queue_id)
+      synced += 1
+    } catch {
+      // Keep failed items queued and continue syncing later notes.
+    }
   }
   return synced
 }
