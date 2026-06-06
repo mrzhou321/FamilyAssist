@@ -1528,6 +1528,7 @@ assert client.get("/api/notes?member_id=999999", headers=admin_headers).status_c
 assert client.get("/api/memories?member_id=999999", headers=admin_headers).status_code == 404
 assert client.get("/api/recommendation-events?member_id=999999", headers=admin_headers).status_code == 404
 assert client.get("/api/recommendations?member_id=999999", headers=admin_headers).status_code == 404
+assert client.get("/api/pairing/sessions?member_id=999999", headers=admin_headers).status_code == 404
 assert client.post(
     "/api/recommendations/feedback",
     json={"member_id": 999999, "domain": "dressing", "content": "invalid member feedback", "accepted": True},

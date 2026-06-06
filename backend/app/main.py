@@ -438,6 +438,7 @@ async def list_member_sessions(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
 ) -> list[MemberDeviceSession]:
+    await assert_existing_member(member_id, data)
     return await data.list_member_sessions(member_id)
 
 
