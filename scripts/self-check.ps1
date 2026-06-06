@@ -184,6 +184,9 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("const trimmedText = text.trim()") -lt 0 -or $quickNote.IndexOf("content: trimmedText") -lt 0) {
     throw "Quick note should trim business text before submission"
   }
+  if ($quickNote.IndexOf("label: '全家'") -ge 0 -or $quickNote.IndexOf("memberLabel") -ge 0) {
+    throw "Mobile quick note should not offer family-wide writes with member-scoped auth"
+  }
   if (Test-Path "$root\frontend\src\shared\mocks\index.ts") {
     throw "Mobile production pages should not keep shared mock family data"
   }

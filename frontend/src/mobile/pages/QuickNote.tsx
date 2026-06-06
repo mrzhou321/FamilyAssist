@@ -75,8 +75,7 @@ export default function QuickNote() {
   const { data: recentNotes = [] } = useMemberNotes(memberId, isPaired)
   const { mutate: syncNotes, isPending: isSyncing } = useSyncQueuedNotes()
   const [capabilities] = useState(() => detectMobileCapabilities())
-  const memberChoices = isPaired && memberId !== null ? [{ id: memberId, label: currentMemberName }] : []
-  const memberLabel = new Map(memberChoices.map((member) => [member.id, member.label]))
+  const memberChoice = isPaired && memberId !== null ? { id: memberId, label: currentMemberName } : null
 
   useEffect(() => {
     function handleOnline() {
@@ -318,15 +317,15 @@ export default function QuickNote() {
                 onChange={(event) => handlePhotoCapture(event.target.files?.[0])}
               />
               <div className="ml-auto flex gap-1.5">
-                {[{ id: null, label: '全家' }, ...memberChoices].map(m => (
-                  <button key={String(m.id)} onClick={() => setMemberId(m.id)}
+                {memberChoice ? (
+                  <button onClick={() => setMemberId(memberChoice.id)}
                     className={`text-xs px-3 py-1 rounded-full transition-colors font-[var(--font-body)]
-                      ${memberId === m.id
+                      ${memberId === memberChoice.id
                         ? 'bg-[var(--color-accent)] text-white'
                         : 'bg-white/70 text-[var(--color-muted)] border border-[var(--color-border)]'}`}>
-                    {m.label}
+                    {memberChoice.label}
                   </button>
-                ))}
+                ) : null}
               </div>
             </div>
           </div>
@@ -359,7 +358,7 @@ export default function QuickNote() {
                     style={{ background: tag.color }}>{tag.label}</span>
                   <span className="text-sm text-[var(--color-fg)] flex-1 truncate">{note.content}</span>
                   <span className="text-xs text-[var(--color-muted)] shrink-0">
-                    {'queue_id' in note ? '待同步' : note.member_id ? memberLabel.get(note.member_id) ?? '成员' : '全家'}
+                    {'queue_id' in note ? '待同步' : currentMemberName}
                   </span>
                 </div>
               )
