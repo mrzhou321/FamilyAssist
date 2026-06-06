@@ -86,6 +86,15 @@ def normalize_pairing_server_url(server_url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
 
 
+def validate_cloud_llm_base_url(system_settings: SystemSettings) -> None:
+    base_url = system_settings.cloud_llm_base_url.strip()
+    if not base_url:
+        return
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="cloud_llm_base_url must be an absolute http(s) URL")
+
+
 @app.get("/health", response_model=HealthStatus)
 async def health() -> HealthStatus:
     if settings.require_database:
@@ -392,6 +401,7 @@ async def update_settings(
     merged_settings = _merge_secret_settings(current_settings, payload)
     if merged_settings.llm_provider != "ollama" and not merged_settings.cloud_llm_risk_acknowledged:
         raise HTTPException(status_code=400, detail="Cloud LLM risk acknowledgement is required")
+    validate_cloud_llm_base_url(merged_settings)
     return _public_settings(await data.update_settings(merged_settings))
 
 
