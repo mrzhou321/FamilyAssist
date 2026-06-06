@@ -1335,6 +1335,17 @@ assert token_payload["member_id"] == 1
 assert token_payload["device"] == "self-check-phone"
 headers = {"Authorization": f"Bearer {member_token}"}
 
+assert client.post(
+    "/api/notes",
+    json={"member_id": 1, "content": "   ", "source": "text"},
+    headers=headers,
+).status_code == 422
+assert client.post(
+    "/api/recommendations/feedback",
+    json={"member_id": 1, "domain": "dressing", "content": "   ", "accepted": True},
+    headers=headers,
+).status_code == 422
+
 latencies = []
 for index in range(5):
     start = perf_counter()
@@ -1573,6 +1584,9 @@ assert weather.city == "Shanghai"
 assert weather.temperature_c == 22
 assert store.rebuild_memory_embeddings() == len(store.list_memories())
 assert all(len(memory.embedding) == EMBEDDING_DIMENSION for memory in store.list_memories())
+
+trimmed_note = store.create_note(NoteCreate(member_id=1, content="  trimmed family note  "))
+assert trimmed_note.content == "trimmed family note"
 
 store.memories[99] = Memory(
     id=99,

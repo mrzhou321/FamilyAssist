@@ -1,7 +1,20 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _strip_non_blank(value: str) -> str:
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("must not be blank")
+    return stripped
+
+
+def _strip_optional_non_blank(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return _strip_non_blank(value)
 
 
 class HealthStatus(BaseModel):
@@ -38,6 +51,8 @@ class MemberBase(BaseModel):
     relation: str = Field(min_length=1)
     profile: MemberProfile = Field(default_factory=MemberProfile)
 
+    _strip_required_text = field_validator("name", "relation")(_strip_non_blank)
+
 
 class MemberCreate(MemberBase):
     pass
@@ -49,6 +64,8 @@ class MemberUpdate(BaseModel):
     relation: str | None = None
     profile: MemberProfile | None = None
     bound: bool | None = None
+
+    _strip_optional_text = field_validator("name", "relation")(_strip_optional_non_blank)
 
 
 class Member(MemberBase):
@@ -68,6 +85,8 @@ class NoteCreate(BaseModel):
     member_id: int | None = None
     content: str = Field(min_length=1)
     source: NoteSource = NoteSource.text
+
+    _strip_content = field_validator("content")(_strip_non_blank)
 
 
 class Note(BaseModel):
@@ -99,6 +118,8 @@ class MemoryDraft(BaseModel):
     content: str
     confidence: float = Field(ge=0, le=1)
 
+    _strip_content = field_validator("content")(_strip_non_blank)
+
 
 class ReviewCandidate(BaseModel):
     note_id: int
@@ -127,6 +148,8 @@ class MemoryUpdate(BaseModel):
     content: str | None = None
     confidence: float | None = Field(default=None, ge=0, le=1)
     expires_at: datetime | None = None
+
+    _strip_content = field_validator("content")(_strip_optional_non_blank)
 
 
 class RecommendationDomain(str, Enum):
@@ -177,6 +200,8 @@ class RecommendationFeedback(BaseModel):
     content: str
     accepted: bool
 
+    _strip_content = field_validator("content")(_strip_non_blank)
+
 
 class PairingToken(BaseModel):
     member_id: int
@@ -196,6 +221,8 @@ class PairingTokenRecord(BaseModel):
 class PairingExchange(BaseModel):
     pairing_token: str
     device_name: str = Field(default="mobile-browser", min_length=1, max_length=160)
+
+    _strip_required_text = field_validator("pairing_token", "device_name")(_strip_non_blank)
 
 
 class MemberSession(BaseModel):
