@@ -281,7 +281,12 @@ class InMemoryStore:
     def delete_memory(self, memory_id: int) -> bool:
         return self.memories.pop(memory_id, None) is not None
 
-    def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
+    def make_recommendation(
+        self,
+        domain: RecommendationDomain,
+        member_id: int | None,
+        record_event: bool = True,
+    ) -> Recommendation:
         weather = self.get_weather()
         member = self.members.get(member_id) if member_id is not None else None
         query_embedding = build_text_embedding(build_recommendation_query(domain, member, weather))
@@ -299,10 +304,15 @@ class InMemoryStore:
             reverse=True,
         )[:5]
         recommendation = build_recommendation(domain, member, related_memories, weather)
-        self._record_recommendation_event(member_id, recommendation)
+        if record_event:
+            self.record_recommendation_event(member_id, recommendation)
         return recommendation
 
-    def _record_recommendation_event(self, member_id: int | None, recommendation: Recommendation) -> RecommendationEvent:
+    def record_recommendation_event(
+        self,
+        member_id: int | None,
+        recommendation: Recommendation,
+    ) -> RecommendationEvent:
         self._recommendation_event_id += 1
         event = RecommendationEvent(
             id=self._recommendation_event_id,
@@ -320,9 +330,10 @@ class InMemoryStore:
         self,
         domains: list[RecommendationDomain],
         member_id: int | None,
+        record_events: bool = True,
     ) -> RecommendationBatch:
         return RecommendationBatch(
-            recommendations=[self.make_recommendation(domain, member_id) for domain in domains]
+            recommendations=[self.make_recommendation(domain, member_id, record_events) for domain in domains]
         )
 
     def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]:

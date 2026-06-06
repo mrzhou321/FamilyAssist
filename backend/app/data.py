@@ -65,12 +65,23 @@ class DataStore(Protocol):
     async def list_memories(self, member_id: int | None = None) -> list[Memory]: ...
     async def update_memory(self, memory_id: int, payload: MemoryUpdate) -> Memory | None: ...
     async def delete_memory(self, memory_id: int) -> bool: ...
-    async def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation: ...
+    async def make_recommendation(
+        self,
+        domain: RecommendationDomain,
+        member_id: int | None,
+        record_event: bool = True,
+    ) -> Recommendation: ...
     async def make_recommendations(
         self,
         domains: list[RecommendationDomain],
         member_id: int | None,
+        record_events: bool = True,
     ) -> RecommendationBatch: ...
+    async def record_recommendation_event(
+        self,
+        member_id: int | None,
+        recommendation: Recommendation,
+    ) -> None: ...
     async def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]: ...
     async def record_feedback(self, payload: RecommendationFeedback) -> Memory: ...
     async def create_pairing_token(self, member_id: int, server_url: str) -> PairingToken | None: ...
@@ -132,15 +143,28 @@ class InMemoryDataStore:
     async def delete_memory(self, memory_id: int) -> bool:
         return self.inner.delete_memory(memory_id)
 
-    async def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
-        return self.inner.make_recommendation(domain, member_id)
+    async def make_recommendation(
+        self,
+        domain: RecommendationDomain,
+        member_id: int | None,
+        record_event: bool = True,
+    ) -> Recommendation:
+        return self.inner.make_recommendation(domain, member_id, record_event)
 
     async def make_recommendations(
         self,
         domains: list[RecommendationDomain],
         member_id: int | None,
+        record_events: bool = True,
     ) -> RecommendationBatch:
-        return self.inner.make_recommendations(domains, member_id)
+        return self.inner.make_recommendations(domains, member_id, record_events)
+
+    async def record_recommendation_event(
+        self,
+        member_id: int | None,
+        recommendation: Recommendation,
+    ) -> None:
+        self.inner.record_recommendation_event(member_id, recommendation)
 
     async def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]:
         return self.inner.list_recommendation_events(member_id)
@@ -427,7 +451,12 @@ class DatabaseDataStore:
         await self.session.commit()
         return True
 
-    async def make_recommendation(self, domain: RecommendationDomain, member_id: int | None) -> Recommendation:
+    async def make_recommendation(
+        self,
+        domain: RecommendationDomain,
+        member_id: int | None,
+        record_event: bool = True,
+    ) -> Recommendation:
         weather = await self.get_weather()
         member_model = await self.session.get(models.Member, member_id) if member_id is not None else None
         member = self._to_member(member_model) if member_model is not None else None
@@ -442,10 +471,11 @@ class DatabaseDataStore:
             reverse=True,
         )[:5]
         recommendation = build_recommendation(domain, member, related_memories, weather)
-        await self._record_recommendation_event(member_id, recommendation)
+        if record_event:
+            await self.record_recommendation_event(member_id, recommendation)
         return recommendation
 
-    async def _record_recommendation_event(
+    async def record_recommendation_event(
         self,
         member_id: int | None,
         recommendation: Recommendation,
@@ -486,9 +516,12 @@ class DatabaseDataStore:
         self,
         domains: list[RecommendationDomain],
         member_id: int | None,
+        record_events: bool = True,
     ) -> RecommendationBatch:
         return RecommendationBatch(
-            recommendations=[await self.make_recommendation(domain, member_id) for domain in domains]
+            recommendations=[
+                await self.make_recommendation(domain, member_id, record_events) for domain in domains
+            ]
         )
 
     async def list_recommendation_events(self, member_id: int | None = None) -> list[RecommendationEvent]:

@@ -62,6 +62,7 @@ export default function TodayAdvice() {
     const params = new URLSearchParams()
     DOMAINS.forEach((domain) => params.append('domains', domain))
     if (memberId !== null) params.set('member_id', String(memberId))
+    params.set('record_events', 'false')
 
     const streamStops: Array<() => void> = []
     let active = true

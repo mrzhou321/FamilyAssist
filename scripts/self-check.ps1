@@ -199,6 +199,9 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice.IndexOf("const baseRecommendations") -lt 0 -or $todayAdvice.IndexOf("...baseRecommendations[domain]") -lt 0) {
     throw "Today advice stream updates should preserve recommendation basis metadata"
   }
+  if ($todayAdvice.IndexOf("record_events") -lt 0 -or $todayAdvice.IndexOf("'false'") -lt 0) {
+    throw "Today advice should let streaming recommendations own event recording"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
   if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"
@@ -1025,6 +1028,22 @@ print("backend_llm_recommender_ok")
     Pop-Location
     Remove-Item -LiteralPath $recommendSmoke -Force -ErrorAction SilentlyContinue
   }
+}
+
+Step "Backend recommendation event recording wiring" {
+  $mainSource = Get-Content "$root\backend\app\main.py" -Raw -Encoding UTF8
+  $dataSource = Get-Content "$root\backend\app\data.py" -Raw -Encoding UTF8
+  $storeSource = Get-Content "$root\backend\app\store.py" -Raw -Encoding UTF8
+  if ($mainSource.IndexOf("record_events: bool = Query(default=True)") -lt 0 -or $mainSource.IndexOf("record_event=False") -lt 0) {
+    throw "Recommendation endpoints do not separate batch and stream event recording"
+  }
+  if ($mainSource.IndexOf("streamed =") -lt 0 -or $mainSource.IndexOf("record_recommendation_event") -lt 0 -or $mainSource.IndexOf("streamed or recommendation.content") -lt 0) {
+    throw "Streaming recommendation endpoint does not record final streamed content"
+  }
+  if ($dataSource.IndexOf("record_events: bool = True") -lt 0 -or $dataSource.IndexOf("record_event: bool = True") -lt 0 -or $storeSource.IndexOf("record_recommendation_event") -lt 0) {
+    throw "Recommendation event recording controls are not wired through data stores"
+  }
+  Write-Host "backend_recommendation_event_recording_wiring_ok"
 }
 
 Step "Backend cloud LLM provider smoke" {

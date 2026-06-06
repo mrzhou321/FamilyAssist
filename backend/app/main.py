@@ -284,10 +284,11 @@ async def list_recommendations(
         ],
     ),
     member_id: int | None = Query(default=None),
+    record_events: bool = Query(default=True),
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> RecommendationBatch:
-    return await data.make_recommendations(domains, scoped_member_id(member_id, context))
+    return await data.make_recommendations(domains, scoped_member_id(member_id, context), record_events)
 
 
 @app.get("/api/recommendations/{domain}", response_model=Recommendation)
@@ -307,12 +308,19 @@ async def stream_recommendation(
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> StreamingResponse:
-    recommendation = await data.make_recommendation(domain, scoped_member_id(member_id, context))
+    scoped_id = scoped_member_id(member_id, context)
+    recommendation = await data.make_recommendation(domain, scoped_id, record_event=False)
     system_settings = await data.get_settings()
 
     async def events() -> AsyncIterator[str]:
+        streamed = ""
         async for chunk in stream_recommendation_content(recommendation, system_settings):
+            streamed += chunk
             yield f"data: {chunk}\n\n"
+        await data.record_recommendation_event(
+            scoped_id,
+            recommendation.model_copy(update={"content": streamed or recommendation.content}),
+        )
 
     return StreamingResponse(events(), media_type="text/event-stream")
 
