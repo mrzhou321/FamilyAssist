@@ -375,6 +375,13 @@ Step "Frontend design token colors" {
   if ($pairing.IndexOf("getCssToken('--color-qr-dark')") -lt 0 -or $pairing.IndexOf("getCssToken('--color-qr-light')") -lt 0) {
     throw "Pairing QR colors should use design tokens"
   }
+  if ($pairing.IndexOf("window.location.origin") -lt 0 -or $pairing.IndexOf("server_url=") -lt 0) {
+    throw "Pairing QR generation should bind the URL to the current deployed origin"
+  }
+  $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw -Encoding UTF8
+  if ($hooks.IndexOf("usePairingToken") -ge 0) {
+    throw "Shared hooks should not expose pairing token creation without server_url"
+  }
   Write-Host "frontend_design_token_colors_ok"
 }
 

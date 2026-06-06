@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@shared/api'
-import type { Member, Memory, Note, NoteCreatePayload, Recommendation, Feedback, PairingToken, Domain } from '@shared/types'
+import type { Member, Memory, Note, NoteCreatePayload, Recommendation, Feedback, Domain } from '@shared/types'
 import { cacheMemories, getCachedMemories } from '../../mobile/offline/cachedData'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
 
@@ -78,12 +78,6 @@ export const useDeleteMemory = () => {
 export const useFeedback = () =>
   useMutation({
     mutationFn: (fb: Feedback) => api.post<void>('/recommendations/feedback', fb),
-  })
-
-export const usePairingToken = () =>
-  useMutation({
-    mutationFn: (memberId: number) =>
-      api.post<PairingToken>(`/pairing/members/${memberId}`, {}),
   })
 
 export const useRecommendation = (memberId: number, domain: Domain) =>
