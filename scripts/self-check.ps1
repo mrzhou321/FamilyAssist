@@ -1501,6 +1501,8 @@ assert client.patch("/api/settings", json={**cloud_settings, "embedding_model": 
 assert client.patch("/api/settings", json={**cloud_settings, "default_city": "   "}, headers=admin_headers).status_code == 400
 bad_cloud_url = {**cloud_settings, "cloud_llm_base_url": "file:///tmp/family-assister"}
 assert client.patch("/api/settings", json=bad_cloud_url, headers=admin_headers).status_code == 400
+credential_cloud_url = {**cloud_settings, "cloud_llm_base_url": "https://token:secret@api.deepseek.com"}
+assert client.patch("/api/settings", json=credential_cloud_url, headers=admin_headers).status_code == 400
 cloud_settings["cloud_generation_model"] = "  deepseek-v4-flash  "
 cloud_settings["cloud_llm_base_url"] = "https://api.deepseek.com/"
 cloud_settings["cloud_llm_api_key"] = ""
@@ -1545,6 +1547,10 @@ bad_profile_member = client.post(
 assert bad_profile_member.status_code == 422
 assert client.post("/api/pairing/members/1?server_url=javascript%3Aalert(1)", headers=admin_headers).status_code == 422
 assert client.post("/api/pairing/members/1?server_url=%2Fmobile", headers=admin_headers).status_code == 422
+assert client.post(
+    "/api/pairing/members/1?server_url=https%3A%2F%2Fuser%3Asecret%40family.local",
+    headers=admin_headers,
+).status_code == 422
 pairing = client.post("/api/pairing/members/1", headers=admin_headers)
 assert pairing.status_code == 201
 origin_pairing = client.post(

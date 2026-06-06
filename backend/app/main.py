@@ -85,6 +85,8 @@ def normalize_pairing_server_url(server_url: str) -> str:
     parsed = urlparse(server_url.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(status_code=422, detail="server_url must be an absolute http(s) URL")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=422, detail="server_url must not include credentials")
     return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
 
 
@@ -95,6 +97,8 @@ def validate_cloud_llm_base_url(system_settings: SystemSettings) -> None:
     parsed = urlparse(base_url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(status_code=400, detail="cloud_llm_base_url must be an absolute http(s) URL")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="cloud_llm_base_url must not include credentials")
 
 
 def validate_system_settings(system_settings: SystemSettings) -> None:
