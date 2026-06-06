@@ -282,6 +282,9 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("ADMIN_ACCEPTANCE_CHECKS_KEY") -lt 0 -or $settingsPage.IndexOf("loadAcceptanceChecks") -lt 0 -or $settingsPage.IndexOf("toggleAcceptanceCheck") -lt 0) {
     throw "Settings page does not persist manual acceptance progress"
   }
+  if ($settingsPage.IndexOf("exportAcceptanceChecks") -lt 0 -or $settingsPage.IndexOf("new Blob") -lt 0 -or $settingsPage.IndexOf("URL.createObjectURL") -lt 0 -or $settingsPage.IndexOf("completed: Boolean(acceptanceChecks[item.id])") -lt 0) {
+    throw "Settings page does not export manual acceptance evidence"
+  }
   $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
   $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
   if (-not $usesParallelLoad -or -not $hasRefreshButton) {

@@ -110,6 +110,26 @@ export default function Settings() {
     })
   }
 
+  function exportAcceptanceChecks() {
+    const payload = {
+      exported_at: new Date().toISOString(),
+      checks: ACCEPTANCE_CHECKS.map((item) => ({
+        id: item.id,
+        label: item.label,
+        detail: item.detail,
+        status: item.status,
+        completed: Boolean(acceptanceChecks[item.id]),
+      })),
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `familyassister-acceptance-${payload.exported_at.slice(0, 10)}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     try {
@@ -334,9 +354,13 @@ export default function Settings() {
           <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-card)]">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="text-lg text-[var(--color-fg)]">验收清单</h3>
-              <span className="rounded-full bg-[var(--color-surface-warm)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">
-                人工项
-              </span>
+              <button
+                type="button"
+                onClick={exportAcceptanceChecks}
+                className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)]"
+              >
+                导出
+              </button>
             </div>
             <div className="flex flex-col gap-2">
               {ACCEPTANCE_CHECKS.map((item) => (
