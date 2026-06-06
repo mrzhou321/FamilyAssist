@@ -3,6 +3,7 @@ import json
 
 import httpx
 
+from .cloud_llm import is_cloud_provider_configured, stream_chat_completion
 from .core.config import settings
 from .schemas import Recommendation, SystemSettings
 
@@ -19,6 +20,17 @@ async def stream_recommendation_content(
     system_settings: SystemSettings,
 ) -> AsyncIterator[str]:
     if system_settings.llm_provider != "ollama":
+        if is_cloud_provider_configured(system_settings):
+            emitted = False
+            try:
+                async for chunk in _stream_cloud_content(recommendation, system_settings):
+                    if chunk:
+                        emitted = True
+                        yield chunk
+            except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+                emitted = False
+            if emitted:
+                return
         async for chunk in fallback_chunks(recommendation.content):
             yield chunk
         return
@@ -63,6 +75,21 @@ async def _stream_ollama_content(
                     yield chunk
                 if payload.get("done"):
                     break
+
+
+async def _stream_cloud_content(
+    recommendation: Recommendation,
+    system_settings: SystemSettings,
+) -> AsyncIterator[str]:
+    async for chunk in stream_chat_completion(
+        system_settings,
+        [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _build_prompt(recommendation)},
+        ],
+        temperature=0.3,
+    ):
+        yield chunk
 
 
 async def fallback_chunks(text: str, size: int = 4) -> AsyncIterator[str]:

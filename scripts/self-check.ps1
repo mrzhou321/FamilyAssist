@@ -112,6 +112,9 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("StatusRow") -lt 0 -or $settingsPage.IndexOf("statusLabel") -lt 0 -or $settingsPage.IndexOf("providerStatus.llm") -lt 0) {
     throw "Settings page does not render provider status rows"
   }
+  if ($settingsPage.IndexOf("cloud_llm_api_key") -lt 0 -or $settingsPage.IndexOf("cloud_llm_base_url") -lt 0 -or $settingsPage.IndexOf("cloud_generation_model") -lt 0) {
+    throw "Settings page does not expose cloud LLM provider configuration"
+  }
   $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
   $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
   if (-not $usesParallelLoad -or -not $hasRefreshButton) {
@@ -479,6 +482,153 @@ print("backend_llm_recommender_ok")
   }
 }
 
+Step "Backend cloud LLM provider smoke" {
+  $cloudSmoke = New-TemporaryFile
+  @'
+import asyncio
+
+import httpx
+
+import app.cloud_llm as cloud
+import app.llm_extractor as extractor
+import app.llm_recommender as recommender
+from app.cloud_llm import provider_base_url, provider_model
+from app.llm_extractor import build_review_candidate
+from app.llm_recommender import stream_recommendation_content
+from app.schemas import Recommendation, RecommendationDomain, SystemSettings
+
+
+class MockStreamResponse:
+    def __init__(self, lines):
+        self.lines = lines
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    def raise_for_status(self):
+        return None
+
+    async def aiter_lines(self):
+        for line in self.lines:
+            yield line
+
+
+class MockCloudClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        self.base_url_seen = kwargs.get("base_url")
+        transport = httpx.MockTransport(self._handler)
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://cloud.test"))
+
+    @staticmethod
+    def _handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/chat/completions")
+        assert request.headers.get("authorization") == "Bearer cloud-key"
+        payload = request.read().decode("utf-8")
+        assert "deepseek-v4-flash" in payload
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                "{\"candidates\":[{\"type\":\"fact\",\"domain\":\"diet\","
+                                "\"content\":\"\u5988\u5988\u4e0d\u5403\u9999\u83dc\",\"confidence\":0.93}]}"
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    def stream(self, method, path, json, headers):
+        assert method == "POST"
+        assert path == "/chat/completions"
+        assert headers["Authorization"] == "Bearer cloud-key"
+        assert json["stream"] is True
+        return MockStreamResponse([
+            "data: {\"choices\":[{\"delta\":{\"content\":\"\\u4e91\\u7aef\"}}]}",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"\\u5efa\\u8bae\"}}]}",
+            "data: [DONE]",
+        ])
+
+
+class BadCloudClient(MockCloudClient):
+    @staticmethod
+    def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, json={"error": "unavailable"})
+
+    def stream(self, method, path, json, headers):
+        return MockStreamResponse(["data: not-json"])
+
+
+async def main():
+    configured = SystemSettings(
+        llm_provider="deepseek",
+        cloud_llm_risk_acknowledged=True,
+        cloud_llm_api_key="cloud-key",
+    )
+    assert provider_base_url(configured) == "https://api.deepseek.com"
+    assert provider_model(configured) == "deepseek-v4-flash"
+    qwen = SystemSettings(llm_provider="qwen", cloud_llm_risk_acknowledged=True, cloud_llm_api_key="cloud-key")
+    assert provider_base_url(qwen) == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert provider_model(qwen) == "qwen-plus"
+
+    original_cloud_client = cloud.httpx.AsyncClient
+    original_extractor_client = extractor.httpx.AsyncClient
+    original_recommender_client = recommender.httpx.AsyncClient
+    cloud.httpx.AsyncClient = MockCloudClient
+    try:
+        candidate = await build_review_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", configured)
+        assert candidate.candidates[0].content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
+        assert candidate.candidates[0].confidence == 0.93
+        recommendation = Recommendation(
+            domain=RecommendationDomain.diet,
+            content="\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b",
+            basis=["\u4e0d\u5403\u9999\u83dc"],
+            basis_refs=[],
+        )
+        streamed = "".join([chunk async for chunk in stream_recommendation_content(recommendation, configured)])
+        assert streamed == "\u4e91\u7aef\u5efa\u8bae"
+    finally:
+        cloud.httpx.AsyncClient = original_cloud_client
+        extractor.httpx.AsyncClient = original_extractor_client
+        recommender.httpx.AsyncClient = original_recommender_client
+
+    cloud.httpx.AsyncClient = BadCloudClient
+    try:
+        fallback = await build_review_candidate(1, 2, "\u5988\u5988\u4e0d\u5403\u9999\u83dc", configured)
+        assert fallback.candidates[0].content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
+        recommendation = Recommendation(
+            domain=RecommendationDomain.diet,
+            content="\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b",
+            basis=[],
+            basis_refs=[],
+        )
+        fallback_stream = "".join([chunk async for chunk in stream_recommendation_content(recommendation, configured)])
+        assert fallback_stream == "\u996e\u98df\u4ee5\u6e05\u6de1\u4e3a\u4e3b"
+    finally:
+        cloud.httpx.AsyncClient = original_cloud_client
+
+
+asyncio.run(main())
+print("backend_cloud_llm_provider_ok")
+'@ | Set-Content -LiteralPath $cloudSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $cloudSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend cloud LLM provider smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $cloudSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend embedding provider smoke" {
   $embeddingSmoke = New-TemporaryFile
   @'
@@ -588,12 +738,17 @@ assert provider_json["privacy"]["status"] == "ready"
 cloud_settings = {**settings.json(), "llm_provider": "deepseek", "cloud_llm_risk_acknowledged": False}
 assert client.patch("/api/settings", json=cloud_settings, headers=admin_headers).status_code == 400
 cloud_settings["cloud_llm_risk_acknowledged"] = True
+cloud_settings["cloud_generation_model"] = "deepseek-v4-flash"
+cloud_settings["cloud_llm_base_url"] = "https://api.deepseek.com"
 updated_settings = client.patch("/api/settings", json=cloud_settings, headers=admin_headers)
 assert updated_settings.status_code == 200
 assert updated_settings.json()["llm_provider"] == "deepseek"
+assert updated_settings.json()["cloud_generation_model"] == "deepseek-v4-flash"
+assert updated_settings.json()["cloud_llm_base_url"] == "https://api.deepseek.com"
 cloud_provider_status = client.get("/api/settings/provider-status", headers=admin_headers)
 assert cloud_provider_status.status_code == 200
 assert cloud_provider_status.json()["privacy"]["status"] == "degraded"
+assert cloud_provider_status.json()["llm"]["status"] == "degraded"
 assert client.patch("/api/settings", json={**updated_settings.json(), "llm_provider": "ollama"}, headers=admin_headers).status_code == 200
 
 assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous note", "source": "text"}).status_code == 401

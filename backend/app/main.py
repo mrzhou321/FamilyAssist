@@ -17,6 +17,7 @@ from .auth import (
     scoped_member_id,
     verify_admin_credentials,
 )
+from .cloud_llm import check_cloud_chat, is_cloud_provider_configured, provider_base_url, provider_model
 from .core.config import settings
 from .core.db import engine
 from .data import DataStore, get_data_store, seed_database
@@ -411,10 +412,31 @@ async def _database_check() -> ProviderCheck:
 
 async def _llm_check(current_settings: SystemSettings) -> ProviderCheck:
     if current_settings.llm_provider != "ollama":
+        if not current_settings.cloud_llm_risk_acknowledged:
+            return ProviderCheck(
+                status="error",
+                label=current_settings.llm_provider,
+                detail="云端 LLM 风险尚未确认",
+            )
+        label = f"{current_settings.llm_provider} / {provider_model(current_settings) or '未配置模型'}"
+        if not is_cloud_provider_configured(current_settings):
+            return ProviderCheck(
+                status="degraded",
+                label=label,
+                detail="云端 Provider 已选择，但 API Key、base URL 或模型尚未完整配置；抽取和推荐会本地降级",
+            )
+        try:
+            await check_cloud_chat(current_settings)
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+            return ProviderCheck(
+                status="degraded",
+                label=label,
+                detail=f"云端 LLM 暂不可达，抽取和推荐会本地降级：{exc.__class__.__name__}",
+            )
         return ProviderCheck(
-            status="degraded" if current_settings.cloud_llm_risk_acknowledged else "error",
-            label=current_settings.llm_provider,
-            detail="云端 LLM 会发送速记和上下文；已确认风险" if current_settings.cloud_llm_risk_acknowledged else "云端 LLM 风险尚未确认",
+            status="ready",
+            label=label,
+            detail=f"OpenAI-compatible Chat Completions 已可用：{provider_base_url(current_settings)}",
         )
     try:
         async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=2.0) as client:

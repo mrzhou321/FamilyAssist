@@ -6,6 +6,9 @@ interface SystemSettings {
   llm_provider: string
   generation_model: string
   embedding_model: string
+  cloud_generation_model: string
+  cloud_llm_base_url: string
+  cloud_llm_api_key: string
   weather_api_key: string
   default_city: string
   extraction_retries: number
@@ -31,6 +34,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   llm_provider: 'ollama',
   generation_model: 'qwen2.5:3b',
   embedding_model: 'qllama/bge-small-zh-v1.5',
+  cloud_generation_model: '',
+  cloud_llm_base_url: '',
+  cloud_llm_api_key: '',
   weather_api_key: '',
   default_city: '广州',
   extraction_retries: 3,
@@ -166,15 +172,48 @@ export default function Settings() {
           </div>
 
           {usesCloudProvider ? (
-            <label className="mt-5 flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] px-4 py-3 text-sm text-[var(--color-fg)]">
-              <input
-                type="checkbox"
-                checked={settings.cloud_llm_risk_acknowledged}
-                onChange={(event) => update('cloud_llm_risk_acknowledged', event.target.checked)}
-                className="accent-[var(--color-accent)]"
-              />
-              已知晓云端 LLM 会发送速记和上下文到第三方 API
-            </label>
+            <div className="mt-5 grid gap-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] p-4">
+              <div className="grid grid-cols-2 gap-4 max-[820px]:grid-cols-1">
+                <Field label="云端模型">
+                  <input
+                    value={settings.cloud_generation_model}
+                    onChange={(event) => update('cloud_generation_model', event.target.value)}
+                    className="input bg-white"
+                    placeholder={settings.llm_provider === 'deepseek' ? 'deepseek-v4-flash' : 'qwen-plus'}
+                  />
+                </Field>
+                <Field label="云端 Base URL">
+                  <input
+                    value={settings.cloud_llm_base_url}
+                    onChange={(event) => update('cloud_llm_base_url', event.target.value)}
+                    className="input bg-white"
+                    placeholder={
+                      settings.llm_provider === 'deepseek'
+                        ? 'https://api.deepseek.com'
+                        : 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+                    }
+                  />
+                </Field>
+              </div>
+              <Field label="云端 API Key">
+                <input
+                  type="password"
+                  value={settings.cloud_llm_api_key}
+                  onChange={(event) => update('cloud_llm_api_key', event.target.value)}
+                  className="input bg-white"
+                  placeholder="仅保存在自托管后端数据库"
+                />
+              </Field>
+              <label className="flex items-center gap-3 text-sm text-[var(--color-fg)]">
+                <input
+                  type="checkbox"
+                  checked={settings.cloud_llm_risk_acknowledged}
+                  onChange={(event) => update('cloud_llm_risk_acknowledged', event.target.checked)}
+                  className="accent-[var(--color-accent)]"
+                />
+                已知晓云端 LLM 会发送速记和上下文到第三方 API
+              </label>
+            </div>
           ) : null}
         </section>
 
