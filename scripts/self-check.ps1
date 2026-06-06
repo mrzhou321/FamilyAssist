@@ -158,6 +158,20 @@ Step "Frontend PWA install wiring" {
   Write-Host "frontend_pwa_install_wiring_ok"
 }
 
+Step "Frontend mobile pairing scanner wiring" {
+  $pairDevice = Get-Content "$root\frontend\src\mobile\pages\PairDevice.tsx" -Raw -Encoding UTF8
+  if ($pairDevice.IndexOf("BarcodeDetector") -lt 0 -or $pairDevice.IndexOf("getUserMedia") -lt 0 -or $pairDevice.IndexOf("qr_code") -lt 0) {
+    throw "Mobile pairing page does not wire QR scanning"
+  }
+  if ($pairDevice.IndexOf("extractPairingToken") -lt 0 -or $pairDevice.IndexOf("searchParams.get('token')") -lt 0) {
+    throw "Mobile pairing page does not extract token from scanned pairing URLs"
+  }
+  if ($pairDevice.IndexOf("onClick={isScanning ? stopScanner : startScanner}") -lt 0 -or $pairDevice.IndexOf("value={token}") -lt 0 -or $pairDevice.IndexOf("setToken(event.target.value)") -lt 0) {
+    throw "Mobile pairing page does not expose scan and manual token controls"
+  }
+  Write-Host "frontend_mobile_pairing_scanner_wiring_ok"
+}
+
 Step "Frontend auth token constants" {
   $frontendSource = Get-ChildItem "$root\frontend\src" -Recurse -Include *.ts,*.tsx |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
