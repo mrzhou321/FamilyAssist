@@ -349,7 +349,7 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("buildValidatedSettings") -lt 0 -or $settingsPage.IndexOf("生成模型不能为空") -lt 0 -or $settingsPage.IndexOf("向量模型不能为空") -lt 0 -or $settingsPage.IndexOf("默认城市不能为空") -lt 0) {
     throw "Settings page does not validate required model and city fields before saving"
   }
-  if ($settingsPage.IndexOf("第三方 API 数据出境风险") -lt 0 -or $settingsPage.IndexOf("new URL(next.cloud_llm_base_url)") -lt 0 -or $settingsPage.IndexOf("http(s) 地址") -lt 0) {
+  if ($settingsPage.IndexOf("第三方 API 数据出境风险") -lt 0 -or $settingsPage.IndexOf("new URL(next.cloud_llm_base_url)") -lt 0 -or $settingsPage.IndexOf("http(s) 地址") -lt 0 -or $settingsPage.IndexOf("url.username || url.password") -lt 0) {
     throw "Settings page does not validate cloud LLM risk and base URL before saving"
   }
   if ($settingsPage.IndexOf("type=`"password`"") -lt 0 -or $settingsPage.IndexOf("cloud_llm_api_key_configured ?") -lt 0) {

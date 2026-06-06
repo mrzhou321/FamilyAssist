@@ -167,6 +167,10 @@ export default function Settings() {
           setMessage('云端 Base URL 必须是 http(s) 地址')
           return null
         }
+        if (url.username || url.password) {
+          setMessage('云端 Base URL 不能包含用户名或密码')
+          return null
+        }
       } catch {
         setMessage('云端 Base URL 必须是 http(s) 地址')
         return null
