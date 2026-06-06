@@ -31,7 +31,7 @@ export default function Pairing() {
     try {
       const items = await api.get<Member[]>('/members')
       setMembers(items)
-      setSelectedId((current) => current ?? items[0]?.id ?? null)
+      setSelectedId((current) => (items.some((member) => member.id === current) ? current : items[0]?.id ?? null))
     } catch {
       setMessage('后端暂不可用，无法生成配对码')
     }

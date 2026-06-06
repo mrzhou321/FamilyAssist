@@ -499,6 +499,9 @@ Step "Frontend design token colors" {
   if ($pairing.IndexOf("async function loadMembers") -lt 0 -or $pairing.IndexOf("await loadMembers()") -lt 0) {
     throw "Pairing page should refresh member bound state after pairing session changes"
   }
+  if ($pairing.IndexOf("items.some((member) => member.id === current)") -lt 0) {
+    throw "Pairing page should recover when the selected member is no longer present"
+  }
   $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw -Encoding UTF8
   if ($hooks.IndexOf("usePairingToken") -ge 0) {
     throw "Shared hooks should not expose pairing token creation without server_url"
