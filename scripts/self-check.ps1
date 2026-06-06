@@ -687,6 +687,7 @@ assert store.cleanup_expired_memories() == 1
 assert 99 not in store.memories
 
 note = store.create_note(NoteCreate(member_id=1, content="likes walking after dinner"))
+assert store.extract_memory_from_note(note.id) is not None
 created_memory = next(memory for memory in store.list_memories(1) if memory.source_note_id == note.id)
 assert created_memory.expires_at is not None
 assert len(created_memory.embedding) == EMBEDDING_DIMENSION
@@ -696,8 +697,10 @@ assert updated_created_memory.embedding == build_text_embedding("updated walking
 
 assert is_duplicate_memory("\u5988\u5988\u4e0d\u7231\u9999\u83dc", "\u5988\u5988\u4e0d\u559c\u6b22\u82ab\u837d", MemoryType.fact, MemoryDomain.diet)
 note_a = store.create_note(NoteCreate(member_id=1, content="\u5988\u5988\u4e0d\u7231\u9999\u83dc"))
+assert store.extract_memory_from_note(note_a.id) is not None
 count_before = len(store.list_memories(1))
 note_b = store.create_note(NoteCreate(member_id=1, content="\u5988\u5988\u4e0d\u559c\u6b22\u82ab\u837d"))
+assert store.extract_memory_from_note(note_b.id) is None
 assert len(store.list_memories(1)) == count_before
 assert store.notes[note_b.id].status == "reviewed"
 assert not any(memory.source_note_id == note_b.id for memory in store.list_memories(1))
@@ -774,6 +777,19 @@ Step "Backend vector ranking wiring" {
     throw "Database recommendation path still bypasses vector-ranked memories"
   }
   Write-Host "backend_vector_ranking_wiring_ok"
+}
+
+Step "Backend async note extraction wiring" {
+  $mainSource = Get-Content "$root\backend\app\main.py" -Raw -Encoding UTF8
+  $dataSource = Get-Content "$root\backend\app\data.py" -Raw -Encoding UTF8
+  $storeSource = Get-Content "$root\backend\app\store.py" -Raw -Encoding UTF8
+  if ($mainSource.IndexOf("BackgroundTasks") -lt 0 -or $mainSource.IndexOf("background_tasks.add_task(extract_note_memory_task") -lt 0) {
+    throw "Note creation endpoint does not enqueue background extraction"
+  }
+  if ($dataSource.IndexOf("await self.extract_memory_from_note(note.id)") -ge 0 -or $storeSource.IndexOf("self.extract_memory_from_note(note.id)") -ge 0) {
+    throw "Note creation still performs synchronous extraction"
+  }
+  Write-Host "backend_async_note_extraction_wiring_ok"
 }
 
 Step "Docker compose model bootstrap" {

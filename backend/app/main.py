@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
@@ -134,12 +134,21 @@ async def delete_member(
 @app.post("/api/notes", response_model=Note, status_code=202)
 async def create_note(
     payload: NoteCreate,
+    background_tasks: BackgroundTasks,
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> Note:
     assert_member_payload(payload.member_id, context)
     scoped_payload = payload.model_copy(update={"member_id": scoped_member_id(payload.member_id, context)})
-    return await data.create_note(scoped_payload)
+    note = await data.create_note(scoped_payload)
+    background_tasks.add_task(extract_note_memory_task, note.id)
+    return note
+
+
+async def extract_note_memory_task(note_id: int) -> None:
+    async for task_data in get_data_store():
+        await task_data.extract_memory_from_note(note_id)
+        break
 
 
 @app.get("/api/notes", response_model=list[Note])

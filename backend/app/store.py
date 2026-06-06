@@ -160,7 +160,6 @@ class InMemoryStore:
         self._note_id += 1
         note = Note(id=self._note_id, created_at=now(), **payload.model_dump())
         self.notes[note.id] = note
-        self.extract_memory_from_note(note.id)
         return note
 
     def list_notes(self, member_id: int | None = None) -> list[Note]:

@@ -282,8 +282,6 @@ class DatabaseDataStore:
         self.session.add(note)
         await self.session.commit()
         await self.session.refresh(note)
-        await self.extract_memory_from_note(note.id)
-        await self.session.refresh(note)
         return self._to_note(note)
 
     async def list_notes(self, member_id: int | None = None) -> list[Note]:
