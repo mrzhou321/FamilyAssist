@@ -53,6 +53,26 @@ docker volume ls
 powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1
 ```
 
+Automated mobile PWA viewport smoke test. This builds the frontend, serves the production assets with the same `/mobile/*` and `/admin/*` navigation fallback shape as nginx, and checks the mobile routes in a real headless Chrome/Edge viewport:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\mobile-viewport-smoke.ps1
+```
+
+Repeatable extraction quality baseline. The default deterministic sample runs 20 representative quick notes and enforces the PRD `>=80%` target:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1
+```
+
+To sample a configured real provider and save JSON evidence:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1 -Mode provider -OutputPath docs\llm-quality-provider-sample.json
+```
+
+For cloud providers, add `-Provider deepseek` or `-Provider qwen` and `-AllowCloud` only after confirming the data egress risk in the admin settings.
+
 Optional full Docker Compose smoke test:
 
 ```powershell
@@ -70,3 +90,5 @@ CI jobs without a Docker daemon can skip this optional smoke test cleanly:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull -SkipIfDockerUnavailable
 ```
+
+Items that depend on Android/iOS browser permissions, such as speech input, camera capture, and QR scanning prompts, still need target-device checks. Use `docs\MANUAL_ACCEPTANCE.md` and export the acceptance evidence from `/admin/settings`.

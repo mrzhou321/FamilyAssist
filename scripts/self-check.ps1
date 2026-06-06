@@ -77,6 +77,15 @@ Step "Deployment and backup docs" {
   if ($readme.IndexOf("scripts\deploy-smoke.ps1") -lt 0 -or $readme.IndexOf("-SkipModelPull") -lt 0 -or $readme.IndexOf("-SkipIfDockerUnavailable") -lt 0) {
     throw "README does not document optional Docker compose smoke test"
   }
+  if ($readme.IndexOf("scripts\mobile-viewport-smoke.ps1") -lt 0 -or $readme.IndexOf("headless Chrome/Edge") -lt 0) {
+    throw "README does not document the automated mobile viewport smoke test"
+  }
+  if ($readme.IndexOf("scripts\llm-quality-sample.ps1") -lt 0 -or $readme.IndexOf("-Mode provider") -lt 0 -or $readme.IndexOf("-AllowCloud") -lt 0) {
+    throw "README does not document repeatable LLM quality sampling and cloud acknowledgement"
+  }
+  if ($readme.IndexOf("docs\MANUAL_ACCEPTANCE.md") -lt 0 -or $readme.IndexOf("/admin/settings") -lt 0) {
+    throw "README does not point operators to manual acceptance evidence export"
+  }
   Write-Host "deployment_backup_docs_ok"
 }
 
