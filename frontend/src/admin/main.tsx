@@ -3,6 +3,7 @@ import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { ADMIN_AUTH_EXPIRED_EVENT, ADMIN_TOKEN_KEY } from '../shared/constants'
+import { registerServiceWorker } from '../shared/pwa/serviceWorker'
 import MemoryLibrary from './pages/MemoryLibrary'
 import Login from './pages/Login'
 import Members from './pages/Members'
@@ -100,3 +101,5 @@ createRoot(document.getElementById('root')!).render(
     <AdminApp />
   </StrictMode>,
 )
+
+registerServiceWorker()

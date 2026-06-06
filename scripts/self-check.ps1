@@ -349,8 +349,13 @@ Step "Frontend PWA install wiring" {
     throw "Service worker does not use route-specific offline navigation fallback"
   }
   $mobileMain = Get-Content "$root\frontend\src\mobile\main.tsx" -Raw -Encoding UTF8
-  if ($mobileMain.IndexOf("beforeinstallprompt") -lt 0 -or $mobileMain.IndexOf("useInstallPrompt") -lt 0 -or $mobileMain.IndexOf("navigator.serviceWorker.register") -lt 0) {
+  if ($mobileMain.IndexOf("beforeinstallprompt") -lt 0 -or $mobileMain.IndexOf("useInstallPrompt") -lt 0 -or $mobileMain.IndexOf("registerServiceWorker()") -lt 0) {
     throw "Mobile app install prompt or service worker registration is missing"
+  }
+  $adminMain = Get-Content "$root\frontend\src\admin\main.tsx" -Raw -Encoding UTF8
+  $serviceWorkerRegistration = Get-Content "$root\frontend\src\shared\pwa\serviceWorker.ts" -Raw -Encoding UTF8
+  if ($adminMain.IndexOf("registerServiceWorker()") -lt 0 -or $serviceWorkerRegistration.IndexOf("navigator.serviceWorker.register('/service-worker.js')") -lt 0) {
+    throw "Admin app does not register the shared service worker"
   }
   Write-Host "frontend_pwa_install_wiring_ok"
 }

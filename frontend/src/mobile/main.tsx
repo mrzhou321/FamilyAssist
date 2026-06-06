@@ -4,6 +4,7 @@ import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { MEMBER_AUTH_EXPIRED_EVENT } from '../shared/constants'
+import { registerServiceWorker } from '../shared/pwa/serviceWorker'
 import MemoryVault from './pages/MemoryVault'
 import PairDevice from './pages/PairDevice'
 import QuickNote from './pages/QuickNote'
@@ -178,8 +179,4 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch(() => {})
-  })
-}
+registerServiceWorker()
