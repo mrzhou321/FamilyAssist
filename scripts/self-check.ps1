@@ -32,6 +32,22 @@ Step "Frontend lint" {
   }
 }
 
+Step "Frontend offline cache wiring" {
+  $cachedData = Get-Content "$root\frontend\src\mobile\offline\cachedData.ts" -Raw
+  if ($cachedData -notmatch "cached-memories" -or $cachedData -notmatch "cacheMemories" -or $cachedData -notmatch "getCachedMemories") {
+    throw "Offline memory cache module is incomplete"
+  }
+  $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw
+  if ($hooks -notmatch "cacheMemories" -or $hooks -notmatch "getCachedMemories") {
+    throw "Memory query does not use offline cache"
+  }
+  $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
+  if ($noteQueue -notmatch "DB_VERSION = 2" -or $noteQueue -notmatch "cached-memories") {
+    throw "Offline IndexedDB migration does not create cached memories store"
+  }
+  Write-Host "frontend_offline_cache_wiring_ok"
+}
+
 Step "Backend compile" {
   & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\app"
   if ($LASTEXITCODE -ne 0) {

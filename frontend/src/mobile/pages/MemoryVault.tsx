@@ -46,8 +46,13 @@ function formatDate(value: string) {
 export default function MemoryVault() {
   const [activeTag, setActiveTag] = useState('全部')
   const { data, isError } = useMemberMemories(getCurrentMemberId())
-  const memories = data ?? normalizeMockMemories()
-  const message = isError ? '后端暂不可用，正在显示本地记忆' : ''
+  const hasLoadedMemories = Boolean(data && data.length > 0)
+  const memories = hasLoadedMemories ? data! : normalizeMockMemories()
+  const message = isError
+    ? '???????????????'
+    : !navigator.onLine && hasLoadedMemories
+      ? '????????????????'
+      : ''
 
   const filtered = useMemo(() => {
     if (activeTag === '全部') return memories

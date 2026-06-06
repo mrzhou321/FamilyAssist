@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@shared/api'
 import type { Member, Memory, Note, NoteCreatePayload, Recommendation, Feedback, PairingToken, Domain } from '@shared/types'
+import { cacheMemories, getCachedMemories } from '../../mobile/offline/cachedData'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
 
 export const useMembers = () =>
@@ -9,7 +10,16 @@ export const useMembers = () =>
 export const useMemberMemories = (memberId: number | null) =>
   useQuery({
     queryKey: ['memories', memberId],
-    queryFn: () => api.get<Memory[]>(memberId === null ? '/memories' : `/memories?member_id=${memberId}`),
+    queryFn: async () => {
+      try {
+        const items = await api.get<Memory[]>(memberId === null ? '/memories' : `/memories?member_id=${memberId}`)
+        return cacheMemories(memberId, items)
+      } catch (error) {
+        const cached = await getCachedMemories(memberId)
+        if (cached.length > 0) return cached
+        throw error
+      }
+    },
   })
 
 export const useMemberNotes = (memberId: number | null) =>
