@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from . import models
 from .core.config import settings
 from .core.db import AsyncSessionLocal
-from .embeddings import build_text_embedding, cosine_similarity
+from .embeddings import build_text_embedding, build_text_embedding_async, cosine_similarity
 from .llm_extractor import build_review_candidate as build_llm_review_candidate
 from .memory_dedupe import build_review_candidate_from_text, is_duplicate_memory
 from .recommendation_engine import (
@@ -306,6 +306,7 @@ class DatabaseDataStore:
         note = await self.session.get(models.Note, note_id)
         if note is None:
             return None
+        embedding = await self._build_embedding(draft.content)
         existing = await self.session.scalar(
             select(models.Memory).where(models.Memory.source_note_id == note_id).order_by(models.Memory.id)
         )
@@ -314,7 +315,7 @@ class DatabaseDataStore:
             existing.domain = models.MemoryDomain(draft.domain.value)
             existing.content = draft.content
             existing.confidence = draft.confidence
-            existing.embedding = build_text_embedding(draft.content)
+            existing.embedding = embedding
             note.status = "reviewed"
             await self.session.commit()
             await self.session.refresh(existing)
@@ -325,7 +326,7 @@ class DatabaseDataStore:
             domain=models.MemoryDomain(draft.domain.value),
             content=draft.content,
             confidence=draft.confidence,
-            embedding=build_text_embedding(draft.content),
+            embedding=embedding,
             source_note_id=note.id,
             expires_at=default_expires_at(draft.type),
         )
@@ -395,7 +396,7 @@ class DatabaseDataStore:
         for key, value in update.items():
             setattr(memory, key, value)
         if "content" in update and update["content"] is not None:
-            memory.embedding = build_text_embedding(update["content"])
+            memory.embedding = await self._build_embedding(update["content"])
         await self.session.commit()
         await self.session.refresh(memory)
         return self._to_memory(memory)
@@ -412,7 +413,7 @@ class DatabaseDataStore:
         weather = await self.get_weather()
         member_model = await self.session.get(models.Member, member_id) if member_id is not None else None
         member = self._to_member(member_model) if member_model is not None else None
-        query_embedding = build_text_embedding(build_recommendation_query(domain, member, weather))
+        query_embedding = await self._build_embedding(build_recommendation_query(domain, member, weather))
         candidates = await self._vector_ranked_memories(domain, member_id, query_embedding)
         related_memories = sorted(
             candidates,
@@ -492,7 +493,7 @@ class DatabaseDataStore:
             domain=domain_map[payload.domain],
             content=content,
             confidence=0.84,
-            embedding=build_text_embedding(content),
+            embedding=await self._build_embedding(content),
             expires_at=default_expires_at(MemoryType.episode),
         )
         self.session.add(memory)
@@ -589,6 +590,12 @@ class DatabaseDataStore:
         settings = await self.get_settings()
         return await get_weather_context(settings.default_city, settings.weather_api_key)
 
+    async def _build_embedding(self, content: str) -> list[float]:
+        system_settings = await self.get_settings()
+        if system_settings.llm_provider == "ollama":
+            return await build_text_embedding_async(content, system_settings.embedding_model)
+        return build_text_embedding(content)
+
     async def cleanup_expired_memories(self) -> int:
         result = await self.session.execute(
             delete(models.Memory).where(models.Memory.expires_at.is_not(None), models.Memory.expires_at <= now())
@@ -624,6 +631,7 @@ async def seed_database() -> None:
             if created:
                 created.bound = member.bound
 
+        system_settings = await db_store.get_settings()
         for memory in seed.list_memories():
             session.add(
                 models.Memory(
@@ -632,7 +640,7 @@ async def seed_database() -> None:
                     domain=models.MemoryDomain(memory.domain.value),
                     content=memory.content,
                     confidence=memory.confidence,
-                    embedding=build_text_embedding(memory.content),
+                    embedding=await build_text_embedding_async(memory.content, system_settings.embedding_model),
                     source_note_id=memory.source_note_id,
                     expires_at=memory.expires_at,
                     created_at=memory.created_at,

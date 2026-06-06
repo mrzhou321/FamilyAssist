@@ -31,6 +31,7 @@ services:
     environment:
       OLLAMA_HOST: http://ollama:11434
       GENERATION_MODEL: qwen2.5:3b
+      EMBEDDING_MODEL: qllama/bge-small-zh-v1.5
     volumes:
       - ollama_data:/root/.ollama
     depends_on:
@@ -39,7 +40,8 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: >
       "until ollama list >/dev/null 2>&1; do sleep 2; done;
-      ollama pull $$GENERATION_MODEL"
+      ollama pull $$GENERATION_MODEL;
+      ollama pull $$EMBEDDING_MODEL"
 
   backend:
     build:

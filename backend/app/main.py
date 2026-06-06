@@ -20,7 +20,7 @@ from .auth import (
 from .core.config import settings
 from .core.db import engine
 from .data import DataStore, get_data_store, seed_database
-from .embeddings import EMBEDDING_DIMENSION
+from .embeddings import EMBEDDING_DIMENSION, check_ollama_embedding_model
 from .llm_recommender import stream_recommendation_content
 from .schemas import (
     AdminLogin,
@@ -393,11 +393,7 @@ async def get_provider_status(
         database=await _database_check(),
         llm=await _llm_check(current_settings),
         weather=_weather_check(current_settings, weather),
-        embedding=ProviderCheck(
-            status="ready",
-            label=current_settings.embedding_model,
-            detail=f"当前向量维度 {EMBEDDING_DIMENSION}，记忆入库会生成可检索 embedding",
-        ),
+        embedding=await _embedding_check(current_settings),
         privacy=_privacy_check(current_settings),
     )
 
@@ -439,6 +435,31 @@ async def _llm_check(current_settings: SystemSettings) -> ProviderCheck:
         status="degraded",
         label="Ollama",
         detail=f"Ollama 可达，但未列出 {current_settings.generation_model}；需要先拉取模型",
+    )
+
+
+async def _embedding_check(current_settings: SystemSettings) -> ProviderCheck:
+    if current_settings.llm_provider != "ollama":
+        return ProviderCheck(
+            status="degraded",
+            label=current_settings.embedding_model,
+            detail=f"云端 LLM 模式下向量使用本地确定性回退，维度 {EMBEDDING_DIMENSION}",
+        )
+    try:
+        await check_ollama_embedding_model(current_settings.embedding_model)
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+        return ProviderCheck(
+            status="degraded",
+            label=current_settings.embedding_model,
+            detail=(
+                f"Ollama embedding 暂不可用，记忆入库会回退到本地 {EMBEDDING_DIMENSION} 维向量："
+                f"{exc.__class__.__name__}"
+            ),
+        )
+    return ProviderCheck(
+        status="ready",
+        label=current_settings.embedding_model,
+        detail=f"Ollama embedding 已可用，当前向量维度 {EMBEDDING_DIMENSION}",
     )
 
 

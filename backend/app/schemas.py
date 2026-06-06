@@ -215,7 +215,7 @@ class MemberDeviceSession(BaseModel):
 class SystemSettings(BaseModel):
     llm_provider: str = "ollama"
     generation_model: str = "qwen2.5:3b"
-    embedding_model: str = "bge-small-zh-v1.5"
+    embedding_model: str = "qllama/bge-small-zh-v1.5"
     weather_api_key: str = ""
     default_city: str = "广州"
     extraction_retries: int = Field(default=3, ge=0, le=10)

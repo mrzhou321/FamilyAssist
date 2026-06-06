@@ -30,7 +30,7 @@ interface ProviderStatus {
 const DEFAULT_SETTINGS: SystemSettings = {
   llm_provider: 'ollama',
   generation_model: 'qwen2.5:3b',
-  embedding_model: 'bge-small-zh-v1.5',
+  embedding_model: 'qllama/bge-small-zh-v1.5',
   weather_api_key: '',
   default_city: '广州',
   extraction_retries: 3,

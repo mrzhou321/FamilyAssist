@@ -459,6 +459,80 @@ print("backend_llm_recommender_ok")
   }
 }
 
+Step "Backend embedding provider smoke" {
+  $embeddingSmoke = New-TemporaryFile
+  @'
+import asyncio
+
+import httpx
+
+import app.embeddings as embeddings
+from app.embeddings import (
+    DEFAULT_EMBEDDING_MODEL,
+    EMBEDDING_DIMENSION,
+    build_text_embedding,
+    build_text_embedding_async,
+    build_ollama_text_embedding,
+    check_ollama_embedding_model,
+)
+
+
+class MockOllamaClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        transport = httpx.MockTransport(self._handler)
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://ollama.test"))
+
+    @staticmethod
+    def _handler(request: httpx.Request) -> httpx.Response:
+        payload = request.read()
+        assert request.url.path == "/api/embed"
+        assert b"qllama/bge-small-zh-v1.5" in payload
+        vector = [0.0] * EMBEDDING_DIMENSION
+        vector[0] = 2.0
+        return httpx.Response(200, json={"embeddings": [vector]})
+
+
+class BadOllamaClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        transport = httpx.MockTransport(lambda request: httpx.Response(503, json={"error": "model missing"}))
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://ollama.test"))
+
+
+async def main():
+    assert DEFAULT_EMBEDDING_MODEL == "qllama/bge-small-zh-v1.5"
+    original_client = embeddings.httpx.AsyncClient
+    embeddings.httpx.AsyncClient = MockOllamaClient
+    try:
+        vector = await build_ollama_text_embedding("family memory")
+        assert len(vector) == EMBEDDING_DIMENSION
+        assert vector[0] == 1.0
+        assert await check_ollama_embedding_model(DEFAULT_EMBEDDING_MODEL) is True
+    finally:
+        embeddings.httpx.AsyncClient = original_client
+
+    embeddings.httpx.AsyncClient = BadOllamaClient
+    try:
+        fallback = await build_text_embedding_async("family memory")
+    finally:
+        embeddings.httpx.AsyncClient = original_client
+    assert fallback == build_text_embedding("family memory")
+
+
+asyncio.run(main())
+print("backend_embedding_provider_ok")
+'@ | Set-Content -LiteralPath $embeddingSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $embeddingSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend embedding provider smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $embeddingSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend API smoke" {
   $apiSmoke = New-TemporaryFile
   @'
@@ -840,6 +914,9 @@ Step "Docker compose model bootstrap" {
   $compose = Get-Content "$root\docker-compose.yml" -Raw -Encoding UTF8
   if ($compose.IndexOf("ollama-models:") -lt 0 -or $compose.IndexOf("ollama pull") -lt 0 -or $compose.IndexOf("GENERATION_MODEL") -lt 0) {
     throw "Docker compose does not bootstrap the Ollama generation model"
+  }
+  if ($compose.IndexOf("EMBEDDING_MODEL") -lt 0 -or $compose.IndexOf("qllama/bge-small-zh-v1.5") -lt 0) {
+    throw "Docker compose does not bootstrap the Ollama embedding model"
   }
   if ($compose.IndexOf("condition: service_completed_successfully") -lt 0) {
     throw "Backend does not wait for Ollama model bootstrap"
