@@ -801,6 +801,10 @@ Step "Backend migration smoke" {
   if ($migration -notmatch "Vector\(EMBEDDING_DIMENSION\)" -or $migration -notmatch "ivfflat" -or $migration -notmatch "vector_cosine_ops") {
     throw "Memory embedding migration is incomplete"
   }
+  $hnswMigration = Get-Content "$root\backend\alembic\versions\0005_use_hnsw_memory_embedding_index.py" -Raw -Encoding UTF8
+  if ($hnswMigration -notmatch "down_revision = `"0004`"" -or $hnswMigration -notmatch "postgresql_using=`"hnsw`"" -or $hnswMigration -notmatch "ef_construction") {
+    throw "HNSW memory embedding migration is incomplete"
+  }
   $eventMigration = Get-Content "$root\backend\alembic\versions\0004_add_recommendation_events.py" -Raw -Encoding UTF8
   if ($eventMigration -notmatch "recommendation_events" -or $eventMigration -notmatch "memory_ids" -or $eventMigration -notmatch "ix_recommendation_events_member_created") {
     throw "Recommendation event migration is incomplete"
