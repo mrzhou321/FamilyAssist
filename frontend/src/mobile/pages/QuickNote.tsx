@@ -273,10 +273,11 @@ export default function QuickNote() {
             <textarea
               value={text}
               onChange={e => {
-                setText(e.target.value)
-                setSource('text')
+                const nextText = e.target.value
+                setText(nextText)
                 if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
                 setPhotoCapture(null)
+                if (photoCapture || source !== 'voice' || !nextText.trim()) setSource('text')
               }}
               placeholder="记录家人的习惯、身体状况、饮食偏好……"
               rows={4}

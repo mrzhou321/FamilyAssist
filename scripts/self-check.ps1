@@ -214,6 +214,9 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("noteText") -lt 0 -or $quickNote.IndexOf("replace(previousText, '')") -lt 0) {
     throw "Quick note photo recapture should replace the previous photo metadata text"
   }
+  if ($quickNote.IndexOf("source !== 'voice'") -lt 0 -or $quickNote.IndexOf("!nextText.trim()") -lt 0) {
+    throw "Quick note should preserve voice source while editing a non-empty transcript"
+  }
   if ($quickNote.IndexOf("previewUrl") -lt 0 -or $quickNote.IndexOf("URL.createObjectURL") -lt 0 -or $quickNote.IndexOf("URL.revokeObjectURL") -lt 0) {
     throw "Quick note photo capture does not manage local preview URLs"
   }
