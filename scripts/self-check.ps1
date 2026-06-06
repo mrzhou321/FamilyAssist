@@ -155,6 +155,64 @@ print("backend_db_metadata_ok")
   }
 }
 
+Step "Backend weather provider smoke" {
+  $weatherSmoke = New-TemporaryFile
+  @'
+import asyncio
+
+import httpx
+
+from app.weather import get_weather_context
+import app.weather as weather_module
+
+
+class MockAsyncClient(httpx.AsyncClient):
+    def __init__(self, *args, **kwargs):
+        transport = httpx.MockTransport(self._handler)
+        super().__init__(transport=transport, base_url=kwargs.get("base_url", "https://example.test"))
+
+    @staticmethod
+    def _handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/geo/v2/city/lookup":
+            return httpx.Response(200, json={"location": [{"id": "101280101", "name": "Guangzhou"}]})
+        if request.url.path == "/v7/weather/now":
+            return httpx.Response(
+                200,
+                json={"now": {"temp": "24", "text": "Cloudy", "windDir": "East wind", "humidity": "72", "precip": "0"}},
+            )
+        return httpx.Response(404)
+
+
+async def main():
+    fallback = await get_weather_context("Shanghai", "")
+    assert fallback.source == "local-estimate"
+    original_client = weather_module.httpx.AsyncClient
+    weather_module.httpx.AsyncClient = MockAsyncClient
+    try:
+        live = await get_weather_context("Guangzhou", "test-key")
+    finally:
+        weather_module.httpx.AsyncClient = original_client
+    assert live.source == "qweather"
+    assert live.city == "Guangzhou"
+    assert live.temperature_c == 24
+    assert live.precipitation_chance == 30
+
+
+asyncio.run(main())
+print("backend_weather_provider_ok")
+'@ | Set-Content -LiteralPath $weatherSmoke -Encoding UTF8
+  Push-Location "$root\backend"
+  try {
+    & "$root\backend\.venv\Scripts\python.exe" $weatherSmoke
+    if ($LASTEXITCODE -ne 0) {
+      throw "Backend weather provider smoke failed with exit code $LASTEXITCODE"
+    }
+  } finally {
+    Pop-Location
+    Remove-Item -LiteralPath $weatherSmoke -Force -ErrorAction SilentlyContinue
+  }
+}
+
 Step "Backend API smoke" {
   $apiSmoke = New-TemporaryFile
   @'

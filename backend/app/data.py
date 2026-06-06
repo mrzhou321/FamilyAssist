@@ -44,7 +44,7 @@ from .schemas import (
     WeatherContext,
 )
 from .store import InMemoryStore, default_expires_at, now, store
-from .weather import estimate_weather
+from .weather import get_weather_context
 
 
 class DataStore(Protocol):
@@ -525,7 +525,7 @@ class DatabaseDataStore:
 
     async def get_weather(self) -> WeatherContext:
         settings = await self.get_settings()
-        return estimate_weather(settings.default_city)
+        return await get_weather_context(settings.default_city, settings.weather_api_key)
 
     async def cleanup_expired_memories(self) -> int:
         result = await self.session.execute(

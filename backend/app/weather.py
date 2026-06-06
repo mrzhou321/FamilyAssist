@@ -1,3 +1,6 @@
+import httpx
+
+from .core.config import settings
 from .schemas import WeatherContext
 
 
@@ -54,3 +57,57 @@ def estimate_weather(city: str) -> WeatherContext:
         wind=wind,
         precipitation_chance=precipitation,
     )
+
+
+async def get_weather_context(city: str, api_key: str = "") -> WeatherContext:
+    if not api_key:
+        return estimate_weather(city)
+    try:
+        return await fetch_qweather_now(city, api_key)
+    except (httpx.HTTPError, KeyError, ValueError, TypeError):
+        return estimate_weather(city)
+
+
+async def fetch_qweather_now(city: str, api_key: str) -> WeatherContext:
+    clean_city = city.strip() or "Guangzhou"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    async with httpx.AsyncClient(base_url=settings.qweather_api_host, timeout=5.0) as client:
+        lookup = await client.get(
+            "/geo/v2/city/lookup",
+            params={"location": clean_city, "number": 1},
+            headers=headers,
+        )
+        lookup.raise_for_status()
+        lookup_data = lookup.json()
+        location = lookup_data["location"][0]
+        location_id = location["id"]
+        display_city = location.get("name") or clean_city
+
+        now_response = await client.get(
+            "/v7/weather/now",
+            params={"location": location_id},
+            headers=headers,
+        )
+        now_response.raise_for_status()
+        now_data = now_response.json()["now"]
+
+    return WeatherContext(
+        city=display_city,
+        temperature_c=int(float(now_data["temp"])),
+        condition=now_data.get("text", ""),
+        wind=now_data.get("windDir") or now_data.get("windScale") or "",
+        precipitation_chance=_precipitation_from_now(now_data),
+        source="qweather",
+    )
+
+
+def _precipitation_from_now(now_data: dict) -> int:
+    precip = float(now_data.get("precip", 0) or 0)
+    humidity = int(float(now_data.get("humidity", 0) or 0))
+    if precip > 0:
+        return min(100, max(55, int(precip * 20)))
+    if humidity >= 85:
+        return 45
+    if humidity >= 70:
+        return 30
+    return 15

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     admin_token_secret: str = "change-me-family-assister"
     debug: bool = False
     require_database: bool = False
+    qweather_api_host: str = "https://devapi.qweather.com"
 
     model_config = {"env_file": ".env"}
 
