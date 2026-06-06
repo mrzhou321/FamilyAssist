@@ -12,6 +12,7 @@ interface PhotoCapture {
   type: string
   size: number
   capturedAt: string
+  noteText: string
   previewUrl: string
 }
 
@@ -164,14 +165,21 @@ export default function QuickNote() {
   function handlePhotoCapture(file: File | undefined) {
     if (!file) return
     if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
+    const noteText = buildPhotoNoteText(file)
     setPhotoCapture({
       name: file.name,
       type: file.type || 'image/*',
       size: file.size,
       capturedAt: new Date(file.lastModified || Date.now()).toISOString(),
+      noteText,
       previewUrl: URL.createObjectURL(file),
     })
-    appendCapturedText(buildPhotoNoteText(file), 'photo')
+    setText((current) => {
+      const previousText = photoCapture?.noteText
+      const textWithoutPreviousPhoto = previousText ? current.replace(previousText, '').trim() : current.trim()
+      return [textWithoutPreviousPhoto, noteText].filter(Boolean).join('\n')
+    })
+    setSource('photo')
     if (photoInputRef.current) photoInputRef.current.value = ''
     setMessage('照片已加入速记，补一句说明会更容易理解')
   }
