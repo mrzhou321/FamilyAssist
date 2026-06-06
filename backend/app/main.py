@@ -221,7 +221,10 @@ async def list_notes(
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> list[Note]:
-    return await data.list_notes(scoped_member_id(member_id, context))
+    scoped_id = scoped_member_id(member_id, context)
+    if member_id is not None:
+        await assert_existing_member(scoped_id, data)
+    return await data.list_notes(scoped_id)
 
 
 @app.get("/api/notes/{note_id}", response_model=Note)
@@ -281,7 +284,10 @@ async def list_memories(
     data: DataStore = Depends(get_data_store),
     context: RequestContext = Depends(get_request_context),
 ) -> list[Memory]:
-    return await data.list_memories(scoped_member_id(member_id, context))
+    scoped_id = scoped_member_id(member_id, context)
+    if member_id is not None:
+        await assert_existing_member(scoped_id, data)
+    return await data.list_memories(scoped_id)
 
 
 @app.patch("/api/memories/{memory_id}", response_model=Memory)
@@ -383,6 +389,7 @@ async def list_recommendation_events(
     data: DataStore = Depends(get_data_store),
     _: None = Depends(require_admin),
 ) -> list[RecommendationEvent]:
+    await assert_existing_member(member_id, data)
     return await data.list_recommendation_events(member_id)
 
 
