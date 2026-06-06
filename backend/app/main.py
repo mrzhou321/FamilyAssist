@@ -185,7 +185,7 @@ async def get_review_candidate(
 ) -> ReviewCandidate:
     candidate = await data.build_review_candidate(note_id)
     if candidate is None:
-      raise HTTPException(status_code=404, detail="Note not found")
+        raise HTTPException(status_code=404, detail="Note not found")
     return candidate
 
 
