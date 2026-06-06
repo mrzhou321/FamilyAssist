@@ -53,6 +53,7 @@ function Compose($arguments) {
 function Test-SmokeHttpStatus($url, $expectedStatus) {
   $client = [System.Net.Http.HttpClient]::new()
   try {
+    $client.Timeout = [TimeSpan]::FromSeconds(10)
     $response = $client.GetAsync($url).GetAwaiter().GetResult()
     $actualStatus = [int]$response.StatusCode
     if ($actualStatus -ne $expectedStatus) {

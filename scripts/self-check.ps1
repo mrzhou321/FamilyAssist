@@ -89,7 +89,7 @@ Step "Deployment smoke script" {
   if ($deploySmoke.IndexOf("docker compose") -lt 0 -or $deploySmoke.IndexOf("--build") -lt 0 -or $deploySmoke.IndexOf("backend") -lt 0 -or $deploySmoke.IndexOf("nginx") -lt 0) {
     throw "Deploy smoke script does not exercise compose build and health checks"
   }
-  if ($deploySmoke.IndexOf("Test-SmokeHttpStatus") -lt 0 -or $deploySmoke.IndexOf("http://localhost/mobile/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/admin/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/api/members") -lt 0) {
+  if ($deploySmoke.IndexOf("Test-SmokeHttpStatus") -lt 0 -or $deploySmoke.IndexOf("[TimeSpan]::FromSeconds(10)") -lt 0 -or $deploySmoke.IndexOf("http://localhost/mobile/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/admin/") -lt 0 -or $deploySmoke.IndexOf("http://localhost/api/members") -lt 0) {
     throw "Deploy smoke script does not verify nginx app and same-origin API routes"
   }
   if ($deploySmoke.IndexOf("SkipModelPull") -lt 0 -or $deploySmoke.IndexOf("skip model pull") -lt 0) {
