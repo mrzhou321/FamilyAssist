@@ -150,6 +150,20 @@ Step "Frontend recommendation events wiring" {
   Write-Host "frontend_recommendation_events_wiring_ok"
 }
 
+Step "Frontend memory metadata wiring" {
+  $memoryLibrary = Get-Content "$root\frontend\src\admin\pages\MemoryLibrary.tsx" -Raw -Encoding UTF8
+  if ($memoryLibrary.IndexOf("formatExpiry") -lt 0 -or $memoryLibrary.IndexOf("toDateTimeLocal") -lt 0 -or $memoryLibrary.IndexOf("fromDateTimeLocal") -lt 0) {
+    throw "Memory library does not format editable expiry metadata"
+  }
+  if ($memoryLibrary.IndexOf("datetime-local") -lt 0 -or $memoryLibrary.IndexOf("updateEditing('expires_at', null)") -lt 0) {
+    throw "Memory library does not expose expiry editing controls"
+  }
+  if ($memoryLibrary.IndexOf("expires_at: editing.expires_at") -lt 0) {
+    throw "Memory library does not persist expiry edits"
+  }
+  Write-Host "frontend_memory_metadata_wiring_ok"
+}
+
 Step "Frontend PWA install wiring" {
   $mobileHtml = Get-Content "$root\frontend\mobile\index.html" -Raw -Encoding UTF8
   if ($mobileHtml.IndexOf("manifest.webmanifest") -lt 0 -or $mobileHtml.IndexOf("apple-mobile-web-app-capable") -lt 0) {

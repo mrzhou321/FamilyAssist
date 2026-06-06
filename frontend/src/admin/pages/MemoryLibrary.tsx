@@ -67,6 +67,30 @@ export default function MemoryLibrary() {
     return memberMatched && domainMatched && typeMatched
   })
 
+  function formatExpiry(value: string | null) {
+    if (!value) return '长期'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return new Intl.DateTimeFormat('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  function toDateTimeLocal(value: string | null) {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    const offsetMs = date.getTimezoneOffset() * 60 * 1000
+    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
+  }
+
+  function fromDateTimeLocal(value: string) {
+    return value ? new Date(value).toISOString() : null
+  }
+
   function updateEditing<K extends keyof Memory>(field: K, value: Memory[K]) {
     setEditing((current) => (current ? { ...current, [field]: value } : current))
   }
@@ -165,12 +189,13 @@ export default function MemoryLibrary() {
       </section>
 
       <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-card)]">
-        <div className="grid grid-cols-[120px_90px_90px_minmax(0,1fr)_110px_120px] border-b border-[var(--color-border)] bg-[var(--color-surface-warm)] px-4 py-3 text-xs text-[var(--color-muted)]">
+        <div className="grid grid-cols-[120px_80px_80px_minmax(0,1fr)_110px_110px_110px] border-b border-[var(--color-border)] bg-[var(--color-surface-warm)] px-4 py-3 text-xs text-[var(--color-muted)]">
           <span>成员</span>
           <span>领域</span>
           <span>类型</span>
           <span>内容</span>
           <span>来源</span>
+          <span>时效</span>
           <span>操作</span>
         </div>
         {filtered.length === 0 ? (
@@ -179,7 +204,7 @@ export default function MemoryLibrary() {
         {filtered.map((memory) => (
           <article
             key={memory.id}
-            className="grid grid-cols-[120px_90px_90px_minmax(0,1fr)_110px_120px] items-start gap-0 border-b border-[var(--color-border)] px-4 py-3 text-sm last:border-0"
+            className="grid grid-cols-[120px_80px_80px_minmax(0,1fr)_110px_110px_110px] items-start gap-0 border-b border-[var(--color-border)] px-4 py-3 text-sm last:border-0"
           >
             <span className="text-[var(--color-muted)]">
               {memory.member_id ? memberName.get(memory.member_id) ?? `成员 #${memory.member_id}` : '全家'}
@@ -195,6 +220,7 @@ export default function MemoryLibrary() {
             <span className="text-xs text-[var(--color-muted)]">
               {memory.source_note_id ? `note #${memory.source_note_id}` : '种子数据'}
             </span>
+            <span className="text-xs text-[var(--color-muted)]">{formatExpiry(memory.expires_at)}</span>
             <span className="flex gap-2 text-xs">
               <button
                 type="button"
@@ -224,7 +250,7 @@ export default function MemoryLibrary() {
             </button>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
               成员
               <select
@@ -289,7 +315,23 @@ export default function MemoryLibrary() {
                 className="input"
               />
             </label>
+            <label className="flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
+              过期时间
+              <input
+                type="datetime-local"
+                value={toDateTimeLocal(editing.expires_at)}
+                onChange={(event) => updateEditing('expires_at', fromDateTimeLocal(event.target.value))}
+                className="input"
+              />
+            </label>
           </div>
+          <button
+            type="button"
+            onClick={() => updateEditing('expires_at', null)}
+            className="mt-3 text-xs text-[var(--color-muted)]"
+          >
+            设为长期有效
+          </button>
 
           <label className="mt-4 flex flex-col gap-1.5 text-sm text-[var(--color-muted)]">
             内容
