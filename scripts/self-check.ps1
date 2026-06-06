@@ -83,7 +83,7 @@ Step "Frontend copy placeholders" {
   $frontendText = Get-ChildItem "$root\frontend" -Recurse -Include *.ts,*.tsx,*.html,*.md |
     Where-Object { $_.FullName -notmatch "\\node_modules\\|\\dist\\" } |
     ForEach-Object { Get-Content $_.FullName -Raw -Encoding UTF8 }
-  if (($frontendText | Select-String -Pattern "Get started|React logo|Vite logo|React \+ TypeScript \+ Vite").Count -gt 0) {
+  if (($frontendText | Select-String -Pattern "Get started|React logo|Vite logo|React \+ TypeScript \+ Vite|开发中").Count -gt 0) {
     throw "Frontend still contains starter template copy"
   }
   Write-Host "frontend_copy_placeholders_ok"

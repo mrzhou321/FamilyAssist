@@ -85,14 +85,6 @@ export function AdminApp() {
   )
 }
 
-export function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex h-full items-center justify-center text-2xl text-[var(--color-muted)]">
-      {title} · 开发中
-    </div>
-  )
-}
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AdminApp />
