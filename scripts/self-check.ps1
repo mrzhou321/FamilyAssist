@@ -279,6 +279,9 @@ Step "Frontend provider status wiring" {
   if ($settingsPage.IndexOf("ACCEPTANCE_CHECKS") -lt 0 -or $settingsPage.IndexOf("验收清单") -lt 0 -or $settingsPage.IndexOf("Docker Compose 烟测") -lt 0 -or $settingsPage.IndexOf("LLM 抽取质量抽样") -lt 0) {
     throw "Settings page does not surface residual manual acceptance checks"
   }
+  if ($settingsPage.IndexOf("ADMIN_ACCEPTANCE_CHECKS_KEY") -lt 0 -or $settingsPage.IndexOf("loadAcceptanceChecks") -lt 0 -or $settingsPage.IndexOf("toggleAcceptanceCheck") -lt 0) {
+    throw "Settings page does not persist manual acceptance progress"
+  }
   $usesParallelLoad = $settingsPage.IndexOf("Promise.all") -ge 0
   $hasRefreshButton = $settingsPage.IndexOf("onClick={loadSettings}") -ge 0
   if (-not $usesParallelLoad -or -not $hasRefreshButton) {
@@ -390,7 +393,7 @@ Step "Frontend auth token constants" {
     throw "Frontend still uses raw localStorage auth keys"
   }
   $constants = Get-Content "$root\frontend\src\shared\constants\index.ts" -Raw -Encoding UTF8
-  if ($constants.IndexOf("ADMIN_TOKEN_KEY") -lt 0 -or $constants.IndexOf("MEMBER_TOKEN_KEY") -lt 0 -or $constants.IndexOf("LEGACY_MEMBER_TOKEN_KEY") -lt 0) {
+  if ($constants.IndexOf("ADMIN_TOKEN_KEY") -lt 0 -or $constants.IndexOf("ADMIN_ACCEPTANCE_CHECKS_KEY") -lt 0 -or $constants.IndexOf("MEMBER_TOKEN_KEY") -lt 0 -or $constants.IndexOf("LEGACY_MEMBER_TOKEN_KEY") -lt 0) {
     throw "Frontend auth token constants are incomplete"
   }
   Write-Host "frontend_auth_token_constants_ok"

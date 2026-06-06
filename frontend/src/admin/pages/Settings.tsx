@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { api } from '../../shared/api'
+import { ADMIN_ACCEPTANCE_CHECKS_KEY } from '../../shared/constants'
 
 interface SystemSettings {
   llm_provider: string
@@ -57,15 +58,27 @@ const DEFAULT_PROVIDER_STATUS: ProviderStatus = {
 }
 
 const ACCEPTANCE_CHECKS = [
-  { label: '移动端语音 / 拍照 / 扫码', detail: 'Android 与 iOS 真机浏览器', status: '人工' },
-  { label: 'Docker Compose 烟测', detail: 'deploy-smoke.ps1，可跳过模型拉取', status: '外部' },
-  { label: 'LLM 抽取质量抽样', detail: '20 条代表性速记，目标 >=80%', status: '抽样' },
-  { label: '三域推荐抽样', detail: '穿衣、饮食、运动与依据追踪', status: '抽样' },
-]
+  { id: 'mobile-device', label: '移动端语音 / 拍照 / 扫码', detail: 'Android 与 iOS 真机浏览器', status: '人工' },
+  { id: 'docker-smoke', label: 'Docker Compose 烟测', detail: 'deploy-smoke.ps1，可跳过模型拉取', status: '外部' },
+  { id: 'llm-quality', label: 'LLM 抽取质量抽样', detail: '20 条代表性速记，目标 >=80%', status: '抽样' },
+  { id: 'recommendation-sampling', label: '三域推荐抽样', detail: '穿衣、饮食、运动与依据追踪', status: '抽样' },
+] as const
+
+type AcceptanceCheckId = (typeof ACCEPTANCE_CHECKS)[number]['id']
+
+function loadAcceptanceChecks(): Partial<Record<AcceptanceCheckId, boolean>> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ADMIN_ACCEPTANCE_CHECKS_KEY) ?? '{}')
+    return typeof parsed === 'object' && parsed !== null ? parsed : {}
+  } catch {
+    return {}
+  }
+}
 
 export default function Settings() {
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>(DEFAULT_PROVIDER_STATUS)
+  const [acceptanceChecks, setAcceptanceChecks] = useState<Partial<Record<AcceptanceCheckId, boolean>>>(loadAcceptanceChecks)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -87,6 +100,14 @@ export default function Settings() {
 
   function update<K extends keyof SystemSettings>(field: K, value: SystemSettings[K]) {
     setSettings((current) => ({ ...current, [field]: value }))
+  }
+
+  function toggleAcceptanceCheck(id: AcceptanceCheckId) {
+    setAcceptanceChecks((current) => {
+      const next = { ...current, [id]: !current[id] }
+      localStorage.setItem(ADMIN_ACCEPTANCE_CHECKS_KEY, JSON.stringify(next))
+      return next
+    })
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -319,18 +340,25 @@ export default function Settings() {
             </div>
             <div className="flex flex-col gap-2">
               {ACCEPTANCE_CHECKS.map((item) => (
-                <div
+                <label
                   key={item.label}
-                  className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] px-3 py-2"
+                  className={`rounded-[var(--radius-sm)] border px-3 py-2 transition-colors ${
+                    acceptanceChecks[item.id]
+                      ? 'border-[var(--color-sage)]/30 bg-[var(--color-sage)]/10'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface-warm)]'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-[var(--color-fg)]">{item.label}</span>
-                    <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] text-[var(--color-muted)]">
-                      {item.status}
-                    </span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(acceptanceChecks[item.id])}
+                      onChange={() => toggleAcceptanceCheck(item.id)}
+                      className="shrink-0 accent-[var(--color-accent)]"
+                    />
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">{item.detail}</p>
-                </div>
+                  <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">{item.status} · {item.detail}</p>
+                </label>
               ))}
             </div>
           </section>

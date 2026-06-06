@@ -1,6 +1,7 @@
 // 集中管理所有常量，避免魔法字符串散落各组件
 
 export const ADMIN_TOKEN_KEY = 'admin_token'
+export const ADMIN_ACCEPTANCE_CHECKS_KEY = 'familyassister:admin-acceptance-checks'
 export const ADMIN_AUTH_EXPIRED_EVENT = 'familyassister:admin-auth-expired'
 export const MEMBER_AUTH_EXPIRED_EVENT = 'familyassister:member-auth-expired'
 export const MEMBER_TOKEN_KEY = 'token'
