@@ -75,14 +75,21 @@ function splitList(value: string) {
     .filter(Boolean)
 }
 
+function parseOptionalPositiveNumber(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.NaN
+}
+
 function toApiPayload(member: MemberProfileForm) {
   return {
     name: member.name,
     birthday: member.birthday || null,
     relation: member.relation,
     profile: {
-      height: member.height ? Number(member.height) : null,
-      weight: member.weight ? Number(member.weight) : null,
+      height: parseOptionalPositiveNumber(member.height),
+      weight: parseOptionalPositiveNumber(member.weight),
       allergies: splitList(member.allergies),
       diet_restrictions: splitList(member.dietRestrictions),
       chronic_conditions: member.chronicConditions,
@@ -170,6 +177,13 @@ export default function Members() {
     }
     if (!draft.id) {
       setMessage('请先添加成员后再保存档案')
+      return
+    }
+    if (
+      Number.isNaN(parseOptionalPositiveNumber(draft.height)) ||
+      Number.isNaN(parseOptionalPositiveNumber(draft.weight))
+    ) {
+      setMessage('身高和体重必须为空，或填写大于 0 的数字')
       return
     }
     try {

@@ -34,8 +34,8 @@ class AuthToken(BaseModel):
 
 
 class MemberProfile(BaseModel):
-    height: float | None = None
-    weight: float | None = None
+    height: float | None = Field(default=None, gt=0)
+    weight: float | None = Field(default=None, gt=0)
     allergies: list[str] = Field(default_factory=list)
     diet_restrictions: list[str] = Field(default_factory=list)
     chronic_conditions: list[str] = Field(default_factory=list)

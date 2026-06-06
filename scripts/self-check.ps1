@@ -576,6 +576,9 @@ Step "Frontend member auth expiry wiring" {
   if ($memberPayload.IndexOf("bound:") -ge 0 -or $memberPage.IndexOf("已完成移动端配对") -ge 0 -or $memberPage.IndexOf("暂无有效移动端配对") -lt 0 -or $memberPage.IndexOf('type="checkbox"') -ge 0) {
     throw "Admin member form should show pairing status as session-derived read-only state"
   }
+  if ($memberPage.IndexOf("parseOptionalPositiveNumber") -lt 0 -or $memberPage.IndexOf("身高和体重必须为空") -lt 0) {
+    throw "Member editing should validate positive numeric height and weight"
+  }
   Write-Host "frontend_member_auth_expiry_wiring_ok"
 }
 
@@ -1461,6 +1464,12 @@ assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous not
 assert client.get("/api/memories?member_id=1").status_code == 401
 assert client.get("/api/recommendations?member_id=1").status_code == 401
 assert client.post("/api/pairing/members/1").status_code == 401
+bad_profile_member = client.post(
+    "/api/members",
+    json={"name": "Bad Profile", "relation": "test", "profile": {"height": -1, "weight": 0}},
+    headers=admin_headers,
+)
+assert bad_profile_member.status_code == 422
 assert client.post("/api/pairing/members/1?server_url=javascript%3Aalert(1)", headers=admin_headers).status_code == 422
 assert client.post("/api/pairing/members/1?server_url=%2Fmobile", headers=admin_headers).status_code == 422
 pairing = client.post("/api/pairing/members/1", headers=admin_headers)
