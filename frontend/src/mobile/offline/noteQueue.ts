@@ -7,7 +7,7 @@ export type QueuedNote = NoteCreatePayload & {
 }
 
 const DB_NAME = 'family-assister-offline'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_NAME = 'queued-notes'
 
 function openDb(): Promise<IDBDatabase> {
@@ -20,6 +20,12 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('cached-memories')) {
         db.createObjectStore('cached-memories', { keyPath: 'cache_key' })
+      }
+      if (!db.objectStoreNames.contains('cached-recommendations')) {
+        db.createObjectStore('cached-recommendations', { keyPath: 'cache_key' })
+      }
+      if (!db.objectStoreNames.contains('cached-weather')) {
+        db.createObjectStore('cached-weather', { keyPath: 'cache_key' })
       }
     }
     request.onsuccess = () => resolve(request.result)

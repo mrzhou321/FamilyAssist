@@ -10,6 +10,12 @@ import type {
   RecommendationBatch,
   WeatherContext,
 } from '@shared/types'
+import {
+  cacheRecommendations,
+  cacheWeather,
+  getCachedRecommendations,
+  getCachedWeather,
+} from '../offline/cachedData'
 import { getCurrentMemberId, getCurrentMemberName } from '../session'
 
 const FALLBACK: Record<Domain, Recommendation> = {
@@ -66,10 +72,12 @@ export default function TodayAdvice() {
     api
       .get<WeatherContext>('/weather/today')
       .then((item) => {
+        void cacheWeather(item)
         if (active) setWeather(item)
       })
-      .catch(() => {
-        if (active) setWeather(FALLBACK_WEATHER)
+      .catch(async () => {
+        const cached = await getCachedWeather()
+        if (active) setWeather(cached ?? FALLBACK_WEATHER)
       })
     return () => {
       active = false
@@ -88,6 +96,7 @@ export default function TodayAdvice() {
       .get<RecommendationBatch>(`/recommendations?${params.toString()}`)
       .then(({ recommendations }) => {
         if (!active) return
+        void cacheRecommendations(memberId, recommendations)
         const items = recommendations.map((recommendation) => [recommendation.domain, recommendation] as const)
         setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
         setMessage('正在生成今日建议...')
@@ -117,8 +126,16 @@ export default function TodayAdvice() {
           streamStops.push(stop)
         })
       })
-      .catch(() => {
-        if (active) setMessage('后端暂不可用，正在显示本地建议')
+      .catch(async () => {
+        const cached = await getCachedRecommendations(memberId)
+        if (!active) return
+        if (cached.length > 0) {
+          const items = cached.map((recommendation) => [recommendation.domain, recommendation] as const)
+          setRecommendations({ ...FALLBACK, ...(Object.fromEntries(items) as Record<Domain, Recommendation>) })
+          setMessage('当前离线，正在显示上次加载的建议')
+        } else {
+          setMessage('后端暂不可用，正在显示本地建议')
+        }
       })
 
     return () => {

@@ -37,13 +37,23 @@ Step "Frontend offline cache wiring" {
   if ($cachedData -notmatch "cached-memories" -or $cachedData -notmatch "cacheMemories" -or $cachedData -notmatch "getCachedMemories") {
     throw "Offline memory cache module is incomplete"
   }
+  if ($cachedData -notmatch "cached-recommendations" -or $cachedData -notmatch "cacheRecommendations" -or $cachedData -notmatch "getCachedRecommendations") {
+    throw "Offline recommendation cache module is incomplete"
+  }
+  if ($cachedData -notmatch "cached-weather" -or $cachedData -notmatch "cacheWeather" -or $cachedData -notmatch "getCachedWeather") {
+    throw "Offline weather cache module is incomplete"
+  }
   $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw
   if ($hooks -notmatch "cacheMemories" -or $hooks -notmatch "getCachedMemories") {
     throw "Memory query does not use offline cache"
   }
+  $todayAdvice = Get-Content "$root\frontend\src\mobile\pages\TodayAdvice.tsx" -Raw
+  if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
+    throw "Today advice does not use offline recommendation and weather cache"
+  }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
-  if ($noteQueue -notmatch "DB_VERSION = 2" -or $noteQueue -notmatch "cached-memories") {
-    throw "Offline IndexedDB migration does not create cached memories store"
+  if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
+    throw "Offline IndexedDB migration does not create cached data stores"
   }
   Write-Host "frontend_offline_cache_wiring_ok"
 }
