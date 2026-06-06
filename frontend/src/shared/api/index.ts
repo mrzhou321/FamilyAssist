@@ -89,13 +89,21 @@ export const api = {
       if (!res.body) throw new Error('Response body is null')
       const reader = res.body.getReader()
       const dec = new TextDecoder()
+      let sseBuffer = ''
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
-        for (const line of dec.decode(value).split('\n')) {
+        if (done) {
+          sseBuffer += dec.decode()
+          break
+        }
+        sseBuffer += dec.decode(value, { stream: true })
+        const lines = sseBuffer.split('\n')
+        sseBuffer = lines.pop() ?? ''
+        for (const line of lines) {
           if (line.startsWith('data: ')) onChunk(line.slice(6))
         }
       }
+      if (sseBuffer.startsWith('data: ')) onChunk(sseBuffer.slice(6))
     }).catch(err => {
       if (err?.name !== 'AbortError') onError?.(err instanceof Error ? err : new Error(String(err)))
     })

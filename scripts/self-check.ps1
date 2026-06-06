@@ -250,6 +250,7 @@ Step "Frontend provider status wiring" {
 Step "Frontend recommendation events wiring" {
   $adminMain = Get-Content "$root\frontend\src\admin\main.tsx" -Raw -Encoding UTF8
   $eventsPage = Get-Content "$root\frontend\src\admin\pages\RecommendationEvents.tsx" -Raw -Encoding UTF8
+  $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
   if ($adminMain.IndexOf("RecommendationEvents") -lt 0 -or $adminMain.IndexOf("/recommendations") -lt 0) {
     throw "Admin recommendation events route is missing"
   }
@@ -258,6 +259,9 @@ Step "Frontend recommendation events wiring" {
   }
   if ($eventsPage.IndexOf("setMemberFilter") -lt 0 -or $eventsPage.IndexOf("setDomainFilter") -lt 0) {
     throw "Recommendation events filters are missing"
+  }
+  if ($api.IndexOf("sseBuffer") -lt 0 -or $api.IndexOf("stream: true") -lt 0) {
+    throw "SSE stream parser does not preserve split UTF-8 chunks and partial data lines"
   }
   Write-Host "frontend_recommendation_events_wiring_ok"
 }
