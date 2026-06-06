@@ -1707,6 +1707,7 @@ from app.schemas import (
     MemoryDomain,
     MemoryType,
     MemoryUpdate,
+    MemberUpdate,
     NoteCreate,
     PairingExchange,
     RecommendationDomain,
@@ -1747,6 +1748,8 @@ assert len(sessions) == 1
 assert sessions[0].device_name == "store-smoke-phone"
 assert store.members[1].bound is True
 assert store.validate_member_token(session.access_token) is not None
+store.update_member(1, MemberUpdate(name="Renamed Dad"))
+assert store.validate_member_token(session.access_token).member_name == "Renamed Dad"
 assert store.revoke_member_session(sessions[0].token_hash) is True
 assert store.validate_member_token(session.access_token) is None
 assert store.members[1].bound is False

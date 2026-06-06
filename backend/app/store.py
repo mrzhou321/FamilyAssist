@@ -445,7 +445,10 @@ class InMemoryStore:
             return None
         if session.member_id != payload["member_id"] or session.device_name != payload["device"]:
             return None
-        return MemberSession(member_id=session.member_id, member_name=session.member_name, access_token=access_token)
+        member = self.members.get(session.member_id)
+        if member is None:
+            return None
+        return MemberSession(member_id=member.id, member_name=member.name, access_token=access_token)
 
     def list_member_sessions(self, member_id: int | None = None) -> list[MemberDeviceSession]:
         sessions = list(self.member_sessions.values())
