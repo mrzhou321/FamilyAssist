@@ -15,6 +15,7 @@ import type {
 import {
   cacheRecommendations,
   cacheWeather,
+  getCachedNotes,
   getCachedRecommendations,
   getCachedWeather,
 } from '../offline/cachedData'
@@ -160,6 +161,13 @@ export default function TodayAdvice() {
       setSourceNote(note)
       setMessage('')
     } catch {
+      const cachedNotes = await getCachedNotes(memberId)
+      const cachedNote = cachedNotes.find((note) => note.id === ref.source_note_id)
+      if (cachedNote) {
+        setSourceNote(cachedNote)
+        setMessage('当前离线，正在显示缓存的原始速记')
+        return
+      }
       setMessage('无法加载原始速记')
     }
   }

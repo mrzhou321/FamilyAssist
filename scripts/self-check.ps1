@@ -162,6 +162,9 @@ Step "Frontend offline cache wiring" {
   if ($cachedData -notmatch "cached-memories" -or $cachedData -notmatch "cacheMemories" -or $cachedData -notmatch "getCachedMemories") {
     throw "Offline memory cache module is incomplete"
   }
+  if ($cachedData -notmatch "cached-notes" -or $cachedData -notmatch "cacheNotes" -or $cachedData -notmatch "getCachedNotes") {
+    throw "Offline note cache module is incomplete"
+  }
   if ($cachedData -notmatch "cached-recommendations" -or $cachedData -notmatch "cacheRecommendations" -or $cachedData -notmatch "getCachedRecommendations") {
     throw "Offline recommendation cache module is incomplete"
   }
@@ -178,9 +181,15 @@ Step "Frontend offline cache wiring" {
   if ($hooks.IndexOf("queryKey: ['notes', memberId]") -lt 0 -or $hooks.IndexOf("queryKey: ['notes', vars.member_id]") -lt 0 -or $hooks.IndexOf("queryKey: ['notes']") -lt 0) {
     throw "Mobile quick-note mutations do not refresh recent notes"
   }
+  if ($hooks -notmatch "cacheNotes" -or $hooks -notmatch "getCachedNotes") {
+    throw "Recent notes query does not use offline cache"
+  }
   $todayAdvice = Get-Content "$root\frontend\src\mobile\pages\TodayAdvice.tsx" -Raw
   if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
     throw "Today advice does not use offline recommendation and weather cache"
+  }
+  if ($todayAdvice.IndexOf("getCachedNotes") -lt 0 -or $todayAdvice.IndexOf("cachedNotes.find") -lt 0 -or $todayAdvice.IndexOf("setSourceNote(cachedNote)") -lt 0) {
+    throw "Today advice source-note tracing should fall back to cached notes"
   }
   if ($todayAdvice.IndexOf("hasPairedMember") -lt 0 -or $todayAdvice.IndexOf("if (!isPaired) return") -lt 0 -or $todayAdvice.IndexOf('to="/pair"') -lt 0) {
     throw "Today advice does not gate recommendations behind pairing"
@@ -258,7 +267,7 @@ Step "Frontend offline cache wiring" {
     throw "Today advice feedback does not refresh learned memories"
   }
   $noteQueue = Get-Content "$root\frontend\src\mobile\offline\noteQueue.ts" -Raw
-  if ($noteQueue -notmatch "DB_VERSION = 3" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
+  if ($noteQueue -notmatch "DB_VERSION = 4" -or $noteQueue -notmatch "cached-memories" -or $noteQueue -notmatch "cached-notes" -or $noteQueue -notmatch "cached-recommendations" -or $noteQueue -notmatch "cached-weather") {
     throw "Offline IndexedDB migration does not create cached data stores"
   }
   if (Test-Path "$root\frontend\src\mobile\storage\quickNoteQueue.ts") {

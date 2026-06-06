@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@shared/api'
 import type { Memory, Note, NoteCreatePayload } from '@shared/types'
-import { cacheMemories, getCachedMemories } from '../../mobile/offline/cachedData'
+import { cacheMemories, cacheNotes, getCachedMemories, getCachedNotes } from '../../mobile/offline/cachedData'
 import { enqueueNote, listQueuedNotes, syncQueuedNotes } from '../../mobile/offline/noteQueue'
 
 export const useMemberMemories = (memberId: number | null, enabled = true) =>
@@ -24,7 +24,17 @@ export const useMemberMemories = (memberId: number | null, enabled = true) =>
 export const useMemberNotes = (memberId: number | null, enabled = true) =>
   useQuery({
     queryKey: ['notes', memberId],
-    queryFn: () => (memberId === null ? Promise.resolve([]) : api.get<Note[]>(`/notes?member_id=${memberId}`)),
+    queryFn: async () => {
+      if (memberId === null) return []
+      try {
+        const items = await api.get<Note[]>(`/notes?member_id=${memberId}`)
+        return cacheNotes(memberId, items)
+      } catch (error) {
+        const cached = await getCachedNotes(memberId)
+        if (cached.length > 0) return cached
+        throw error
+      }
+    },
     enabled: enabled && memberId !== null,
   })
 

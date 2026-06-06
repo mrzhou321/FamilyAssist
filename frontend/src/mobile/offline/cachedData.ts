@@ -1,8 +1,9 @@
-import type { Memory, Recommendation, WeatherContext } from '@shared/types'
+import type { Memory, Note, Recommendation, WeatherContext } from '@shared/types'
 
 const DB_NAME = 'family-assister-offline'
-const DB_VERSION = 3
+const DB_VERSION = 4
 const MEMORY_STORE = 'cached-memories'
+const NOTE_STORE = 'cached-notes'
 const RECOMMENDATION_STORE = 'cached-recommendations'
 const WEATHER_STORE = 'cached-weather'
 
@@ -10,6 +11,12 @@ type CachedMemorySet = {
   cache_key: string
   cached_at: string
   items: Memory[]
+}
+
+type CachedNoteSet = {
+  cache_key: string
+  cached_at: string
+  items: Note[]
 }
 
 type CachedRecommendationSet = {
@@ -34,6 +41,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MEMORY_STORE)) {
         db.createObjectStore(MEMORY_STORE, { keyPath: 'cache_key' })
+      }
+      if (!db.objectStoreNames.contains(NOTE_STORE)) {
+        db.createObjectStore(NOTE_STORE, { keyPath: 'cache_key' })
       }
       if (!db.objectStoreNames.contains(RECOMMENDATION_STORE)) {
         db.createObjectStore(RECOMMENDATION_STORE, { keyPath: 'cache_key' })
@@ -102,6 +112,23 @@ export async function cacheMemories(memberId: number | null, items: Memory[]): P
 
 export async function getCachedMemories(memberId: number | null): Promise<Memory[]> {
   const record = await withMemoryStore<CachedMemorySet | undefined>('readonly', (store) =>
+    store.get(memoryCacheKey(memberId)),
+  )
+  return record?.items ?? []
+}
+
+export async function cacheNotes(memberId: number | null, items: Note[]): Promise<Note[]> {
+  const record: CachedNoteSet = {
+    cache_key: memoryCacheKey(memberId),
+    cached_at: new Date().toISOString(),
+    items,
+  }
+  await withStore('cached-notes', 'readwrite', (store) => store.put(record))
+  return items
+}
+
+export async function getCachedNotes(memberId: number | null): Promise<Note[]> {
+  const record = await withStore<CachedNoteSet | undefined>('cached-notes', 'readonly', (store) =>
     store.get(memoryCacheKey(memberId)),
   )
   return record?.items ?? []
