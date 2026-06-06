@@ -125,6 +125,11 @@ def normalize_system_settings(system_settings: SystemSettings) -> SystemSettings
     )
 
 
+def _sse_data(chunk: str) -> str:
+    lines = chunk.splitlines() or [""]
+    return "".join(f"data: {line}\n" for line in lines) + "\n"
+
+
 @app.get("/health", response_model=HealthStatus)
 async def health() -> HealthStatus:
     if settings.require_database:
@@ -346,7 +351,7 @@ async def stream_recommendation(
         streamed = ""
         async for chunk in stream_recommendation_content(recommendation, system_settings):
             streamed += chunk
-            yield f"data: {chunk}\n\n"
+            yield _sse_data(chunk)
         await data.record_recommendation_event(
             scoped_id,
             recommendation.model_copy(update={"content": streamed or recommendation.content}),

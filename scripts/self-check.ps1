@@ -1058,6 +1058,9 @@ Step "Backend recommendation event recording wiring" {
   if ($mainSource.IndexOf("streamed =") -lt 0 -or $mainSource.IndexOf("record_recommendation_event") -lt 0 -or $mainSource.IndexOf("streamed or recommendation.content") -lt 0) {
     throw "Streaming recommendation endpoint does not record final streamed content"
   }
+  if ($mainSource.IndexOf("def _sse_data") -lt 0 -or $mainSource.IndexOf("chunk.splitlines()") -lt 0 -or $mainSource.IndexOf("yield _sse_data(chunk)") -lt 0) {
+    throw "Streaming recommendation endpoint does not encode multiline chunks as valid SSE data"
+  }
   if ($dataSource.IndexOf("record_events: bool = True") -lt 0 -or $dataSource.IndexOf("record_event: bool = True") -lt 0 -or $storeSource.IndexOf("record_recommendation_event") -lt 0) {
     throw "Recommendation event recording controls are not wired through data stores"
   }
@@ -1292,11 +1295,12 @@ from time import perf_counter
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import _sse_data, app
 from app.tokens import decode_member_token
 client = TestClient(app)
 
 assert client.get("/health").status_code == 200
+assert _sse_data("line one\nline two") == "data: line one\ndata: line two\n\n"
 assert client.get("/api/members").status_code == 401
 assert client.get("/api/weather/today").status_code == 401
 assert client.get("/api/settings/provider-status").status_code == 401
