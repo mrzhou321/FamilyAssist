@@ -1760,6 +1760,15 @@ review_memory = store.approve_review_candidate(
 )
 assert review_memory is not None
 assert review_memory.content == "\u5988\u5988\u4e0d\u5403\u9999\u83dc"
+review_count = len(store.list_memories(1))
+review_memory_again = store.approve_review_candidate(
+    note_a.id,
+    MemoryDraft(type=MemoryType.fact, domain=MemoryDomain.diet, content="\u5988\u5988\u4e0d\u5403\u82ab\u837d", confidence=0.91),
+)
+assert review_memory_again is not None
+assert review_memory_again.id == review_memory.id
+assert review_memory_again.content == "\u5988\u5988\u4e0d\u5403\u82ab\u837d"
+assert len(store.list_memories(1)) == review_count
 
 store.memories[100] = Memory(
     id=100,

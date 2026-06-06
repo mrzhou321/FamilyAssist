@@ -204,6 +204,23 @@ class InMemoryStore:
         note = self.notes.get(note_id)
         if note is None:
             return None
+        existing = next(
+            (memory for memory in self.memories.values() if memory.source_note_id == note_id),
+            None,
+        )
+        if existing is not None:
+            memory = existing.model_copy(
+                update={
+                    "type": draft.type,
+                    "domain": draft.domain,
+                    "content": draft.content,
+                    "confidence": draft.confidence,
+                    "embedding": build_text_embedding(draft.content),
+                }
+            )
+            self.memories[memory.id] = memory
+            self.notes[note.id] = note.model_copy(update={"status": "reviewed"})
+            return memory
         self._memory_id += 1
         memory = Memory(
             id=self._memory_id,
