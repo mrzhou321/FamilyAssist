@@ -10,15 +10,36 @@ $override = $null
 $composeStarted = $false
 
 function Test-DockerDaemon {
+  $probe = New-Object System.Diagnostics.ProcessStartInfo
+  $probe.FileName = "docker"
+  $probe.Arguments = 'version --format "{{.Server.Version}}"'
+  $probe.RedirectStandardOutput = $true
+  $probe.RedirectStandardError = $true
+  $probe.UseShellExecute = $false
   try {
-    docker version --format "{{.Server.Version}}" 2>$null | Out-Null
+    $process = [System.Diagnostics.Process]::Start($probe)
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+    $output = ($stdout + "`n" + $stderr).Trim()
   } catch {
-    return $false
+    return [pscustomobject]@{
+      Ok = $false
+      Detail = $_.Exception.Message
+    }
   }
-  if ($LASTEXITCODE -ne 0) {
-    return $false
+
+  if ($exitCode -eq 0) {
+    return [pscustomobject]@{
+      Ok = $true
+      Detail = $output
+    }
   }
-  return $true
+  return [pscustomobject]@{
+    Ok = $false
+    Detail = $output
+  }
 }
 
 function Test-ShouldSkipMissingDocker {
@@ -88,12 +109,16 @@ function Test-ServicesReady($containers) {
 }
 
 try {
-  if (-not (Test-DockerDaemon)) {
+  $dockerDaemon = Test-DockerDaemon
+  if (-not $dockerDaemon.Ok) {
     if (Test-ShouldSkipMissingDocker) {
       Write-Host "deploy_smoke_skipped_docker_unavailable"
+      if ($dockerDaemon.Detail) {
+        Write-Host "docker_unavailable_detail: $($dockerDaemon.Detail)"
+      }
       exit 0
     }
-    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, then rerun scripts\deploy-smoke.ps1. In CI jobs without Docker, set CI=true, DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE=1, or pass -SkipIfDockerUnavailable."
+    throw "Docker daemon is not reachable. Start Docker Desktop or the Docker service, make sure the current user can access the Docker named pipe, then rerun scripts\deploy-smoke.ps1. In CI jobs without Docker, set CI=true, DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE=1, or pass -SkipIfDockerUnavailable. Docker detail: $($dockerDaemon.Detail)"
   }
 
   if ($SkipModelPull) {

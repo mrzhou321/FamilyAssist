@@ -155,7 +155,7 @@ Step "Deployment smoke script" {
   if ($deploySmoke.IndexOf("image: alpine:3.20") -lt 0 -or $deploySmoke.IndexOf('entrypoint: ["/bin/sh", "-c", "sleep 300"]') -lt 0) {
     throw "Fast deploy smoke should avoid pulling the full Ollama image"
   }
-  if ($deploySmoke.IndexOf("Test-DockerDaemon") -lt 0 -or $deploySmoke.IndexOf("Docker daemon is not reachable") -lt 0) {
+  if ($deploySmoke.IndexOf("Test-DockerDaemon") -lt 0 -or $deploySmoke.IndexOf("Docker daemon is not reachable") -lt 0 -or $deploySmoke.IndexOf("Docker detail") -lt 0 -or $deploySmoke.IndexOf("docker_unavailable_detail") -lt 0) {
     throw "Deploy smoke script does not preflight Docker daemon availability"
   }
   if ($deploySmoke.IndexOf("ConvertFrom-Json") -lt 0 -or $deploySmoke.IndexOf('$_.Service -eq "backend"') -lt 0) {
