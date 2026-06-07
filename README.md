@@ -75,6 +75,8 @@ docker compose up --build
 powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1
 ```
 
+该脚本会先检查 `backend\.venv\Scripts\python.exe` 是否能导入 Python 标准库；如果提示 `encodings` 缺失，请安装完整 Python 3.11+ 并重新创建 `backend\.venv` 后再跑。
+
 移动端 PWA 视口烟测。脚本会构建前端，用接近 nginx fallback 的临时静态服务承载产物，并用真实 headless Chrome/Edge 手机视口检查 `/mobile/`、`/mobile/pair`、`/mobile/advice`、`/mobile/memory`：
 
 ```powershell

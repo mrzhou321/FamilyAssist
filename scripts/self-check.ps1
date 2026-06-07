@@ -1,5 +1,10 @@
 ﻿$ErrorActionPreference = "Stop"
 
+trap {
+  Write-Host $_.Exception.Message
+  exit 1
+}
+
 function Step($name, $script) {
   Write-Host ""
   Write-Host "==> $name" -ForegroundColor Cyan
@@ -7,6 +12,40 @@ function Step($name, $script) {
 }
 
 $root = (Resolve-Path "$PSScriptRoot\..").Path
+$backendPython = "$root\backend\.venv\Scripts\python.exe"
+
+function Assert-PythonRuntime($pythonPath) {
+  if (-not (Test-Path $pythonPath)) {
+    throw "Backend Python runtime is missing at $pythonPath. Create it with: cd backend; python -m venv .venv; .\.venv\Scripts\pip.exe install -r requirements.txt"
+  }
+
+  $probe = New-Object System.Diagnostics.ProcessStartInfo
+  $probe.FileName = $pythonPath
+  $probe.Arguments = '-c "import encodings, sys; print(''python_runtime_ok '' + sys.executable)"'
+  $probe.RedirectStandardOutput = $true
+  $probe.RedirectStandardError = $true
+  $probe.UseShellExecute = $false
+  $process = [System.Diagnostics.Process]::Start($probe)
+  $stdout = $process.StandardOutput.ReadToEnd()
+  $stderr = $process.StandardError.ReadToEnd()
+  $process.WaitForExit()
+  $probeExitCode = $process.ExitCode
+  $probeOutput = ($stdout + "`n" + $stderr).Trim()
+  if ($probeExitCode -ne 0) {
+    $venvConfig = "$root\backend\.venv\pyvenv.cfg"
+    $venvHome = ""
+    if (Test-Path $venvConfig) {
+      $homeLine = Get-Content $venvConfig -Encoding UTF8 | Where-Object { $_ -like "home = *" } | Select-Object -First 1
+      if ($homeLine) {
+        $venvHome = " Current venv home: $($homeLine.Substring(7))."
+      }
+    }
+    $details = ($probeOutput | Out-String).Trim()
+    throw "Backend Python runtime cannot import the standard library module 'encodings'.$venvHome Install a complete Python 3.11+ runtime and recreate backend\.venv, then rerun scripts\self-check.ps1. Probe output: $details"
+  }
+  Write-Host "backend_python_runtime_ok"
+}
+
 Step "Frontend build" {
   Push-Location "$root\frontend"
   try {
@@ -714,12 +753,16 @@ Step "Frontend copy placeholders" {
   Write-Host "frontend_copy_placeholders_ok"
 }
 
+Step "Backend Python runtime" {
+  Assert-PythonRuntime $backendPython
+}
+
 Step "Backend compile" {
-  & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\app"
+  & $backendPython -m compileall "$root\backend\app"
   if ($LASTEXITCODE -ne 0) {
     throw "Backend app compile failed with exit code $LASTEXITCODE"
   }
-  & "$root\backend\.venv\Scripts\python.exe" -m compileall "$root\backend\alembic"
+  & $backendPython -m compileall "$root\backend\alembic"
   if ($LASTEXITCODE -ne 0) {
     throw "Backend alembic compile failed with exit code $LASTEXITCODE"
   }
@@ -762,7 +805,7 @@ print("backend_admin_token_smoke_ok")
 '@ | Set-Content -LiteralPath $authSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $authSmoke
+    & $backendPython $authSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend admin token smoke failed with exit code $LASTEXITCODE"
     }
@@ -796,7 +839,7 @@ print("backend_db_metadata_ok")
 '@ | Set-Content -LiteralPath $metadataCheck -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $metadataCheck
+    & $backendPython $metadataCheck
     if ($LASTEXITCODE -ne 0) {
       throw "Backend database metadata check failed with exit code $LASTEXITCODE"
     }
@@ -887,7 +930,7 @@ print("backend_extraction_failure_review_handoff_ok")
 '@ | Set-Content -LiteralPath $handoffSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $handoffSmoke
+    & $backendPython $handoffSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend extraction failure handoff smoke failed with exit code $LASTEXITCODE"
     }
@@ -935,7 +978,7 @@ print("backend_embedding_provider_independence_ok")
 '@ | Set-Content -LiteralPath $embeddingModeSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $embeddingModeSmoke
+    & $backendPython $embeddingModeSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend embedding provider independence smoke failed with exit code $LASTEXITCODE"
     }
@@ -993,7 +1036,7 @@ print("backend_weather_provider_ok")
 '@ | Set-Content -LiteralPath $weatherSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $weatherSmoke
+    & $backendPython $weatherSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend weather provider smoke failed with exit code $LASTEXITCODE"
     }
@@ -1101,7 +1144,7 @@ print("backend_llm_extractor_ok")
 '@ | Set-Content -LiteralPath $llmSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $llmSmoke
+    & $backendPython $llmSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend LLM extractor smoke failed with exit code $LASTEXITCODE"
     }
@@ -1137,7 +1180,7 @@ print("backend_extraction_golden_cases_ok")
 '@ | Set-Content -LiteralPath $goldenSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $goldenSmoke
+    & $backendPython $goldenSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend extraction golden cases failed with exit code $LASTEXITCODE"
     }
@@ -1275,7 +1318,7 @@ print("backend_llm_recommender_ok")
 '@ | Set-Content -LiteralPath $recommendSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $recommendSmoke
+    & $backendPython $recommendSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend LLM recommender smoke failed with exit code $LASTEXITCODE"
     }
@@ -1447,7 +1490,7 @@ print("backend_cloud_llm_provider_ok")
 '@ | Set-Content -LiteralPath $cloudSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $cloudSmoke
+    & $backendPython $cloudSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend cloud LLM provider smoke failed with exit code $LASTEXITCODE"
     }
@@ -1521,7 +1564,7 @@ print("backend_embedding_provider_ok")
 '@ | Set-Content -LiteralPath $embeddingSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $embeddingSmoke
+    & $backendPython $embeddingSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend embedding provider smoke failed with exit code $LASTEXITCODE"
     }
@@ -1948,7 +1991,7 @@ print("backend_api_smoke_ok")
 '@ | Set-Content -LiteralPath $apiSmoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $apiSmoke
+    & $backendPython $apiSmoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend API smoke failed with exit code $LASTEXITCODE"
     }
@@ -2192,7 +2235,7 @@ print("backend_store_smoke_ok")
 '@ | Set-Content -LiteralPath $smoke -Encoding UTF8
   Push-Location "$root\backend"
   try {
-    & "$root\backend\.venv\Scripts\python.exe" $smoke
+    & $backendPython $smoke
     if ($LASTEXITCODE -ne 0) {
       throw "Backend store smoke failed with exit code $LASTEXITCODE"
     }
@@ -2277,4 +2320,3 @@ Step "Docker compose model bootstrap" {
 
 Write-Host ""
 Write-Host "Self-check passed." -ForegroundColor Green
-
