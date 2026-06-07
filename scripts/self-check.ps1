@@ -13,6 +13,9 @@ function Step($name, $script) {
 
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 $backendPython = "$root\backend\.venv\Scripts\python.exe"
+if ($env:FA_BACKEND_PYTHON) {
+  $backendPython = $env:FA_BACKEND_PYTHON
+}
 
 function Assert-PythonRuntime($pythonPath) {
   if (-not (Test-Path $pythonPath)) {
