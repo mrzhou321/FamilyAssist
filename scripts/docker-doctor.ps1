@@ -1,6 +1,7 @@
 param(
   [string]$DockerHost = "",
   [string]$DockerConfig = "",
+  [int]$ProbeTimeoutSec = 12,
   [switch]$FailOnUnavailable
 )
 
@@ -30,9 +31,16 @@ function Invoke-DockerProbe($targetHost) {
     $probe.RedirectStandardError = $true
     $probe.UseShellExecute = $false
     $process = [System.Diagnostics.Process]::Start($probe)
+    if (-not $process.WaitForExit($ProbeTimeoutSec * 1000)) {
+      $process.Kill()
+      return [pscustomobject]@{
+        host = $(if ($targetHost) { $targetHost } else { "default" })
+        ok = $false
+        detail = "docker version timed out after $ProbeTimeoutSec seconds"
+      }
+    }
     $stdout = $process.StandardOutput.ReadToEnd()
     $stderr = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
     $output = ($stdout + "`n" + $stderr).Trim()
     return [pscustomobject]@{
       host = $(if ($targetHost) { $targetHost } else { "default" })
@@ -73,6 +81,7 @@ $candidateHosts += @(
 
 $probes = @($candidateHosts | ForEach-Object { Invoke-DockerProbe $_ })
 $okProbe = $probes | Where-Object { $_.ok } | Select-Object -First 1
+$probeDetails = ($probes | ForEach-Object { $_.detail }) -join "`n"
 
 $report = [pscustomobject]@{
   generated_at = [DateTime]::UtcNow.ToString("o")
@@ -85,8 +94,12 @@ $report = [pscustomobject]@{
   ok = [bool]$okProbe
   recommendation = $(if ($okProbe) {
     "Docker is reachable through $($okProbe.host). Run scripts\deploy-smoke.ps1 next."
-  } elseif ($pipes.Count -gt 0 -and $groups.IndexOf("docker-users") -ge 0) {
+  } elseif ($probeDetails.IndexOf("timed out") -ge 0 -or $probeDetails.IndexOf("500 Internal Server Error") -ge 0) {
+    "Docker pipes exist but the Docker API is hanging or returning 500. Restart Docker Desktop, wait until the engine is fully running, or use Docker Desktop Troubleshoot/Restart or Reset, then rerun this script."
+  } elseif ($probeDetails.IndexOf("permission denied") -ge 0 -and $groups.IndexOf("docker-users") -ge 0) {
     "Docker pipes exist and the current user is in docker-users, but Docker still rejects access. Restart Docker Desktop and sign out/in to refresh the Windows access token, then rerun this script."
+  } elseif ($pipes.Count -gt 0 -and $groups.IndexOf("docker-users") -ge 0) {
+    "Docker pipes exist and the current user is in docker-users, but Docker is still not reachable. Restart Docker Desktop and rerun this script."
   } elseif ($pipes.Count -gt 0) {
     "Docker pipes exist, but the current user is not in docker-users. Add the user to docker-users, sign out/in, then rerun this script."
   } else {
