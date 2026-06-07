@@ -136,13 +136,16 @@ Step "Deployment and backup docs" {
 
 Step "Deployment smoke script" {
   $deploySmokePath = "$root\scripts\deploy-smoke.ps1"
+  $dockerDoctorPath = "$root\scripts\docker-doctor.ps1"
   $parseErrors = $null
   $parseTokens = $null
   [System.Management.Automation.Language.Parser]::ParseFile($deploySmokePath, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+  [System.Management.Automation.Language.Parser]::ParseFile($dockerDoctorPath, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
   if ($parseErrors.Count -gt 0) {
-    throw "Deploy smoke script has PowerShell syntax errors"
+    throw "Deploy smoke or Docker doctor script has PowerShell syntax errors"
   }
   $deploySmoke = Get-Content $deploySmokePath -Raw -Encoding UTF8
+  $dockerDoctor = Get-Content $dockerDoctorPath -Raw -Encoding UTF8
   if ($deploySmoke.IndexOf("docker compose") -lt 0 -or $deploySmoke.IndexOf("--build") -lt 0 -or $deploySmoke.IndexOf("backend") -lt 0 -or $deploySmoke.IndexOf("nginx") -lt 0) {
     throw "Deploy smoke script does not exercise compose build and health checks"
   }
@@ -167,8 +170,11 @@ Step "Deployment smoke script" {
   if ($deploySmoke.IndexOf("SkipIfDockerUnavailable") -lt 0 -or $deploySmoke.IndexOf("DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE") -lt 0 -or $deploySmoke.IndexOf("deploy_smoke_skipped_docker_unavailable") -lt 0) {
     throw "Deploy smoke script does not expose an explicit Docker-unavailable skip path"
   }
+  if ($dockerDoctor.IndexOf("docker-users") -lt 0 -or $dockerDoctor.IndexOf("docker_pipes") -lt 0 -or $dockerDoctor.IndexOf("recommendation") -lt 0) {
+    throw "Docker doctor script does not report Windows Docker permission diagnostics"
+  }
   $manualAcceptance = Get-Content "$root\docs\MANUAL_ACCEPTANCE.md" -Raw -Encoding UTF8
-  if ($manualAcceptance.IndexOf("-SkipIfDockerUnavailable") -lt 0 -or $manualAcceptance.IndexOf("DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE") -lt 0) {
+  if ($manualAcceptance.IndexOf("-SkipIfDockerUnavailable") -lt 0 -or $manualAcceptance.IndexOf("DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE") -lt 0 -or $manualAcceptance.IndexOf("scripts\docker-doctor.ps1") -lt 0) {
     throw "Manual acceptance docs do not explain optional Docker-unavailable smoke skips"
   }
   Write-Host "deployment_smoke_script_ok"

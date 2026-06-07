@@ -123,6 +123,7 @@ powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull
 ```
 
 Windows Docker Desktop 如果已启动但仍提示 `permission denied while trying to connect to the docker API`，请确认当前用户有 Docker named pipe 权限（通常需要加入 `docker-users` 组后重新登录），或用有 Docker 权限的终端运行烟测。若仅是 Docker 配置目录权限问题，可临时指定：`$env:DOCKER_CONFIG="$PWD\.tmp-runtime"`。
+需要定位 Docker 环境时，可先运行：`powershell -ExecutionPolicy Bypass -File scripts\docker-doctor.ps1`。
 
 Android/iOS 真机权限仍需人工验收：语音输入、相机捕获、二维码扫描的浏览器权限弹窗无法完全由桌面自动化证明。请按 `docs\MANUAL_ACCEPTANCE.md` 操作，并在 `/admin/settings` 导出验收 JSON 证据。
 

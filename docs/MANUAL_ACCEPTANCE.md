@@ -17,6 +17,7 @@ After completing each section, open `/admin/settings`, tick the matching accepta
 ## Deployment Smoke
 
 - Start Docker Desktop or the Docker service.
+- If Docker behavior is unclear, run `powershell -ExecutionPolicy Bypass -File scripts\docker-doctor.ps1` and keep the JSON output with the acceptance notes.
 - Run `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull`.
 - On Windows, if Docker Desktop is running but the script reports `permission denied while trying to connect to the docker API`, confirm the current user can access the Docker named pipe, usually by joining the `docker-users` group and logging in again. If the error only mentions `C:\Users\<user>\.docker\config.json`, run from a terminal that can read that directory or set `DOCKER_CONFIG` to a writable temporary folder.
 - In CI jobs that do not provide a Docker daemon, use `-SkipIfDockerUnavailable` or set `DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE=1` so this optional deployment smoke is reported as skipped instead of failed.
