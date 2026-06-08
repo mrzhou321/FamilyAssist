@@ -292,12 +292,15 @@ Step "Frontend offline cache wiring" {
   if ($hooks -notmatch "cacheNotes" -or $hooks -notmatch "getCachedNotes") {
     throw "Recent notes query does not use offline cache"
   }
-  $todayAdvice = Get-Content "$root\frontend\src\mobile\pages\TodayAdvice.tsx" -Raw
+  $todayAdvice = Get-Content "$root\frontend\src\mobile\pages\TodayAdvice.tsx" -Raw -Encoding UTF8
   if ($todayAdvice -notmatch "cacheRecommendations" -or $todayAdvice -notmatch "getCachedRecommendations" -or $todayAdvice -notmatch "getCachedWeather") {
     throw "Today advice does not use offline recommendation and weather cache"
   }
   if ($todayAdvice.IndexOf("getCachedNotes") -lt 0 -or $todayAdvice.IndexOf("cachedNotes.find") -lt 0 -or $todayAdvice.IndexOf("setSourceNote(cachedNote)") -lt 0) {
     throw "Today advice source-note tracing should fall back to cached notes"
+  }
+  if ($todayAdvice.IndexOf("sourceNote.photo_thumbnail") -lt 0 -or $todayAdvice.IndexOf("原始照片速记缩略图") -lt 0 -or $todayAdvice.IndexOf("whitespace-pre-wrap") -lt 0) {
+    throw "Today advice source-note tracing should display photo evidence thumbnails"
   }
   if ($todayAdvice.IndexOf("hasPairedMember") -lt 0 -or $todayAdvice.IndexOf("if (!isPaired) return") -lt 0 -or $todayAdvice.IndexOf('to="/pair"') -lt 0) {
     throw "Today advice does not gate recommendations behind pairing"

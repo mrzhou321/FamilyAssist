@@ -34,7 +34,7 @@ This audit maps PRD v1.0 requirements to current implementation evidence. It is 
 | Three-domain advice | Backend supports dressing/diet/exercise recommendation batch and domain endpoints; mobile renders all three. | Covered |
 | Weather context | QWeather adapter with local estimate fallback; provider status shows weather source. | Covered |
 | SSE streaming | `/api/recommendations/{domain}/stream` streams chunks; mobile updates content as chunks arrive. Self-check covers first token under 5s. | Covered |
-| Traceable recommendation basis | Recommendations include `basis_refs` with `memory_id` and `source_note_id`; mobile can open the original note. | Covered |
+| Traceable recommendation basis | Recommendations include `basis_refs` with `memory_id` and `source_note_id`; mobile can open the original note and shows the compressed photo thumbnail when the source note came from photo capture. | Covered |
 | Feedback learning | Feedback endpoint creates episode memory with accepted/rejected text and weather context; mobile refreshes learned memories after feedback; self-check covers write-back and UI cache refresh wiring. | Covered |
 | Member management | Admin members page creates, edits, deletes members and all PRD health profile fields. | Covered |
 | Pairing QR login | Admin creates 5-minute one-time hashed token and QR; mobile scans with `BarcodeDetector` or manual token; JWT is member/device-bound and revocable. | Covered |

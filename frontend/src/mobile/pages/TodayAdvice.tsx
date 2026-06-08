@@ -223,7 +223,14 @@ export default function TodayAdvice() {
               关闭
             </button>
           </div>
-          {sourceNote.content}
+          {sourceNote.photo_thumbnail ? (
+            <img
+              src={sourceNote.photo_thumbnail}
+              alt="原始照片速记缩略图"
+              className="mb-3 aspect-[4/3] w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] object-cover"
+            />
+          ) : null}
+          <p className="whitespace-pre-wrap leading-6">{sourceNote.content}</p>
         </div>
       ) : null}
 
