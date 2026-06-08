@@ -364,6 +364,9 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("buildPhotoThumbnail") -lt 0 -or $quickNote.IndexOf("canvas.toDataURL('image/jpeg'") -lt 0 -or $quickNote.IndexOf("photo_thumbnail: source === 'photo'") -lt 0) {
     throw "Quick note photo capture should persist a compressed thumbnail with the note"
   }
+  if ($quickNote.IndexOf("note.photo_thumbnail") -lt 0 -or $quickNote.IndexOf("最近照片速记缩略图") -lt 0) {
+    throw "Quick note recent list should show photo thumbnails for queued and synced notes"
+  }
   if ($quickNote.IndexOf("setPhotoCapture(null)") -lt 0 -or $quickNote.IndexOf("photoInputRef.current.value = ''") -lt 0) {
     throw "Quick note does not clear photo capture state after submit or recapture"
   }

@@ -410,6 +410,13 @@ export default function QuickNote() {
                              animate-[fadeUp_0.4s_ease_both]"
                   style={{ animationDelay: `${i * 0.08}s` }}
                 >
+                  {note.photo_thumbnail ? (
+                    <img
+                      src={note.photo_thumbnail}
+                      alt="最近照片速记缩略图"
+                      className="h-11 w-11 shrink-0 rounded-[var(--radius-sm)] border border-[var(--color-border)] object-cover"
+                    />
+                  ) : null}
                   <span className="text-xs px-2.5 py-0.5 rounded-full text-white whitespace-nowrap"
                     style={{ background: tag.color }}>{tag.label}</span>
                   <span className="text-sm text-[var(--color-fg)] flex-1 truncate">{note.content}</span>
