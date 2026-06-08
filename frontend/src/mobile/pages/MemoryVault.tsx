@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from '@shared/api'
 import { MEMORY_TAG_COLORS } from '@shared/constants/colors'
 import { useMemberMemories } from '@shared/hooks'
+import type { Note } from '@shared/types'
+import { getCachedNotes } from '../offline/cachedData'
 import { getCurrentMemberId, getCurrentMemberName, hasPairedMember } from '../session'
 
 type MemoryDomain = 'dressing' | 'diet' | 'exercise' | 'general'
@@ -32,6 +35,8 @@ function formatDate(value: string) {
 
 export default function MemoryVault() {
   const [activeTag, setActiveTag] = useState('全部')
+  const [sourceNote, setSourceNote] = useState<Note | null>(null)
+  const [sourceMessage, setSourceMessage] = useState('')
   const isPaired = hasPairedMember()
   const memberId = getCurrentMemberId()
   const { data, isError } = useMemberMemories(memberId, isPaired)
@@ -48,6 +53,24 @@ export default function MemoryVault() {
     return memories.filter((memory) => DOMAIN_LABEL[memory.domain] === activeTag)
   }, [activeTag, memories])
 
+  async function openSourceNote(sourceNoteId: number) {
+    if (!isPaired) return
+    try {
+      const note = await api.get<Note>(`/notes/${sourceNoteId}`)
+      setSourceNote(note)
+      setSourceMessage('')
+    } catch {
+      const cachedNotes = await getCachedNotes(memberId)
+      const cachedNote = cachedNotes.find((note) => note.id === sourceNoteId)
+      if (cachedNote) {
+        setSourceNote(cachedNote)
+        setSourceMessage('当前离线，正在显示缓存的原始速记')
+        return
+      }
+      setSourceMessage('无法加载这条记忆的原始速记')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 p-5">
       <div className="animate-[fadeUp_0.4s_ease_both]">
@@ -63,6 +86,12 @@ export default function MemoryVault() {
       {message ? (
         <div className="rounded-[var(--radius-sm)] border border-[var(--color-accent)]/20 bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
           {message}
+        </div>
+      ) : null}
+
+      {sourceMessage ? (
+        <div className="rounded-[var(--radius-sm)] border border-[var(--color-accent)]/20 bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
+          {sourceMessage}
         </div>
       ) : null}
 
@@ -99,6 +128,25 @@ export default function MemoryVault() {
         </div>
       ) : null}
 
+      {sourceNote ? (
+        <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-fg)] shadow-[var(--shadow-card)]">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <span className="text-xs text-[var(--color-muted)]">原始速记 #{sourceNote.id}</span>
+            <button type="button" onClick={() => setSourceNote(null)} className="text-xs text-[var(--color-muted)]">
+              关闭
+            </button>
+          </div>
+          {sourceNote.photo_thumbnail ? (
+            <img
+              src={sourceNote.photo_thumbnail}
+              alt="记忆来源照片缩略图"
+              className="mb-3 aspect-[4/3] w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] object-cover"
+            />
+          ) : null}
+          <p className="whitespace-pre-wrap leading-6">{sourceNote.content}</p>
+        </div>
+      ) : null}
+
       {isPaired ? (
         <div className="flex flex-col gap-2.5">
           {filtered.length === 0 ? (
@@ -130,7 +178,15 @@ export default function MemoryVault() {
                 <p className="text-sm text-[var(--color-fg)]">{memory.content}</p>
                 <p className="mt-2 text-[10px] text-[var(--color-muted)]">
                   置信度 {(memory.confidence * 100).toFixed(0)}%
-                  {memory.source_note_id ? ` · 来源 note #${memory.source_note_id}` : ''}
+                  {memory.source_note_id ? (
+                    <button
+                      type="button"
+                      onClick={() => openSourceNote(memory.source_note_id!)}
+                      className="ml-2 underline decoration-dotted underline-offset-2"
+                    >
+                      来源 note #{memory.source_note_id}
+                    </button>
+                  ) : null}
                 </p>
               </article>
             )

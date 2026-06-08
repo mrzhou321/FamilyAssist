@@ -326,6 +326,12 @@ Step "Frontend offline cache wiring" {
   if ($memoryVault.IndexOf("全家共享记忆") -lt 0) {
     throw "Memory vault should explain that family-shared memories are visible to paired members"
   }
+  if ($memoryVault.IndexOf("openSourceNote") -lt 0 -or $memoryVault.IndexOf("api.get<Note>") -lt 0 -or $memoryVault.IndexOf('/notes/${sourceNoteId}') -lt 0 -or $memoryVault.IndexOf("getCachedNotes(memberId)") -lt 0) {
+    throw "Memory vault should let members open the original source note for each memory"
+  }
+  if ($memoryVault.IndexOf("sourceNote.photo_thumbnail") -lt 0 -or $memoryVault.IndexOf("记忆来源照片缩略图") -lt 0) {
+    throw "Memory vault source-note tracing should display photo thumbnails"
+  }
   $quickNote = Get-Content "$root\frontend\src\mobile\pages\QuickNote.tsx" -Raw -Encoding UTF8
   $quickNoteShowsPairingCopy = $quickNote.IndexOf('to="/pair"') -ge 0
   $quickNoteGatesMockMembers = ($quickNote.IndexOf("currentMemberName") -ge 0) -and ($quickNote.IndexOf("MOCK_MEMBERS.map") -lt 0) -and ($quickNote.IndexOf("useMembers") -lt 0)
