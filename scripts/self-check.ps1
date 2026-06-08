@@ -155,6 +155,9 @@ Step "Deployment smoke script" {
   if ($deploySmoke.IndexOf("SkipModelPull") -lt 0 -or $deploySmoke.IndexOf("skip model pull") -lt 0) {
     throw "Deploy smoke script does not expose a fast no-model-pull mode"
   }
+  if ($deploySmoke.IndexOf("ModelPullTimeoutMinutes") -lt 0 -or $deploySmoke.IndexOf("deploy_smoke_pull_ollama_images_start") -lt 0 -or $deploySmoke.IndexOf("deploy_smoke_pull_ollama_images_ok") -lt 0) {
+    throw "Deploy smoke script does not expose observable Ollama image pull progress and timeout controls"
+  }
   if ($deploySmoke.IndexOf("image: alpine:3.20") -lt 0 -or $deploySmoke.IndexOf('entrypoint: ["/bin/sh", "-c", "sleep 300"]') -lt 0) {
     throw "Fast deploy smoke should avoid pulling the full Ollama image"
   }

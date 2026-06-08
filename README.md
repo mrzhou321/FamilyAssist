@@ -1,12 +1,19 @@
-# FamilyAssister
+# FamilyAssister 家暖
 
-Public GitHub: [https://github.com/mrzhou321/FamilyAssist](https://github.com/mrzhou321/FamilyAssist)
+GitHub Public 链接：[https://github.com/mrzhou321/FamilyAssist](https://github.com/mrzhou321/FamilyAssist)
 
 ## 这是什么
 
-FamilyAssister 是一个面向家庭照护场景的自托管 AI 助手：家人随手记录饮食忌口、过敏、冷热偏好、近期不适和运动习惯，系统把碎片速记沉淀成可追溯的家庭记忆，再结合天气生成穿衣、饮食、运动三类个性化建议。
+FamilyAssister 家暖是一个面向家庭照护场景的自托管 AI 记忆助手。
 
-核心目标很朴素：让照顾家人的经验不再只靠一个人记在脑子里，而是变成全家可持续积累、可审核、可解释、越用越懂家的记忆系统。
+家人可以随手记录饮食忌口、过敏、冷热偏好、近期不适、运动习惯等碎片信息；系统会把这些速记沉淀成可追溯的家庭记忆，再结合天气和成员档案，生成穿衣、饮食、运动三类个性化建议。
+
+它的核心目标不是做一个聊天窗口，而是让“照顾家人的经验”变成全家可持续积累、可审核、可解释、越用越懂家的记忆系统。
+
+## 视频介绍
+
+- [产品功能走查视频](output/promo/familyassister-product-walkthrough.webm)：以页面和功能为主，介绍移动端速记、今日建议、记忆库、配对流程、后台审核和系统设置。
+- [宣传短片](output/promo/familyassister-promo.webm)：偏展示向的 24 秒短片，可用于作品展示页。
 
 ## 怎么跑
 
@@ -17,13 +24,13 @@ git clone https://github.com/mrzhou321/FamilyAssist.git
 cd FamilyAssist
 ```
 
-2. 配置本地部署密钥：
+2. 配置环境变量：
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-打开 `.env`，至少修改：
+打开 `.env`，至少修改以下密钥：
 
 ```env
 POSTGRES_PASSWORD=change-this-postgres-password
@@ -41,91 +48,48 @@ docker compose up --build
 
 4. 打开应用：
 
-- Mobile PWA: `http://localhost/mobile/`
-- Admin console: `http://localhost/admin/`
-- Backend health: `http://localhost:8000/health`
+- Mobile PWA：`http://localhost/mobile/`
+- Admin console：`http://localhost/admin/`
+- Backend health：`http://localhost:8000/health`
 
-本地 compose 未设置 `.env` 时的默认管理员账号是 `admin` / `family-admin`，真实使用前务必改掉。
+本地 compose 未设置 `.env` 时，默认管理员账号是 `admin` / `family-admin`，真实使用前务必改掉。
 
 ## 用了什么
 
-- LLM: 默认本地 Ollama `qwen2.5:3b`，也可在设置页切换到 DeepSeek / 通义千问等 OpenAI-compatible 云端 Provider。
-- Embedding: 默认 `qllama/bge-small-zh-v1.5`，记忆向量维度 512。
-- Backend: FastAPI + SQLAlchemy async + Alembic。
-- Database: PostgreSQL + pgvector，HNSW 向量索引。
-- Frontend: React + Vite + PWA，分为 `/mobile/` 家人端和 `/admin/` 管理端。
-- Deployment: Docker Compose，包括 postgres、ollama、模型 bootstrap、backend、nginx。
+- LLM：默认本地 Ollama `qwen2.5:3b`。
+- Embedding：默认 `qllama/bge-small-zh-v1.5`，记忆向量维度 512。
+- Backend：FastAPI + SQLAlchemy async + Alembic。
+- Database：PostgreSQL + pgvector，使用 HNSW 向量索引。
+- Frontend：React + Vite + PWA，分为 `/mobile/` 家人端和 `/admin/` 管理端。
+- Deployment：Docker Compose，包括 postgres、ollama、模型 bootstrap、backend、nginx。
 
-主要功能：
+## 主要功能
 
 - 文本、语音、拍照速记，移动端 PWA 可离线暂存并联网同步。
 - LLM 结构化抽取家庭记忆，Pydantic 校验，失败后进入人工审核。
-- 记忆库支持成员、领域、类型筛选，包含来源速记、置信度、过期时间。
+- 记忆库支持按成员、领域、类型筛选，包含来源速记、置信度和过期时间。
 - 语义去重，避免“讨厌香菜 / 不吃香菜”一类重复事实污染记忆。
 - 天气上下文 + 家庭记忆生成穿衣、饮食、运动三域建议。
 - SSE 流式建议展示，并显示可点击的依据来源。
 - 采纳 / 不合适反馈回写 episode 记忆，形成学习闭环。
-- 管理端成员档案、配对二维码、设备会话撤销、Provider 设置和验收证据导出。
+- 管理端支持成员档案、配对二维码、设备会话撤销、Provider 设置和验收证据导出。
 
-## 自测与验收
+## 产品特色
 
-完整回归自检：
+1. **不是聊天记录，而是家庭记忆库**
+   每条记忆都有领域、类型、置信度、来源 note 和过期时间，方便长期维护。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1
-```
+2. **建议可解释**
+   穿衣、饮食、运动建议会显示依据，能追溯到原始速记或种子记忆。
 
-该脚本会先检查 `backend\.venv\Scripts\python.exe` 是否能导入 Python 标准库；如果提示 `encodings` 缺失，请安装完整 Python 3.11+ 并重新创建 `backend\.venv` 后再跑。
-也可以准备一个临时自检解释器后指定运行：
+3. **适合家庭照护的低成本输入**
+   家人不用填写复杂表单，一句话、一次语音或一张照片就能记录。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\prepare-self-check-python.ps1
-$env:FA_BACKEND_PYTHON="$PWD\.tmp-runtime\python-3.13.1-embed-amd64\python.exe"
-powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1
-```
+4. **默认自托管**
+   家庭速记、健康档案和记忆库默认存储在自己的 PostgreSQL 中。
 
-移动端 PWA 视口烟测。脚本会构建前端，用接近 nginx fallback 的临时静态服务承载产物，并用真实 headless Chrome/Edge 手机视口检查 `/mobile/`、`/mobile/pair`、`/mobile/advice`、`/mobile/memory`：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\mobile-viewport-smoke.ps1
-```
-
-LLM 抽取质量基线。默认 deterministic 模式会跑 20 条代表性速记样本，并按 PRD `>=80%` 目标判定：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1
-```
-
-使用真实 Provider 抽样并保存 JSON 证据：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1 -Mode provider -OutputPath docs\llm-quality-provider-sample.json
-```
-
-云端 Provider 会发送速记文本到第三方 API。使用 `-Provider deepseek` 或 `-Provider qwen` 时，请先在设置页确认数据出境风险，再加 `-AllowCloud`。
-
-Docker Compose 烟测：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1
-```
-
-更快的容器构建烟测，跳过 Ollama 模型拉取：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull
-```
-
-无 Docker daemon 的 CI 环境可以显式跳过这项外部烟测：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull -SkipIfDockerUnavailable
-```
-
-Windows Docker Desktop 如果已启动但仍提示 `permission denied while trying to connect to the docker API`，请确认当前用户有 Docker named pipe 权限（通常需要加入 `docker-users` 组后重新登录），或用有 Docker 权限的终端运行烟测。若仅是 Docker 配置目录权限问题，可临时指定：`$env:DOCKER_CONFIG="$PWD\.tmp-runtime"`。
-需要定位 Docker 环境时，可先运行：`powershell -ExecutionPolicy Bypass -File scripts\docker-doctor.ps1`。
-
-Android/iOS 真机权限仍需人工验收：语音输入、相机捕获、二维码扫描的浏览器权限弹窗无法完全由桌面自动化证明。请按 `docs\MANUAL_ACCEPTANCE.md` 操作，并在 `/admin/settings` 导出验收 JSON 证据。
+5. **有人工审核入口**
+   LLM 抽取结果不会直接变成不可控黑盒，管理员可以审核、编辑、删除。
 
 ## 数据与备份
 
@@ -147,12 +111,8 @@ Get-Content .\family_assister.dump -AsByteStream | docker compose exec -T postgr
 docker compose up -d
 ```
 
-如果 Compose project name 不同，先确认实际 volume 名称：
+## 作品说明
 
-```powershell
-docker volume ls
-```
+FamilyAssister 家暖关注的是一个很日常但容易被忽略的问题：家庭照护经验常常只存在某个人脑子里，换人照顾、时间一久、信息就会丢失。
 
-## 为什么值得看
-
-这个项目不是一个“聊天窗口套壳”，而是把家庭照护里最容易丢失的经验做成了完整闭环：低成本采集、结构化记忆、可解释推荐、反馈学习、成员隔离、自托管部署和可复跑验收。它更像一个给家庭长期使用的小型记忆基础设施。
+这个项目尝试把这些经验做成一个小型家庭记忆基础设施：低成本采集、结构化沉淀、可解释推荐、反馈学习、成员隔离、自托管部署和可复跑验收。它更像一个给家庭长期使用的 AI 助手，而不是一次性问答工具。

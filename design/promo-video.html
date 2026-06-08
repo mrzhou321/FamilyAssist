@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FamilyAssister 家暖 宣传片</title>
+    <style>
+      :root {
+        --ink: #07131f;
+        --night: #0d2630;
+        --pine: #123f3a;
+        --mint: #78e071;
+        --cream: #f1eadc;
+        --paper: #fffaf0;
+        --sky: #bfe7ff;
+        --coral: #f28a6b;
+        --gold: #f3c95f;
+        --line: rgba(255, 250, 240, 0.26);
+        --shadow: 0 28px 80px rgba(2, 13, 21, 0.36);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #08131b;
+        color: var(--cream);
+        font-family:
+          "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans CJK SC",
+          sans-serif;
+        overflow: hidden;
+      }
+
+      .film {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        min-width: 900px;
+        min-height: 506px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 15% 18%, rgba(120, 224, 113, 0.22), transparent 26%),
+          radial-gradient(circle at 82% 64%, rgba(242, 138, 107, 0.2), transparent 28%),
+          linear-gradient(135deg, #08131b 0%, #0a2832 48%, #123f3a 100%);
+      }
+
+      .film::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.22;
+        background-image:
+          linear-gradient(rgba(255, 250, 240, 0.12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 250, 240, 0.1) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: linear-gradient(to bottom, transparent, black 16%, black 82%, transparent);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: minmax(360px, 0.9fr) minmax(440px, 1.1fr);
+        gap: 58px;
+        align-items: center;
+        padding: 70px 88px;
+        opacity: 0;
+        transform: translateY(22px) scale(0.99);
+        transition:
+          opacity 720ms ease,
+          transform 720ms ease;
+      }
+
+      .scene.active {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .scene.center {
+        grid-template-columns: 1fr;
+        text-align: center;
+        justify-items: center;
+      }
+
+      .kicker {
+        color: var(--mint);
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: 0;
+        margin-bottom: 22px;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        letter-spacing: 0;
+        line-height: 1.08;
+      }
+
+      h1 {
+        font-size: clamp(64px, 8vw, 116px);
+        font-weight: 950;
+      }
+
+      h2 {
+        font-size: clamp(48px, 5vw, 78px);
+        font-weight: 930;
+      }
+
+      p {
+        margin: 22px 0 0;
+        color: rgba(255, 250, 240, 0.86);
+        font-size: clamp(21px, 2vw, 30px);
+        line-height: 1.58;
+        font-weight: 600;
+      }
+
+      .subtle {
+        color: rgba(255, 250, 240, 0.68);
+        font-size: 22px;
+      }
+
+      .brand-mark {
+        width: 132px;
+        height: 132px;
+        margin-bottom: 28px;
+        border-radius: 30px;
+        display: grid;
+        place-items: center;
+        color: var(--ink);
+        font-size: 44px;
+        font-weight: 950;
+        background: linear-gradient(135deg, #9af279, #58d565);
+        box-shadow: 0 22px 60px rgba(120, 224, 113, 0.26);
+      }
+
+      .tag-row {
+        display: flex;
+        gap: 14px;
+        margin-top: 34px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        padding: 12px 18px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--paper);
+        background: rgba(255, 250, 240, 0.08);
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .phone {
+        width: 368px;
+        min-height: 646px;
+        border-radius: 42px;
+        padding: 18px;
+        justify-self: center;
+        background: linear-gradient(145deg, rgba(255, 250, 240, 0.26), rgba(255, 250, 240, 0.05));
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255, 250, 240, 0.28);
+      }
+
+      .phone-screen {
+        height: 610px;
+        border-radius: 32px;
+        padding: 24px;
+        background: #fffaf0;
+        color: var(--ink);
+        overflow: hidden;
+      }
+
+      .topline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 900;
+        color: var(--pine);
+      }
+
+      .avatar-set {
+        display: flex;
+        gap: 7px;
+      }
+
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #0c1b16;
+        background: #a6ed7c;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .note-input {
+        margin-top: 28px;
+        min-height: 154px;
+        border-radius: 8px;
+        padding: 20px;
+        color: #163329;
+        background:
+          linear-gradient(transparent 30px, rgba(18, 63, 58, 0.09) 31px),
+          #fff6df;
+        background-size: 100% 32px;
+        box-shadow: inset 0 0 0 1px rgba(18, 63, 58, 0.18);
+        font-size: 22px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+
+      .action-bar {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .icon-button {
+        height: 58px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: #153c38;
+        color: var(--paper);
+        font-size: 26px;
+        font-weight: 900;
+      }
+
+      .primary {
+        margin-top: 18px;
+        height: 64px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--mint);
+        color: #07131f;
+        font-size: 22px;
+        font-weight: 950;
+      }
+
+      .memory-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .memory {
+        padding: 14px 16px;
+        border-radius: 8px;
+        color: #17332b;
+        background: rgba(18, 63, 58, 0.08);
+        font-size: 16px;
+        line-height: 1.35;
+        font-weight: 800;
+      }
+
+      .memory b {
+        color: #0e6b4b;
+      }
+
+      .board {
+        position: relative;
+        min-height: 570px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 30px;
+        background: rgba(5, 24, 33, 0.58);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .board-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+        font-size: 21px;
+        font-weight: 950;
+      }
+
+      .status {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(120, 224, 113, 0.18);
+        color: #a8ff9c;
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .floating-note {
+        position: absolute;
+        width: 260px;
+        padding: 18px;
+        border-radius: 8px;
+        color: #0c1f1c;
+        background: var(--paper);
+        box-shadow: 0 20px 54px rgba(0, 0, 0, 0.22);
+        font-size: 18px;
+        line-height: 1.38;
+        font-weight: 850;
+        animation: float 4s ease-in-out infinite;
+      }
+
+      .floating-note:nth-child(2) {
+        left: 38px;
+        top: 96px;
+      }
+
+      .floating-note:nth-child(3) {
+        right: 52px;
+        top: 158px;
+        background: #cdeeff;
+        animation-delay: -1.3s;
+      }
+
+      .floating-note:nth-child(4) {
+        left: 180px;
+        bottom: 92px;
+        background: #ffe0b6;
+        animation-delay: -2.4s;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0) rotate(-1deg);
+        }
+        50% {
+          transform: translateY(-15px) rotate(1deg);
+        }
+      }
+
+      .pipeline {
+        display: grid;
+        grid-template-columns: 1fr 70px 1fr 70px 1fr;
+        align-items: center;
+        gap: 16px;
+        margin-top: 34px;
+      }
+
+      .pipe-card {
+        min-height: 168px;
+        border-radius: 8px;
+        padding: 22px;
+        color: var(--ink);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .pipe-card strong {
+        display: block;
+        color: #0e5f42;
+        font-size: 24px;
+        margin-bottom: 12px;
+      }
+
+      .pipe-card span {
+        color: #233933;
+        font-size: 18px;
+        line-height: 1.42;
+        font-weight: 750;
+      }
+
+      .arrow {
+        color: var(--mint);
+        font-size: 52px;
+        font-weight: 950;
+        text-align: center;
+      }
+
+      .advice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      .advice {
+        min-height: 278px;
+        border-radius: 8px;
+        padding: 22px;
+        color: #0c1f1c;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .advice .emoji {
+        font-size: 42px;
+        margin-bottom: 18px;
+      }
+
+      .advice strong {
+        display: block;
+        font-size: 25px;
+        color: #103a35;
+        margin-bottom: 12px;
+      }
+
+      .advice span {
+        color: #223d36;
+        font-size: 18px;
+        line-height: 1.44;
+        font-weight: 760;
+      }
+
+      .evidence {
+        margin-top: 18px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(120, 224, 113, 0.24);
+        color: #0c4c36;
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .admin-window {
+        border-radius: 8px;
+        background: #06141d;
+        border: 1px solid rgba(255, 250, 240, 0.24);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .admin-bar {
+        display: flex;
+        gap: 8px;
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255, 250, 240, 0.14);
+      }
+
+      .dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--coral);
+      }
+
+      .dot:nth-child(2) {
+        background: var(--gold);
+      }
+
+      .dot:nth-child(3) {
+        background: var(--mint);
+      }
+
+      .admin-body {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        min-height: 470px;
+      }
+
+      .sidebar {
+        padding: 20px 14px;
+        border-right: 1px solid rgba(255, 250, 240, 0.14);
+      }
+
+      .nav-item {
+        height: 38px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        background: rgba(255, 250, 240, 0.09);
+      }
+
+      .nav-item.active {
+        background: var(--mint);
+      }
+
+      .table {
+        padding: 24px;
+      }
+
+      .table-row {
+        display: grid;
+        grid-template-columns: 120px 1fr 90px;
+        gap: 14px;
+        align-items: center;
+        padding: 16px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        background: rgba(255, 250, 240, 0.08);
+      }
+
+      .pill {
+        height: 30px;
+        border-radius: 999px;
+        background: rgba(120, 224, 113, 0.22);
+      }
+
+      .textline {
+        height: 15px;
+        border-radius: 999px;
+        background: rgba(255, 250, 240, 0.3);
+      }
+
+      .architecture {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-top: 34px;
+      }
+
+      .arch-card {
+        min-height: 178px;
+        padding: 22px;
+        border-radius: 8px;
+        color: #10231f;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .arch-card strong {
+        display: block;
+        font-size: 23px;
+        margin-bottom: 12px;
+        color: #0e5f42;
+      }
+
+      .arch-card span {
+        color: #263b35;
+        font-size: 17px;
+        line-height: 1.4;
+        font-weight: 760;
+      }
+
+      .privacy-band {
+        margin-top: 28px;
+        padding: 20px 24px;
+        border-radius: 8px;
+        border: 1px solid rgba(120, 224, 113, 0.42);
+        background: rgba(120, 224, 113, 0.1);
+        color: #c9ffc4;
+        font-size: 25px;
+        font-weight: 950;
+      }
+
+      .final-card {
+        width: min(1040px, 88vw);
+        padding: 54px 64px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: rgba(5, 24, 33, 0.7);
+        box-shadow: var(--shadow);
+      }
+
+      .final-card h2 {
+        font-size: clamp(58px, 6vw, 92px);
+      }
+
+      .url {
+        margin-top: 34px;
+        display: inline-flex;
+        align-items: center;
+        min-height: 60px;
+        padding: 0 24px;
+        border-radius: 8px;
+        color: #07131f;
+        background: var(--mint);
+        font-size: 24px;
+        font-weight: 950;
+      }
+
+      .progress {
+        position: absolute;
+        left: 88px;
+        right: 88px;
+        bottom: 42px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 250, 240, 0.18);
+        overflow: hidden;
+      }
+
+      .progress span {
+        display: block;
+        height: 100%;
+        width: 0%;
+        background: var(--mint);
+        transition: width 220ms linear;
+      }
+
+      .caption {
+        position: absolute;
+        left: 88px;
+        bottom: 56px;
+        color: rgba(255, 250, 240, 0.7);
+        font-size: 18px;
+        font-weight: 800;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="film">
+      <section class="scene center active" data-caption="FamilyAssister 家暖">
+        <div class="brand-mark">家暖</div>
+        <h1>FamilyAssister</h1>
+        <p>把照顾家人的经验，变成全家都能使用的 AI 记忆系统。</p>
+        <div class="tag-row">
+          <span class="tag">家庭照护</span>
+          <span class="tag">本地自托管</span>
+          <span class="tag">可追溯建议</span>
+        </div>
+      </section>
+
+      <section class="scene" data-caption="随手记录，不让经验散落">
+        <div>
+          <div class="kicker">01 / 随手记</div>
+          <h2>一句话、一次拍照、一个语音。</h2>
+          <p>饮食忌口、冷热偏好、近期不适、运动习惯，都可以像便利贴一样记录下来。</p>
+        </div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="topline">
+              <span>今日速记</span>
+              <div class="avatar-set">
+                <span class="avatar">爸</span>
+                <span class="avatar">妈</span>
+                <span class="avatar">我</span>
+              </div>
+            </div>
+            <div class="note-input">妈妈最近怕冷，膝盖也不太舒服。今天有风，出门别穿太薄。</div>
+            <div class="action-bar">
+              <div class="icon-button">文</div>
+              <div class="icon-button">麦</div>
+              <div class="icon-button">拍</div>
+            </div>
+            <div class="primary">记下来</div>
+            <div class="memory-list">
+              <div class="memory"><b>离线可用</b>：断网也能先存，联网后自动同步。</div>
+              <div class="memory"><b>成员隔离</b>：每位家人拥有独立记忆空间。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene" data-caption="AI 抽取为家庭记忆">
+        <div>
+          <div class="kicker">02 / 变成记忆</div>
+          <h2>AI 不只是聊天，它会帮你沉淀照护知识。</h2>
+          <p>碎片速记会被抽取、校验、去重，变成可审核、可检索、可追溯的家庭记忆。</p>
+        </div>
+        <div class="board">
+          <div class="board-title">
+            <span>记忆抽取流程</span>
+            <span class="status">已入库</span>
+          </div>
+          <div class="floating-note">“爸爸不吃香菜，牛奶喝多会不舒服。”</div>
+          <div class="floating-note">“妈妈怕冷，风大时膝盖容易酸。”</div>
+          <div class="floating-note">“孩子最近喜欢饭后散步，不适合剧烈跑跳。”</div>
+        </div>
+      </section>
+
+      <section class="scene center" data-caption="从记忆到建议，每条都有依据">
+        <div>
+          <div class="kicker">03 / 可解释建议</div>
+          <h2>天气 + 家庭记忆，生成今天真正合适的建议。</h2>
+          <div class="advice-grid">
+            <div class="advice">
+              <div class="emoji">衣</div>
+              <strong>穿衣</strong>
+              <span>今天风力偏大，给怕冷成员准备轻薄外套，膝盖处注意保暖。</span>
+              <div class="evidence">依据：怕冷、膝盖不适、今日有风</div>
+            </div>
+            <div class="advice">
+              <div class="emoji">食</div>
+              <strong>饮食</strong>
+              <span>避开已知过敏和忌口，优先推荐清淡、温热、家人接受度高的搭配。</span>
+              <div class="evidence">依据：忌口、过敏、口味偏好</div>
+            </div>
+            <div class="advice">
+              <div class="emoji">动</div>
+              <strong>运动</strong>
+              <span>结合天气和身体状态，建议低强度散步，不强推不合适的训练。</span>
+              <div class="evidence">依据：近期不适、运动习惯</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene" data-caption="管理端审核、设置和验收">
+        <div>
+          <div class="kicker">04 / 管理后台</div>
+          <h2>照护不是玄学，系统给你审核和管理入口。</h2>
+          <p>成员档案、记忆审核、设备配对、Provider 设置、验收证据导出，都在管理端完成。</p>
+        </div>
+        <div class="admin-window">
+          <div class="admin-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="admin-body">
+            <div class="sidebar">
+              <div class="nav-item active"></div>
+              <div class="nav-item"></div>
+              <div class="nav-item"></div>
+              <div class="nav-item"></div>
+              <div class="nav-item"></div>
+            </div>
+            <div class="table">
+              <div class="table-row"><div class="pill"></div><div class="textline"></div><div class="pill"></div></div>
+              <div class="table-row"><div class="pill"></div><div class="textline"></div><div class="pill"></div></div>
+              <div class="table-row"><div class="pill"></div><div class="textline"></div><div class="pill"></div></div>
+              <div class="table-row"><div class="pill"></div><div class="textline"></div><div class="pill"></div></div>
+              <div class="table-row"><div class="pill"></div><div class="textline"></div><div class="pill"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene center" data-caption="自托管，数据留在家里">
+        <div>
+          <div class="kicker">05 / 技术底座</div>
+          <h2>完整自托管，家庭数据不必交出去。</h2>
+          <div class="architecture">
+            <div class="arch-card"><strong>React PWA</strong><span>移动端速记、离线缓存、扫码配对。</span></div>
+            <div class="arch-card"><strong>FastAPI</strong><span>异步 API、SSE 流式建议、JWT 鉴权。</span></div>
+            <div class="arch-card"><strong>PostgreSQL</strong><span>pgvector 记忆检索，保留来源和证据。</span></div>
+            <div class="arch-card"><strong>Ollama</strong><span>默认本地 Qwen2.5，也可切换云端 Provider。</span></div>
+          </div>
+          <div class="privacy-band">核心隐私目标：家庭速记、健康档案和记忆库默认留在自己的机器里。</div>
+        </div>
+      </section>
+
+      <section class="scene center" data-caption="FamilyAssister 家暖">
+        <div class="final-card">
+          <h2>让家人的照护经验，越用越懂这个家。</h2>
+          <p>FamilyAssister 家暖：一个可积累、可解释、可自托管的家庭 AI 助手。</p>
+          <div class="url">github.com/mrzhou321/FamilyAssist</div>
+        </div>
+      </section>
+
+      <div class="caption">FamilyAssister 家暖</div>
+      <div class="progress"><span></span></div>
+    </main>
+
+    <script>
+      const duration = 42_000
+      const scenes = [...document.querySelectorAll('.scene')]
+      const progress = document.querySelector('.progress span')
+      const caption = document.querySelector('.caption')
+      const startedAt = performance.now()
+
+      function tick(now) {
+        const elapsed = Math.min(now - startedAt, duration)
+        const sceneIndex = Math.min(scenes.length - 1, Math.floor((elapsed / duration) * scenes.length))
+        scenes.forEach((scene, index) => scene.classList.toggle('active', index === sceneIndex))
+        progress.style.width = `${(elapsed / duration) * 100}%`
+        caption.textContent = scenes[sceneIndex].dataset.caption || 'FamilyAssister 家暖'
+        if (elapsed < duration) requestAnimationFrame(tick)
+        else window.__PROMO_DONE__ = true
+      }
+
+      requestAnimationFrame(tick)
+    </script>
+  </body>
+</html>

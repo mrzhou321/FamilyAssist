@@ -1,6 +1,7 @@
 param(
   [switch]$SkipModelPull,
-  [switch]$SkipIfDockerUnavailable
+  [switch]$SkipIfDockerUnavailable,
+  [int]$ModelPullTimeoutMinutes = 45
 )
 
 $ErrorActionPreference = "Stop"
@@ -108,6 +109,13 @@ function Test-ServicesReady($containers) {
   return $backend -and $backend.Health -eq "healthy" -and $nginx -and $nginx.State -eq "running"
 }
 
+function Get-LogTail($path, $lineCount = 80) {
+  if (-not (Test-Path $path)) {
+    return ""
+  }
+  return ((Get-Content -LiteralPath $path -Tail $lineCount -ErrorAction SilentlyContinue) -join "`n").Trim()
+}
+
 try {
   $dockerDaemon = Test-DockerDaemon
   if (-not $dockerDaemon.Ok) {
@@ -132,6 +140,32 @@ services:
     image: alpine:3.20
     entrypoint: ["/bin/sh", "-c", "echo skip model pull"]
 "@ | Set-Content -LiteralPath $override -Encoding UTF8
+  } else {
+    Write-Host "deploy_smoke_pull_ollama_images_start"
+    $pullOutputPath = Join-Path ([System.IO.Path]::GetTempPath()) "familyassister-ollama-pull.out.log"
+    $pullErrorPath = Join-Path ([System.IO.Path]::GetTempPath()) "familyassister-ollama-pull.err.log"
+    Remove-Item -LiteralPath $pullOutputPath, $pullErrorPath -Force -ErrorAction SilentlyContinue
+    $pullProcess = Start-Process -FilePath "docker" -ArgumentList @("compose", "-p", $project, "pull", "ollama", "ollama-models") -WorkingDirectory $root -NoNewWindow -PassThru -RedirectStandardOutput $pullOutputPath -RedirectStandardError $pullErrorPath
+    if (-not $pullProcess.WaitForExit($ModelPullTimeoutMinutes * 60 * 1000)) {
+      $pullProcess.Kill()
+      $pullProcess.WaitForExit()
+      $pullOutput = Get-LogTail $pullOutputPath
+      $pullError = Get-LogTail $pullErrorPath
+      throw "Timed out after $ModelPullTimeoutMinutes minutes pulling Ollama images. Use -SkipModelPull for fast deployment smoke, or rerun the full smoke with a larger -ModelPullTimeoutMinutes. Latest pull output: $pullOutput $pullError Full logs: $pullOutputPath $pullErrorPath"
+    }
+    $pullProcess.Refresh()
+    $pullOutput = Get-LogTail $pullOutputPath 40
+    $pullError = Get-LogTail $pullErrorPath 40
+    if ($pullOutput) {
+      Write-Host $pullOutput
+    }
+    if ($pullError) {
+      Write-Host $pullError
+    }
+    if ($pullProcess.ExitCode -ne 0) {
+      throw "Ollama image pull failed with exit code $($pullProcess.ExitCode). Latest pull output: $pullOutput $pullError Full logs: $pullOutputPath $pullErrorPath"
+    }
+    Write-Host "deploy_smoke_pull_ollama_images_ok"
   }
 
   Compose @("config")

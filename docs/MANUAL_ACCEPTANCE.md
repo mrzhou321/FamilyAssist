@@ -21,7 +21,7 @@ After completing each section, open `/admin/settings`, tick the matching accepta
 - Run `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull`.
 - On Windows, if Docker Desktop is running but the script reports `permission denied while trying to connect to the docker API`, confirm the current user can access the Docker named pipe, usually by joining the `docker-users` group and logging in again. If the error only mentions `C:\Users\<user>\.docker\config.json`, run from a terminal that can read that directory or set `DOCKER_CONFIG` to a writable temporary folder.
 - In CI jobs that do not provide a Docker daemon, use `-SkipIfDockerUnavailable` or set `DEPLOY_SMOKE_SKIP_DOCKER_UNAVAILABLE=1` so this optional deployment smoke is reported as skipped instead of failed.
-- For full deployment validation, run `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1` and allow model pulls to finish.
+- For full deployment validation, run `powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1` and allow Docker Hub image pulls plus Ollama model pulls to finish; on slow networks use `-ModelPullTimeoutMinutes 90` or higher. If Docker Hub auth token/image pulls return EOF or timeout, keep the failure output and use `-SkipModelPull` to prove the project containers, database, backend, nginx, and same-origin routing.
 - Confirm `/mobile/`, `/admin/`, `/health`, and same-origin `/api` are reachable through nginx.
 
 ## LLM Quality Sampling
