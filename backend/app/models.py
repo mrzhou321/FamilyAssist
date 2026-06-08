@@ -61,6 +61,7 @@ class Note(Base):
     member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id", ondelete="SET NULL"))
     content: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[NoteSource] = mapped_column(SqlEnum(NoteSource, name="note_source"), nullable=False)
+    photo_thumbnail: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="understanding")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

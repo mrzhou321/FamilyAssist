@@ -6,6 +6,7 @@ interface Note {
   member_id: number | null
   content: string
   source: 'text' | 'voice' | 'photo'
+  photo_thumbnail?: string | null
   status: string
   created_at: string
 }
@@ -295,6 +296,13 @@ export default function Review() {
                     </span>
                   </div>
                   <p className="line-clamp-2 text-sm leading-6 text-[var(--color-fg)]">{note.content}</p>
+                  {note.photo_thumbnail ? (
+                    <img
+                      src={note.photo_thumbnail}
+                      alt="照片速记缩略图"
+                      className="mt-2 h-16 w-16 rounded-[var(--radius-sm)] object-cover"
+                    />
+                  ) : null}
                 </button>
               )
             })}
@@ -316,7 +324,14 @@ export default function Review() {
                   </p>
                 </div>
                 <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-warm)] p-4 text-[var(--color-fg)]">
-                  {candidate.original}
+                  {selectedNote.photo_thumbnail ? (
+                    <img
+                      src={selectedNote.photo_thumbnail}
+                      alt="原始照片速记缩略图"
+                      className="mb-3 h-32 w-32 rounded-[var(--radius-sm)] object-cover"
+                    />
+                  ) : null}
+                  <p className="whitespace-pre-wrap">{candidate.original}</p>
                 </div>
               </section>
 

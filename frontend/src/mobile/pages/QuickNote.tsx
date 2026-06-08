@@ -14,6 +14,7 @@ interface PhotoCapture {
   capturedAt: string
   noteText: string
   previewUrl: string
+  thumbnail: string
 }
 
 interface SpeechRecognitionAlternativeLike {
@@ -120,6 +121,35 @@ export default function QuickNote() {
     return `拍照记录：${file.name}\n照片信息：${mediaType}，${formatPhotoSize(file.size)}，拍摄/选择时间 ${capturedAt}`
   }
 
+  function buildPhotoThumbnail(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const image = new Image()
+      const objectUrl = URL.createObjectURL(file)
+      image.onload = () => {
+        try {
+          const maxWidth = 360
+          const scale = Math.min(1, maxWidth / image.width)
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.max(1, Math.round(image.width * scale))
+          canvas.height = Math.max(1, Math.round(image.height * scale))
+          const context = canvas.getContext('2d')
+          if (!context) throw new Error('canvas unavailable')
+          context.drawImage(image, 0, 0, canvas.width, canvas.height)
+          resolve(canvas.toDataURL('image/jpeg', 0.72))
+        } catch (error) {
+          reject(error)
+        } finally {
+          URL.revokeObjectURL(objectUrl)
+        }
+      }
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error('image decode failed'))
+      }
+      image.src = objectUrl
+    })
+  }
+
   function handleVoiceInput() {
     if (isListening) {
       recognitionRef.current?.stop()
@@ -162,10 +192,16 @@ export default function QuickNote() {
     recognition.start()
   }
 
-  function handlePhotoCapture(file: File | undefined) {
+  async function handlePhotoCapture(file: File | undefined) {
     if (!file) return
     if (photoCapture?.previewUrl) URL.revokeObjectURL(photoCapture.previewUrl)
     const noteText = buildPhotoNoteText(file)
+    let thumbnail = ''
+    try {
+      thumbnail = await buildPhotoThumbnail(file)
+    } catch {
+      setMessage('照片预览已加入，但缩略图保存失败，可先补一句文字说明')
+    }
     setPhotoCapture({
       name: file.name,
       type: file.type || 'image/*',
@@ -173,6 +209,7 @@ export default function QuickNote() {
       capturedAt: new Date(file.lastModified || Date.now()).toISOString(),
       noteText,
       previewUrl: URL.createObjectURL(file),
+      thumbnail,
     })
     setText((current) => {
       const previousText = photoCapture?.noteText
@@ -192,7 +229,12 @@ export default function QuickNote() {
       return
     }
     createNote(
-      { content: trimmedText, member_id: memberId, source },
+      {
+        content: trimmedText,
+        member_id: memberId,
+        source,
+        photo_thumbnail: source === 'photo' ? photoCapture?.thumbnail || null : null,
+      },
       {
         onSuccess: () => {
           setText('')

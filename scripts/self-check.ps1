@@ -346,6 +346,9 @@ Step "Frontend offline cache wiring" {
   if ($quickNote.IndexOf("src={photoCapture.previewUrl}") -lt 0 -or $quickNote.IndexOf("object-cover") -lt 0) {
     throw "Quick note photo capture preview image is missing"
   }
+  if ($quickNote.IndexOf("buildPhotoThumbnail") -lt 0 -or $quickNote.IndexOf("canvas.toDataURL('image/jpeg'") -lt 0 -or $quickNote.IndexOf("photo_thumbnail: source === 'photo'") -lt 0) {
+    throw "Quick note photo capture should persist a compressed thumbnail with the note"
+  }
   if ($quickNote.IndexOf("setPhotoCapture(null)") -lt 0 -or $quickNote.IndexOf("photoInputRef.current.value = ''") -lt 0) {
     throw "Quick note does not clear photo capture state after submit or recapture"
   }
@@ -390,8 +393,16 @@ Step "Frontend offline cache wiring" {
   if ($noteQueue.IndexOf("error instanceof ApiError") -lt 0 -or $noteQueue.IndexOf("[401, 403].includes(error.status)") -lt 0 -or $noteQueue.IndexOf("await removeQueuedNote(note.queue_id)") -lt 0) {
     throw "Offline note sync should discard notes that can never sync under the current member auth"
   }
+  if ($noteQueue.IndexOf("photo_thumbnail: note.photo_thumbnail") -lt 0) {
+    throw "Offline note sync should preserve photo thumbnails"
+  }
   $api = Get-Content "$root\frontend\src\shared\api\index.ts" -Raw -Encoding UTF8
   $hooks = Get-Content "$root\frontend\src\shared\hooks\index.ts" -Raw -Encoding UTF8
+  $types = Get-Content "$root\frontend\src\shared\types\index.ts" -Raw -Encoding UTF8
+  $review = Get-Content "$root\frontend\src\admin\pages\Review.tsx" -Raw -Encoding UTF8
+  if ($types.IndexOf("photo_thumbnail?: string | null") -lt 0 -or $review.IndexOf("selectedNote.photo_thumbnail") -lt 0 -or $review.IndexOf("照片速记缩略图") -lt 0) {
+    throw "Admin review should display persisted photo thumbnails"
+  }
   if ($api.IndexOf("class ApiError") -lt 0 -or $api.IndexOf("throw new ApiError(res.status, res.statusText)") -lt 0) {
     throw "API wrapper does not expose HTTP status for offline queue decisions"
   }
@@ -595,6 +606,9 @@ Step "Frontend mobile viewport smoke script" {
   $mobileSmoke = Get-Content $mobileSmokePath -Raw -Encoding UTF8
   if ($mobileSmoke.IndexOf("--headless=new") -lt 0 -or $mobileSmoke.IndexOf("--window-size=390,844") -lt 0 -or $mobileSmoke.IndexOf("/mobile/pair") -lt 0 -or $mobileSmoke.IndexOf("manifest.webmanifest") -lt 0) {
     throw "Mobile viewport smoke script should use a real mobile-sized browser and cover PWA routes"
+  }
+  if ($mobileSmoke.IndexOf("Invoke-BrowserDomWithRetry") -lt 0 -or $mobileSmoke.IndexOf("WaitForExit(45000)") -lt 0) {
+    throw "Mobile viewport smoke script should tolerate slow Windows browser cold starts"
   }
   if ($mobileSmoke.IndexOf("SkipIfBrowserUnavailable") -lt 0 -or $mobileSmoke.IndexOf("mobile_viewport_smoke_skipped_browser_unavailable") -lt 0) {
     throw "Mobile viewport smoke script needs an explicit browser-unavailable skip path"
@@ -1682,6 +1696,28 @@ assert client.post("/api/notes", json={"member_id": 1, "content": "anonymous not
 assert client.get("/api/memories?member_id=1").status_code == 401
 assert client.get("/api/recommendations?member_id=1").status_code == 401
 assert client.post("/api/pairing/members/1").status_code == 401
+photo_thumbnail = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD"
+photo_note = client.post(
+    "/api/notes",
+    json={
+        "member_id": 1,
+        "content": "拍照记录：爸爸今天午餐偏油",
+        "source": "photo",
+        "photo_thumbnail": photo_thumbnail,
+    },
+    headers=admin_headers,
+)
+assert photo_note.status_code == 202
+assert photo_note.json()["photo_thumbnail"] == photo_thumbnail
+photo_note_id = photo_note.json()["id"]
+assert client.get(f"/api/notes/{photo_note_id}", headers=admin_headers).json()["photo_thumbnail"] == photo_thumbnail
+assert any(note["id"] == photo_note_id and note["photo_thumbnail"] == photo_thumbnail for note in client.get("/api/notes?member_id=1", headers=admin_headers).json())
+bad_photo_note = client.post(
+    "/api/notes",
+    json={"member_id": 1, "content": "bad photo", "source": "photo", "photo_thumbnail": "https://example.com/photo.jpg"},
+    headers=admin_headers,
+)
+assert bad_photo_note.status_code == 422
 assert client.post(
     "/api/notes",
     json={"member_id": 999999, "content": "invalid member note", "source": "text"},
@@ -2269,6 +2305,10 @@ Step "Backend migration smoke" {
   $eventMigration = Get-Content "$root\backend\alembic\versions\0004_add_recommendation_events.py" -Raw -Encoding UTF8
   if ($eventMigration -notmatch "recommendation_events" -or $eventMigration -notmatch "memory_ids" -or $eventMigration -notmatch "ix_recommendation_events_member_created") {
     throw "Recommendation event migration is incomplete"
+  }
+  $photoMigration = Get-Content "$root\backend\alembic\versions\0006_add_note_photo_thumbnail.py" -Raw -Encoding UTF8
+  if ($photoMigration -notmatch "photo_thumbnail" -or $photoMigration -notmatch 'down_revision = "0005"') {
+    throw "Note photo thumbnail migration is incomplete"
   }
   Write-Host "backend_migration_smoke_ok"
 }

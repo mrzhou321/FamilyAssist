@@ -228,6 +228,7 @@ class DatabaseDataStore:
             member_id=note.member_id,
             content=note.content,
             source=note.source.value,
+            photo_thumbnail=note.photo_thumbnail,
             status=note.status,
             created_at=note.created_at,
         )
@@ -323,6 +324,7 @@ class DatabaseDataStore:
             member_id=payload.member_id,
             content=payload.content,
             source=models.NoteSource(payload.source.value),
+            photo_thumbnail=payload.photo_thumbnail,
             status="understanding",
         )
         self.session.add(note)

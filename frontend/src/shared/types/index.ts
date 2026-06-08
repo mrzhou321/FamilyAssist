@@ -31,11 +31,12 @@ export interface Note {
   member_id: number | null
   content: string
   source: 'text' | 'voice' | 'photo'
+  photo_thumbnail?: string | null
   status: string
   created_at: string
 }
 
-export type NoteCreatePayload = Pick<Note, 'member_id' | 'content' | 'source'>
+export type NoteCreatePayload = Pick<Note, 'member_id' | 'content' | 'source' | 'photo_thumbnail'>
 
 export interface Memory {
   id: number

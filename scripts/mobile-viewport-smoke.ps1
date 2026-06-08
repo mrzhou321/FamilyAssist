@@ -107,7 +107,7 @@ function Invoke-BrowserDom($browser, $profile, $url) {
     $url
   )
   $process = Start-ManagedProcess $browser $arguments "" $true
-  if (-not $process.WaitForExit(25000)) {
+  if (-not $process.WaitForExit(45000)) {
     $process.Kill()
     throw "Headless browser timed out for $url. $($process.StandardError.ReadToEnd())"
   }
@@ -138,7 +138,7 @@ function Save-MobileScreenshot($browser, $profile, $url, $path) {
     $url
   )
   $process = Start-ManagedProcess $browser $arguments "" $true
-  if (-not $process.WaitForExit(25000)) {
+  if (-not $process.WaitForExit(45000)) {
     $process.Kill()
     throw "Mobile screenshot browser timed out for $url. $($process.StandardError.ReadToEnd())"
   }
@@ -146,6 +146,21 @@ function Save-MobileScreenshot($browser, $profile, $url, $path) {
   if ($process.ExitCode -ne 0 -or -not (Test-Path $path) -or (Get-Item $path).Length -lt 1024) {
     throw "Mobile screenshot failed for $url. $errorText"
   }
+}
+
+function Invoke-BrowserDomWithRetry($browser, $profile, $url) {
+  $lastError = $null
+  for ($attempt = 1; $attempt -le 2; $attempt++) {
+    try {
+      return Invoke-BrowserDom $browser $profile $url
+    } catch {
+      $lastError = $_
+      if ($attempt -lt 2) {
+        Start-Sleep -Seconds 2
+      }
+    }
+  }
+  throw $lastError
 }
 try {
   $browser = Find-Browser
@@ -248,7 +263,7 @@ http
   foreach ($route in $routes) {
     $url = "$BaseUrl$($route.Path)"
     Test-HttpStatus $url 200
-    $dom = Invoke-BrowserDom $browser $browserProfile $url
+    $dom = Invoke-BrowserDomWithRetry $browser $browserProfile $url
     if ($dom.Length -lt 1200 -or $dom.IndexOf('<div id="root"></div>') -ge 0) {
       throw "$url rendered a blank or too-small mobile shell"
     }

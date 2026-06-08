@@ -84,6 +84,7 @@ export async function syncQueuedNotes(): Promise<number> {
         member_id: note.member_id,
         content: note.content,
         source: note.source,
+        photo_thumbnail: note.photo_thumbnail,
       })
       await removeQueuedNote(note.queue_id)
       synced += 1

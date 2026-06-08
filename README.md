@@ -91,6 +91,56 @@ docker compose up --build
 5. **有人工审核入口**
    LLM 抽取结果不会直接变成不可控黑盒，管理员可以审核、编辑、删除。
 
+## 自测与验收
+
+完整回归自检：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\self-check.ps1
+```
+
+移动端 PWA 视口烟测，`scripts\mobile-viewport-smoke.ps1` 会用真实 headless Chrome/Edge 手机视口检查关键页面：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\mobile-viewport-smoke.ps1
+```
+
+LLM 抽取质量基线，默认 deterministic 模式会跑 20 条代表性速记样本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1
+```
+
+使用真实 Provider 抽样并保存 JSON 证据：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\llm-quality-sample.ps1 -Mode provider -OutputPath docs\llm-quality-provider-sample.json
+```
+
+云端 Provider 会发送速记文本到第三方 API。使用 `-Provider deepseek` 或 `-Provider qwen` 时，请先在设置页确认数据出境风险，再加 `-AllowCloud`。
+
+Docker Compose 烟测：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1
+```
+
+慢网络或仅验证项目容器链路时，可先跳过 Ollama 模型拉取：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull
+```
+
+无 Docker daemon 的 CI 环境可以显式跳过这项外部烟测：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 -SkipModelPull -SkipIfDockerUnavailable
+```
+
+完整烟测会先从 Docker Hub 拉取 `ollama/ollama` 镜像，再由 `ollama-models` 拉取默认生成模型和向量模型；慢网络下可用 `-ModelPullTimeoutMinutes 90` 放宽镜像拉取等待时间。若 Docker Hub token 或镜像拉取网络返回 EOF/timeout，先用 `-SkipModelPull` 跑快速部署烟测确认项目镜像、数据库、后端和 nginx 链路。
+
+Android/iOS 真机权限仍需人工验收：语音输入、相机捕获、二维码扫描的浏览器权限弹窗无法完全由桌面自动化证明。可按 `docs\MANUAL_ACCEPTANCE.md` 操作，并在 `/admin/settings` 导出验收 JSON 证据。
+
 ## 数据与备份
 
 PostgreSQL 数据存放在 Docker named volume `postgres_data`，Ollama 模型存放在 `ollama_data`。项目不提供云备份，升级、迁移或破坏性维护前请自行备份数据库。

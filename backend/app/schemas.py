@@ -17,6 +17,17 @@ def _strip_optional_non_blank(value: str | None) -> str | None:
     return _strip_non_blank(value)
 
 
+def _validate_optional_photo_thumbnail(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if not stripped.startswith("data:image/") or ";base64," not in stripped:
+        raise ValueError("photo_thumbnail must be an image data URL")
+    return stripped
+
+
 class HealthStatus(BaseModel):
     status: str = "ok"
     service: str = "family-assister-backend"
@@ -84,8 +95,10 @@ class NoteCreate(BaseModel):
     member_id: int | None = None
     content: str = Field(min_length=1)
     source: NoteSource = NoteSource.text
+    photo_thumbnail: str | None = Field(default=None, max_length=150_000)
 
     _strip_content = field_validator("content")(_strip_non_blank)
+    _validate_photo_thumbnail = field_validator("photo_thumbnail")(_validate_optional_photo_thumbnail)
 
 
 class Note(BaseModel):
@@ -93,6 +106,7 @@ class Note(BaseModel):
     member_id: int | None = None
     content: str
     source: NoteSource
+    photo_thumbnail: str | None = None
     status: str = "understanding"
     created_at: datetime
 
