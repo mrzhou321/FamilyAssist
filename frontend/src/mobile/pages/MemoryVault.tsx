@@ -55,6 +55,7 @@ export default function MemoryVault() {
 
   async function openSourceNote(sourceNoteId: number) {
     if (!isPaired) return
+    setSourceNote(null)
     try {
       const note = await api.get<Note>(`/notes/${sourceNoteId}`)
       setSourceNote(note)

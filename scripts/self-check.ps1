@@ -299,6 +299,9 @@ Step "Frontend offline cache wiring" {
   if ($todayAdvice.IndexOf("getCachedNotes") -lt 0 -or $todayAdvice.IndexOf("cachedNotes.find") -lt 0 -or $todayAdvice.IndexOf("setSourceNote(cachedNote)") -lt 0) {
     throw "Today advice source-note tracing should fall back to cached notes"
   }
+  if ($todayAdvice.IndexOf("setSourceNote(null)") -lt 0) {
+    throw "Today advice source-note tracing should clear stale source evidence before loading another note"
+  }
   if ($todayAdvice.IndexOf("sourceNote.photo_thumbnail") -lt 0 -or $todayAdvice.IndexOf("原始照片速记缩略图") -lt 0 -or $todayAdvice.IndexOf("whitespace-pre-wrap") -lt 0) {
     throw "Today advice source-note tracing should display photo evidence thumbnails"
   }
@@ -328,6 +331,9 @@ Step "Frontend offline cache wiring" {
   }
   if ($memoryVault.IndexOf("openSourceNote") -lt 0 -or $memoryVault.IndexOf("api.get<Note>") -lt 0 -or $memoryVault.IndexOf('/notes/${sourceNoteId}') -lt 0 -or $memoryVault.IndexOf("getCachedNotes(memberId)") -lt 0) {
     throw "Memory vault should let members open the original source note for each memory"
+  }
+  if ($memoryVault.IndexOf("setSourceNote(null)") -lt 0) {
+    throw "Memory vault should clear stale source evidence before loading another note"
   }
   if ($memoryVault.IndexOf("sourceNote.photo_thumbnail") -lt 0 -or $memoryVault.IndexOf("记忆来源照片缩略图") -lt 0) {
     throw "Memory vault source-note tracing should display photo thumbnails"

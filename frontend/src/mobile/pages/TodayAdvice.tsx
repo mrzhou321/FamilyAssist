@@ -152,6 +152,7 @@ export default function TodayAdvice() {
       setMessage('请先配对设备，再查看建议依据')
       return
     }
+    setSourceNote(null)
     if (!ref.source_note_id) {
       setMessage('这条依据来自种子记忆，暂无原始速记')
       return
